@@ -5,7 +5,6 @@ functionality for extracting human pose landmarks from images.
 """
 
 from typing import Optional, List, Dict, Any
-import os
 import urllib.request
 from pathlib import Path
 import mediapipe as mp

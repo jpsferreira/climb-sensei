@@ -4,22 +4,15 @@ This module provides functions for drawing pose landmarks and
 biomechanical data on images for visualization purposes.
 """
 
-from typing import Any, Tuple, Optional
+from typing import Any, Tuple, Optional, FrozenSet
 import cv2
 import numpy as np
-from mediapipe.tasks.python import vision
+
+from .config import FULL_POSE_CONNECTIONS
 
 
-# MediaPipe pose landmark connections
-_POSE_CONNECTIONS = frozenset([
-    (0, 1), (0, 4), (1, 2), (2, 3), (3, 7), (4, 5),
-    (5, 6), (6, 8), (9, 10), (11, 12), (11, 13),
-    (11, 23), (12, 14), (12, 24), (13, 15), (14, 16),
-    (15, 17), (15, 19), (15, 21), (16, 18), (16, 20),
-    (16, 22), (17, 19), (18, 20), (23, 24), (23, 25),
-    (24, 26), (25, 27), (26, 28), (27, 29), (27, 31),
-    (28, 30), (28, 32), (29, 31), (30, 32)
-])
+# Default MediaPipe pose landmark connections (including head)
+_POSE_CONNECTIONS = FULL_POSE_CONNECTIONS
 
 
 def draw_pose_landmarks(
@@ -28,7 +21,9 @@ def draw_pose_landmarks(
     landmark_color: Tuple[int, int, int] = (0, 255, 0),
     connection_color: Tuple[int, int, int] = (255, 0, 0),
     thickness: int = 2,
-    circle_radius: int = 4
+    circle_radius: int = 4,
+    connections: Optional[FrozenSet[Tuple[int, int]]] = None,
+    landmarks_to_draw: Optional[FrozenSet[int]] = None
 ) -> np.ndarray:
     """Draw pose landmarks and connections on an image.
     
@@ -42,21 +37,34 @@ def draw_pose_landmarks(
         connection_color: BGR color tuple for connection lines (default: red).
         thickness: Line thickness in pixels (default: 2).
         circle_radius: Landmark circle radius in pixels (default: 4).
+        connections: Optional set of (start_idx, end_idx) tuples defining which
+                    landmarks to connect. If None, uses default full pose connections.
+        landmarks_to_draw: Optional set of landmark indices to draw. If None, draws all.
     
     Returns:
         New image with landmarks drawn (BGR format).
     
     Example:
+        >>> from climb_sensei.config import CLIMBING_CONNECTIONS, CLIMBING_LANDMARKS
         >>> with PoseEngine() as engine:
         ...     results = engine.process(frame)
         ...     if results:
-        ...         annotated_frame = draw_pose_landmarks(frame, results)
+        ...         # Draw only climbing-relevant landmarks (no head)
+        ...         annotated_frame = draw_pose_landmarks(
+        ...             frame, results,
+        ...             connections=CLIMBING_CONNECTIONS,
+        ...             landmarks_to_draw=CLIMBING_LANDMARKS
+        ...         )
     """
     # Create a copy to avoid modifying the original
     annotated_image = image.copy()
     
     if not results or not results.pose_landmarks:
         return annotated_image
+    
+    # Use default connections if none provided
+    if connections is None:
+        connections = _POSE_CONNECTIONS
     
     # Get image dimensions
     h, w = image.shape[:2]
@@ -72,7 +80,7 @@ def draw_pose_landmarks(
         landmark_points.append((x, y))
     
     # Draw connections
-    for connection in _POSE_CONNECTIONS:
+    for connection in connections:
         start_idx, end_idx = connection
         if start_idx < len(landmark_points) and end_idx < len(landmark_points):
             start_point = landmark_points[start_idx]
@@ -80,8 +88,10 @@ def draw_pose_landmarks(
             cv2.line(annotated_image, start_point, end_point, connection_color, thickness)
     
     # Draw landmarks
-    for point in landmark_points:
-        cv2.circle(annotated_image, point, circle_radius, landmark_color, -1)
+    for idx, point in enumerate(landmark_points):
+        # Only draw if landmark is in the set to draw (or if no filter is specified)
+        if landmarks_to_draw is None or idx in landmarks_to_draw:
+            cv2.circle(annotated_image, point, circle_radius, landmark_color, -1)
     
     return annotated_image
 
@@ -187,3 +197,100 @@ def draw_distance_line(
         )
     
     return annotated_image
+
+
+def draw_metrics_overlay(
+    image: np.ndarray,
+    current_metrics: Optional[dict] = None,
+    cumulative_metrics: Optional[dict] = None,
+    font_scale: float = 0.6,
+    thickness: int = 2,
+    bg_alpha: float = 0.7
+) -> np.ndarray:
+    """Draw climbing metrics overlay on image.
+    
+    Args:
+        image: Input image in BGR format (will not be modified).
+        current_metrics: Dictionary of current frame metrics.
+        cumulative_metrics: Dictionary of cumulative/average metrics.
+        font_scale: Font scale factor (default: 0.6).
+        thickness: Text thickness in pixels (default: 2).
+        bg_alpha: Background transparency (0.0-1.0, default: 0.7).
+    
+    Returns:
+        New image with metrics overlay drawn (BGR format).
+    """
+    annotated_image = image.copy()
+    h, w = image.shape[:2]
+    
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    line_height = int(25 * font_scale)
+    padding = 10
+    
+    # Prepare text lines
+    lines = []
+    
+    if current_metrics:
+        lines.append(("CURRENT FRAME", (0, 255, 255)))  # Yellow
+        lines.append((f"Frame: {current_metrics.get('frame', 0)}", (255, 255, 255)))
+        lines.append((f"L Elbow: {current_metrics.get('left_elbow_angle', 0):.1f}°", (100, 255, 100)))
+        lines.append((f"R Elbow: {current_metrics.get('right_elbow_angle', 0):.1f}°", (100, 255, 100)))
+        lines.append((f"L Knee: {current_metrics.get('left_knee_angle', 0):.1f}°", (100, 200, 255)))
+        lines.append((f"R Knee: {current_metrics.get('right_knee_angle', 0):.1f}°", (100, 200, 255)))
+        lines.append((f"Max Reach: {current_metrics.get('max_reach', 0):.3f}", (255, 150, 100)))
+        
+        # Lock-off indicators
+        if current_metrics.get('left_lock_off'):
+            lines.append(("L LOCK-OFF", (0, 0, 255)))
+        if current_metrics.get('right_lock_off'):
+            lines.append(("R LOCK-OFF", (0, 0, 255)))
+    
+    if cumulative_metrics and lines:
+        lines.append(("", (255, 255, 255)))  # Spacer
+    
+    if cumulative_metrics:
+        lines.append(("AVERAGES", (0, 255, 255)))  # Yellow
+        lines.append((f"L Elbow: {cumulative_metrics.get('avg_left_elbow', 0):.1f}°", (150, 255, 150)))
+        lines.append((f"R Elbow: {cumulative_metrics.get('avg_right_elbow', 0):.1f}°", (150, 255, 150)))
+        lines.append((f"Max Reach: {cumulative_metrics.get('avg_max_reach', 0):.3f}", (255, 180, 150)))
+        lines.append((f"Extension: {cumulative_metrics.get('avg_extension', 0):.3f}", (200, 200, 255)))
+    
+    if not lines:
+        return annotated_image
+    
+    # Calculate overlay dimensions
+    max_text_width = 0
+    for text, _ in lines:
+        if text:
+            (text_w, text_h), _ = cv2.getTextSize(text, font, font_scale, thickness)
+            max_text_width = max(max_text_width, text_w)
+    
+    overlay_width = max_text_width + 2 * padding
+    overlay_height = len(lines) * line_height + 2 * padding
+    
+    # Create semi-transparent background
+    overlay = annotated_image.copy()
+    x1, y1 = padding, padding
+    x2, y2 = x1 + overlay_width, y1 + overlay_height
+    
+    cv2.rectangle(overlay, (x1, y1), (x2, y2), (0, 0, 0), -1)
+    cv2.addWeighted(overlay, bg_alpha, annotated_image, 1 - bg_alpha, 0, annotated_image)
+    
+    # Draw text
+    y_offset = y1 + padding + line_height
+    for text, color in lines:
+        if text:  # Skip empty lines for spacing
+            cv2.putText(
+                annotated_image,
+                text,
+                (x1 + padding, y_offset),
+                font,
+                font_scale,
+                color,
+                thickness,
+                cv2.LINE_AA
+            )
+        y_offset += line_height
+    
+    return annotated_image
+

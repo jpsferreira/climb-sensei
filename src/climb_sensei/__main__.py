@@ -8,8 +8,6 @@ Run with: python -m climb_sensei
 """
 
 import sys
-import cv2
-import numpy as np
 from climb_sensei import (
     calculate_joint_angle,
     calculate_reach_distance,
@@ -19,24 +17,24 @@ from climb_sensei import (
 def demo_biomechanics() -> None:
     """Demonstrate biomechanics calculations with sample data."""
     print("\n=== Biomechanics Demo ===")
-    
+
     # Sample joint coordinates (normalized 0-1)
     shoulder = (0.4, 0.3)
     elbow = (0.5, 0.5)
     wrist = (0.6, 0.6)
-    
+
     # Calculate elbow angle
     angle = calculate_joint_angle(shoulder, elbow, wrist)
     print(f"Elbow angle: {angle:.2f}°")
-    
+
     # Calculate reach distance from shoulder to wrist
     reach = calculate_reach_distance(shoulder, wrist)
     print(f"Reach distance (normalized): {reach:.4f}")
-    
+
     # Sample landmark for a climbing pose
     hip = (0.5, 0.6)
     hand = (0.7, 0.2)
-    
+
     # Calculate reach from hip to hand (common climbing metric)
     climbing_reach = calculate_reach_distance(hip, hand)
     print(f"Climbing reach (normalized): {climbing_reach:.4f}")
@@ -50,7 +48,7 @@ def demo_pose_detection() -> None:
     print("  • 33 body landmark points (head, shoulders, arms, legs, etc.)")
     print("  • 3D coordinates (x, y, z) with visibility scores")
     print("  • Support for images, videos, and webcam feeds")
-    
+
     print("\nExample usage:")
     print("  from climb_sensei import PoseEngine, VideoReader")
     print("  ")
@@ -62,11 +60,11 @@ def demo_pose_detection() -> None:
     print("              if results:")
     print("                  landmarks = engine.extract_landmarks(results)")
     print("                  # Process landmarks...")
-    
+
     print("\n✓ Biomechanics calculations work correctly")
     print("✓ Video I/O utilities are ready")
     print("✓ Visualization tools are available")
-    
+
     print("\nNote: Pose detection requires the MediaPipe model file.")
     print("      The model would normally be downloaded automatically,")
     print("      but external downloads are restricted in this environment.")
@@ -79,7 +77,7 @@ def demo_visualization() -> None:
     print("  • draw_pose_landmarks() - Draw detected pose skeleton")
     print("  • draw_angle_annotation() - Annotate joint angles")
     print("  • draw_distance_line() - Draw distance measurements")
-    
+
     print("\nExample visualization pipeline:")
     print("  from climb_sensei import draw_pose_landmarks, draw_angle_annotation")
     print("  ")
@@ -91,10 +89,10 @@ def demo_visualization() -> None:
 def demo_advanced_biomechanics() -> None:
     """Demonstrate advanced biomechanics calculations."""
     print("\n=== Advanced Biomechanics Demo ===")
-    
+
     # Demonstrate center of mass calculation
     from climb_sensei.biomechanics import calculate_center_of_mass
-    
+
     # Sample body points
     points = [
         (0.5, 0.3),  # head
@@ -103,26 +101,28 @@ def demo_advanced_biomechanics() -> None:
         (0.4, 0.9),  # left foot
         (0.6, 0.9),  # right foot
     ]
-    
+
     # Calculate center of mass (equal weights)
     center = calculate_center_of_mass(points)
     print(f"Center of mass (equal weights): ({center[0]:.3f}, {center[1]:.3f})")
-    
+
     # Calculate with weighted points (torso has more mass)
     weights = [1.0, 3.0, 2.0, 1.0, 1.0]
     weighted_center = calculate_center_of_mass(points, weights)
-    print(f"Center of mass (weighted): ({weighted_center[0]:.3f}, {weighted_center[1]:.3f})")
-    
+    print(
+        f"Center of mass (weighted): ({weighted_center[0]:.3f}, {weighted_center[1]:.3f})"
+    )
+
     # Demonstrate angle calculations for different climbing positions
     print("\nClimbing position analysis:")
-    
+
     # High reach position
     shoulder = (0.5, 0.4)
     elbow = (0.6, 0.3)
     wrist = (0.7, 0.2)
     high_reach_angle = calculate_joint_angle(shoulder, elbow, wrist)
     print(f"  High reach elbow angle: {high_reach_angle:.1f}°")
-    
+
     # Tucked position
     shoulder = (0.5, 0.4)
     elbow = (0.4, 0.5)
@@ -134,21 +134,21 @@ def demo_advanced_biomechanics() -> None:
 def main() -> None:
     """Main demo function."""
     print("=" * 60)
-    print("climb-sensei: Professional Pose Estimation for Climbing")
+    print("climb-sensei: A Pose Estimation for Climbing")
     print("=" * 60)
-    
+
     # Run biomechanics demo
     demo_biomechanics()
-    
+
     # Run advanced biomechanics demo
     demo_advanced_biomechanics()
-    
+
     # Show pose detection capabilities
     demo_pose_detection()
-    
+
     # Show visualization capabilities
     demo_visualization()
-    
+
     print("\n" + "=" * 60)
     print("Demo completed successfully!")
     print("=" * 60)
@@ -166,7 +166,7 @@ def main() -> None:
     print("\nAll code includes:")
     print("  ✓ Type hints on all functions")
     print("  ✓ Comprehensive docstrings")
-    print("  ✓ Clean, professional code style")
+    print("  ✓ Clean code style")
     print("  ✓ Unit tests (run with: pytest tests/)")
 
 
