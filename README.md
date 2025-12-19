@@ -29,6 +29,26 @@ uv sync --extra dev
 
 ## Quick Start
 
+### Analyze a Climbing Video
+
+```bash
+# Quick analysis with summary statistics
+python scripts/analyze_climb.py climbing_video.mp4
+
+# Save detailed analysis to JSON
+python scripts/analyze_climb.py climbing_video.mp4 --output analysis.json
+```
+
+### Process Video with Animated Metrics Dashboard
+
+```bash
+# Add animated metrics dashboard to video (6 real-time plots)
+python scripts/process_video_with_metrics.py input.mp4 output.mp4
+
+# Position dashboard on left or bottom
+python scripts/process_video_with_metrics.py input.mp4 output.mp4 --position left
+```
+
 ### Running the Demo
 
 ```bash
@@ -39,59 +59,59 @@ uv run python -m climb_sensei
 ### Basic Usage
 
 ```python
-from climb_sensei import PoseEngine, VideoReader, calculate_joint_angle
+from climb_sensei import PoseEngine, VideoReader, ClimbingAnalyzer
 
-# Process a video file
+# Analyze climbing performance
+analyzer = ClimbingAnalyzer(window_size=30, fps=30)
+
 with PoseEngine() as engine:
     with VideoReader('climbing_video.mp4') as video:
-        success, frame = video.read()
-        if success:
+        while True:
+            success, frame = video.read()
+            if not success:
+                break
+                
             # Detect pose
             results = engine.process(frame)
             if results:
                 # Extract landmarks
                 landmarks = engine.extract_landmarks(results)
                 
-                # Calculate elbow angle (example)
-                shoulder = (landmarks[12]["x"], landmarks[12]["y"])
-                elbow = (landmarks[14]["x"], landmarks[14]["y"])
-                wrist = (landmarks[16]["x"], landmarks[16]["y"])
-                
-                angle = calculate_joint_angle(shoulder, elbow, wrist)
-                print(f"Elbow angle: {angle:.1f}°")
+                # Analyze frame - get all metrics
+                metrics = analyzer.analyze_frame(landmarks)
+                print(f"Velocity: {metrics['com_velocity']:.4f}")
+                print(f"Stability: {metrics['com_sway']:.4f}")
+                print(f"Progress: {metrics['vertical_progress']:.3f}")
+
+# Get summary statistics
+summary = analyzer.get_summary()
+print(f"Average speed: {summary['avg_velocity']:.4f}")
+print(f"Total vertical progress: {summary['total_vertical_progress']:.3f}")
 ```
 
-### Biomechanics Calculations
+### Climbing Metrics
 
 ```python
-from climb_sensei import calculate_joint_angle, calculate_reach_distance
+from climb_sensei import ClimbingAnalyzer
 
-# Calculate joint angle (in degrees)
-shoulder = (0.4, 0.3)
-elbow = (0.5, 0.5)
-wrist = (0.6, 0.6)
-angle = calculate_joint_angle(shoulder, elbow, wrist)
+analyzer = ClimbingAnalyzer(window_size=30, fps=30)
 
-# Calculate reach distance
-hip = (0.5, 0.6)
-hand = (0.7, 0.2)
-reach = calculate_reach_distance(hip, hand)
-```
+# Analyze each frame
+metrics = analyzer.analyze_frame(landmarks)
 
-### Visualization
+# Available metrics:
+# - hip_height: Current hip position
+# - com_velocity: Movement speed
+# - com_sway: Lateral stability (lower = more stable)
+# - jerk: Movement smoothness (lower = smoother)
+# - body_angle: Lean from vertical
+# - hand_span: Distance between hands
+# - foot_span: Distance between feet
+# - vertical_progress: Height gained from start
 
-```python
-from climb_sensei import draw_pose_landmarks, draw_angle_annotation
-
-# Draw pose skeleton
-annotated_frame = draw_pose_landmarks(frame, results)
-
-# Add angle annotation
-annotated_frame = draw_angle_annotation(
-    annotated_frame, 
-    point=(x, y), 
-    angle=elbow_angle
-)
+# Get complete time-series history
+history = analyzer.get_history()
+# Returns: hip_heights, velocities, sways, jerks, body_angles, hand_spans, foot_spans
 ```
 
 ## Project Structure
