@@ -241,7 +241,7 @@ def process_video(
                         print(f"  Average max reach: {avg_max_reach:.3f}")
 
                 # Final summary
-                print(f"\nProcessing complete!")
+                print("\nProcessing complete!")
                 print(f"Total frames processed: {frame_num}")
                 print(f"Frames with pose detected: {detected_frames}")
                 if frame_num > 0:

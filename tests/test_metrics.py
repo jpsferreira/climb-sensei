@@ -1,7 +1,6 @@
 """Tests for the metrics module."""
 
 import pytest
-import numpy as np
 from climb_sensei.metrics import ClimbingAnalyzer, AdvancedClimbingMetrics
 
 

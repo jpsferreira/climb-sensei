@@ -2,7 +2,6 @@
 
 import pytest
 import numpy as np
-import cv2
 from unittest.mock import Mock
 from climb_sensei.viz import (
     draw_pose_landmarks,

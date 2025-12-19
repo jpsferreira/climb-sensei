@@ -144,7 +144,7 @@ def process_video_with_metrics(
                 print(
                     f"Detected frames: {detected_frames} ({100*detected_frames/frame_num:.1f}%)"
                 )
-                print(f"\nMetrics Summary:")
+                print("\nMetrics Summary:")
                 print(f"  Vertical progress: {summary['total_vertical_progress']:.3f}")
                 print(f"  Average speed: {summary['avg_velocity']:.4f}")
                 print(f"  Average stability (sway): {summary['avg_sway']:.4f}")

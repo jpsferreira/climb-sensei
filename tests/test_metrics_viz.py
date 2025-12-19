@@ -1,8 +1,6 @@
 """Tests for the metrics_viz module."""
 
-import pytest
 import numpy as np
-import cv2
 from climb_sensei.metrics_viz import (
     create_metric_plot,
     create_metrics_dashboard,
