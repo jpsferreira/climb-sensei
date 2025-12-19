@@ -280,17 +280,17 @@ class TestAdvancedClimbingMetrics:
         # When dx=0, arctan2(0, dy) gives 0 or 180 depending on sign
         # For vertical alignment, we expect 0 or 180 degrees
         assert abs(angle) < 1.0 or abs(angle - 180.0) < 1.0 or abs(angle + 180.0) < 1.0
-    
+
     def test_calculate_body_angle_leaning(self):
         """Test body angle when leaning."""
         landmarks = [{"x": 0.5, "y": 0.5, "z": 0.0} for _ in range(33)]
-        
+
         # Shoulders forward of hips (leaning forward)
         landmarks[11] = {"x": 0.3, "y": 0.4, "z": 0.0}  # LEFT_SHOULDER
         landmarks[12] = {"x": 0.3, "y": 0.4, "z": 0.0}  # RIGHT_SHOULDER
         landmarks[23] = {"x": 0.5, "y": 0.6, "z": 0.0}  # LEFT_HIP
         landmarks[24] = {"x": 0.5, "y": 0.6, "z": 0.0}  # RIGHT_HIP
-        
+
         angle = AdvancedClimbingMetrics.calculate_body_angle(landmarks)
         """Test body angle with empty landmarks."""
         angle = AdvancedClimbingMetrics.calculate_body_angle([])

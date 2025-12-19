@@ -36,17 +36,19 @@ def analyze_climb(
         show_progress: Whether to show progress bar
     """
     print(f"Analyzing climb: {input_path}")
-    
+
     # Initialize components
     with VideoReader(input_path) as reader:
-        print(f"Video: {reader.width}x{reader.height} @ {reader.fps} fps, {reader.frame_count} frames")
-        
+        print(
+            f"Video: {reader.width}x{reader.height} @ {reader.fps} fps, {reader.frame_count} frames"
+        )
+
         analyzer = ClimbingAnalyzer(window_size=30, fps=reader.fps)
-        
+
         with PoseEngine() as engine:
             frame_metrics = []
             detected_frames = 0
-            
+
             # Progress bar
             iterator = tqdm(
                 total=reader.frame_count,
@@ -54,42 +56,44 @@ def analyze_climb(
                 unit="frame",
                 disable=not show_progress,
             )
-            
+
             frame_num = 0
             while True:
                 success, frame = reader.read()
                 if not success:
                     break
-                
+
                 frame_num += 1
-                
+
                 # Detect pose
                 results = engine.process(frame)
-                
+
                 if results and results.pose_landmarks:
                     detected_frames += 1
                     landmarks = engine.extract_landmarks(results)
-                    
+
                     # Analyze frame
                     metrics = analyzer.analyze_frame(landmarks)
                     metrics["frame"] = frame_num
                     metrics["timestamp"] = frame_num / reader.fps
                     frame_metrics.append(metrics)
-                
+
                 iterator.update(1)
-            
+
             iterator.close()
-    
+
     # Get summary statistics
     summary = analyzer.get_summary()
-    
-    print("\n" + "="*60)
+
+    print("\n" + "=" * 60)
     print("CLIMBING ANALYSIS SUMMARY")
-    print("="*60)
+    print("=" * 60)
     print(f"Total frames analyzed: {summary['total_frames']}")
     print(f"Detection rate: {100*detected_frames/frame_num:.1f}%")
     print("\nVertical Progression:")
-    print(f"  Total height gained: {summary['total_vertical_progress']:.3f} (normalized)")
+    print(
+        f"  Total height gained: {summary['total_vertical_progress']:.3f} (normalized)"
+    )
     print(f"  Maximum height: {summary['max_height']:.3f}")
     print("\nMovement Speed:")
     print(f"  Average velocity: {summary['avg_velocity']:.4f} units/sec")
@@ -101,11 +105,13 @@ def analyze_climb(
     print(f"  Average jerk: {summary['avg_jerk']:.2f} (lower = smoother)")
     print(f"  Maximum jerk: {summary['max_jerk']:.2f}")
     print("\nBody Positioning:")
-    print(f"  Average body angle: {summary['avg_body_angle']:.1f}° (lean from vertical)")
+    print(
+        f"  Average body angle: {summary['avg_body_angle']:.1f}° (lean from vertical)"
+    )
     print(f"  Average hand span: {summary['avg_hand_span']:.3f}")
     print(f"  Average foot span: {summary['avg_foot_span']:.3f}")
-    print("="*60)
-    
+    print("=" * 60)
+
     # Save to file if requested
     if output_path:
         output_data = {
@@ -113,10 +119,10 @@ def analyze_climb(
             "summary": summary,
             "frame_metrics": frame_metrics,
         }
-        
+
         with open(output_path, "w") as f:
             json.dump(output_data, f, indent=2)
-        
+
         print(f"\nDetailed analysis saved to: {output_path}")
 
 
@@ -126,28 +132,28 @@ def main():
         description="Analyze climbing performance from video",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    
+
     parser.add_argument("input", help="Path to input video file")
-    
+
     parser.add_argument(
         "--output",
         "-o",
         help="Path to save analysis JSON (optional)",
     )
-    
+
     parser.add_argument(
         "--quiet",
         action="store_true",
         help="Suppress progress updates",
     )
-    
+
     args = parser.parse_args()
-    
+
     # Validate input
     if not Path(args.input).exists():
         print(f"Error: Input file not found: {args.input}", file=sys.stderr)
         sys.exit(1)
-    
+
     try:
         analyze_climb(
             args.input,
@@ -157,6 +163,7 @@ def main():
     except Exception as e:
         print(f"Error analyzing climb: {e}", file=sys.stderr)
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 
