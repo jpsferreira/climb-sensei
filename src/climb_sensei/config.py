@@ -240,6 +240,18 @@ class MetricsConfig:
     # An elbow angle less than this indicates a lock-off position
     LOCK_OFF_THRESHOLD_DEGREES = 90
 
+    # Rest position thresholds
+    REST_VELOCITY_THRESHOLD = 0.01  # COM velocity threshold for static positions
+    REST_BODY_ANGLE_THRESHOLD = 15  # Max body angle (degrees) for rest position
+
+    # Movement economy thresholds
+    EFFICIENT_ECONOMY_RATIO = (
+        0.8  # vertical_progress / total_distance (higher = better)
+    )
+
+    # Fatigue detection window (frames)
+    FATIGUE_WINDOW_SIZE = 90  # 3 seconds at 30fps
+
     # Center of mass calculation - body part weights (normalized)
     COM_BODY_WEIGHT = 1.0
 

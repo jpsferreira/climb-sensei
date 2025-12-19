@@ -146,10 +146,19 @@ def process_video_with_metrics(
                 )
                 print("\nMetrics Summary:")
                 print(f"  Vertical progress: {summary['total_vertical_progress']:.3f}")
+                print(f"  Total distance: {summary['total_distance_traveled']:.3f}")
+                print(f"  Movement economy: {summary['avg_movement_economy']:.3f}")
                 print(f"  Average speed: {summary['avg_velocity']:.4f}")
                 print(f"  Average stability (sway): {summary['avg_sway']:.4f}")
                 print(f"  Average smoothness (jerk): {summary['avg_jerk']:.4f}")
                 print(f"  Average body angle: {summary['avg_body_angle']:.1f}°")
+                print(
+                    f"  Lock-offs: {summary['lock_off_count']} ({summary['lock_off_percentage']:.1f}%)"
+                )
+                print(
+                    f"  Rest positions: {summary['rest_count']} ({summary['rest_percentage']:.1f}%)"
+                )
+                print(f"  Fatigue score: {summary['fatigue_score']:.3f}")
                 print("=" * 60)
                 print(f"Output saved to: {output_path}")
 

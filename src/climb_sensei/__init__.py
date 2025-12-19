@@ -6,7 +6,12 @@ extracting pose data, calculating biomechanical metrics, and visualizing results
 
 from climb_sensei.pose_engine import PoseEngine
 from climb_sensei.video_io import VideoReader, VideoWriter
-from climb_sensei.biomechanics import calculate_joint_angle, calculate_reach_distance
+from climb_sensei.biomechanics import (
+    calculate_joint_angle,
+    calculate_reach_distance,
+    calculate_limb_angles,
+    calculate_total_distance_traveled,
+)
 from climb_sensei.viz import draw_pose_landmarks
 from climb_sensei.config import (
     CLIMBING_LANDMARKS,
@@ -34,6 +39,8 @@ __all__ = [
     "VideoWriter",
     "calculate_joint_angle",
     "calculate_reach_distance",
+    "calculate_limb_angles",
+    "calculate_total_distance_traveled",
     "draw_pose_landmarks",
     "CLIMBING_LANDMARKS",
     "CLIMBING_CONNECTIONS",

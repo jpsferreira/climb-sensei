@@ -135,3 +135,174 @@ def calculate_center_of_mass(
     center_y = weighted_y / total_weight
 
     return (center_x, center_y)
+
+
+def calculate_limb_angles(
+    landmarks: list[dict[str, float]], landmark_indices: "LandmarkIndex"
+) -> dict[str, float]:
+    """Calculate joint angles for all major limbs.
+
+    Args:
+        landmarks: List of landmark dictionaries with x, y, z coordinates
+        landmark_indices: LandmarkIndex class with landmark indices
+
+    Returns:
+        Dictionary with joint angles:
+        - left_elbow: Left elbow angle (degrees)
+        - right_elbow: Right elbow angle (degrees)
+        - left_shoulder: Left shoulder angle (degrees)
+        - right_shoulder: Right shoulder angle (degrees)
+        - left_knee: Left knee angle (degrees)
+        - right_knee: Right knee angle (degrees)
+        - left_hip: Left hip angle (degrees)
+        - right_hip: Right hip angle (degrees)
+    """
+    if len(landmarks) < 33:
+        return {}
+
+    angles = {}
+
+    # Elbow angles
+    angles["left_elbow"] = calculate_joint_angle(
+        (
+            landmarks[landmark_indices.LEFT_SHOULDER]["x"],
+            landmarks[landmark_indices.LEFT_SHOULDER]["y"],
+        ),
+        (
+            landmarks[landmark_indices.LEFT_ELBOW]["x"],
+            landmarks[landmark_indices.LEFT_ELBOW]["y"],
+        ),
+        (
+            landmarks[landmark_indices.LEFT_WRIST]["x"],
+            landmarks[landmark_indices.LEFT_WRIST]["y"],
+        ),
+    )
+
+    angles["right_elbow"] = calculate_joint_angle(
+        (
+            landmarks[landmark_indices.RIGHT_SHOULDER]["x"],
+            landmarks[landmark_indices.RIGHT_SHOULDER]["y"],
+        ),
+        (
+            landmarks[landmark_indices.RIGHT_ELBOW]["x"],
+            landmarks[landmark_indices.RIGHT_ELBOW]["y"],
+        ),
+        (
+            landmarks[landmark_indices.RIGHT_WRIST]["x"],
+            landmarks[landmark_indices.RIGHT_WRIST]["y"],
+        ),
+    )
+
+    # Shoulder angles
+    angles["left_shoulder"] = calculate_joint_angle(
+        (
+            landmarks[landmark_indices.LEFT_HIP]["x"],
+            landmarks[landmark_indices.LEFT_HIP]["y"],
+        ),
+        (
+            landmarks[landmark_indices.LEFT_SHOULDER]["x"],
+            landmarks[landmark_indices.LEFT_SHOULDER]["y"],
+        ),
+        (
+            landmarks[landmark_indices.LEFT_ELBOW]["x"],
+            landmarks[landmark_indices.LEFT_ELBOW]["y"],
+        ),
+    )
+
+    angles["right_shoulder"] = calculate_joint_angle(
+        (
+            landmarks[landmark_indices.RIGHT_HIP]["x"],
+            landmarks[landmark_indices.RIGHT_HIP]["y"],
+        ),
+        (
+            landmarks[landmark_indices.RIGHT_SHOULDER]["x"],
+            landmarks[landmark_indices.RIGHT_SHOULDER]["y"],
+        ),
+        (
+            landmarks[landmark_indices.RIGHT_ELBOW]["x"],
+            landmarks[landmark_indices.RIGHT_ELBOW]["y"],
+        ),
+    )
+
+    # Knee angles
+    angles["left_knee"] = calculate_joint_angle(
+        (
+            landmarks[landmark_indices.LEFT_HIP]["x"],
+            landmarks[landmark_indices.LEFT_HIP]["y"],
+        ),
+        (
+            landmarks[landmark_indices.LEFT_KNEE]["x"],
+            landmarks[landmark_indices.LEFT_KNEE]["y"],
+        ),
+        (
+            landmarks[landmark_indices.LEFT_ANKLE]["x"],
+            landmarks[landmark_indices.LEFT_ANKLE]["y"],
+        ),
+    )
+
+    angles["right_knee"] = calculate_joint_angle(
+        (
+            landmarks[landmark_indices.RIGHT_HIP]["x"],
+            landmarks[landmark_indices.RIGHT_HIP]["y"],
+        ),
+        (
+            landmarks[landmark_indices.RIGHT_KNEE]["x"],
+            landmarks[landmark_indices.RIGHT_KNEE]["y"],
+        ),
+        (
+            landmarks[landmark_indices.RIGHT_ANKLE]["x"],
+            landmarks[landmark_indices.RIGHT_ANKLE]["y"],
+        ),
+    )
+
+    # Hip angles
+    angles["left_hip"] = calculate_joint_angle(
+        (
+            landmarks[landmark_indices.LEFT_SHOULDER]["x"],
+            landmarks[landmark_indices.LEFT_SHOULDER]["y"],
+        ),
+        (
+            landmarks[landmark_indices.LEFT_HIP]["x"],
+            landmarks[landmark_indices.LEFT_HIP]["y"],
+        ),
+        (
+            landmarks[landmark_indices.LEFT_KNEE]["x"],
+            landmarks[landmark_indices.LEFT_KNEE]["y"],
+        ),
+    )
+
+    angles["right_hip"] = calculate_joint_angle(
+        (
+            landmarks[landmark_indices.RIGHT_SHOULDER]["x"],
+            landmarks[landmark_indices.RIGHT_SHOULDER]["y"],
+        ),
+        (
+            landmarks[landmark_indices.RIGHT_HIP]["x"],
+            landmarks[landmark_indices.RIGHT_HIP]["y"],
+        ),
+        (
+            landmarks[landmark_indices.RIGHT_KNEE]["x"],
+            landmarks[landmark_indices.RIGHT_KNEE]["y"],
+        ),
+    )
+
+    return angles
+
+
+def calculate_total_distance_traveled(positions: list[Tuple[float, float]]) -> float:
+    """Calculate total distance traveled along a path.
+
+    Args:
+        positions: List of (x, y) positions in chronological order
+
+    Returns:
+        Total distance traveled (sum of all segments)
+    """
+    if len(positions) < 2:
+        return 0.0
+
+    total_distance = 0.0
+    for i in range(1, len(positions)):
+        total_distance += calculate_reach_distance(positions[i - 1], positions[i])
+
+    return total_distance

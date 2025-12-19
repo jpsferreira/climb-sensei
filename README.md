@@ -6,11 +6,12 @@ A Python pose estimation tool for analyzing climbing footage. Extract vertical m
 
 - 🎯 **Pose Detection**: Real-time human pose estimation using MediaPipe with temporal smoothing
 - 📊 **Performance Analysis**: Comprehensive climbing metrics including speed, stability, smoothness, and body positioning
-- 📐 **Biomechanics**: Calculate joint angles, reach distances, and center of mass
+- 🎯 **Efficiency Metrics**: Movement economy, lock-off detection, rest position identification, and fatigue scoring
+- 📐 **Biomechanics**: Calculate joint angles (8 joints), reach distances, and center of mass
 - 📹 **Video Processing**: Easy video I/O with pose overlay and animated metrics dashboards
 - 🎨 **Visualization**: Draw pose landmarks, annotate metrics, and create real-time performance graphs
 - 📈 **Temporal Analysis**: Track metrics over time with jerk calculation, sway detection, and progression tracking
-- ✅ **Well-Tested**: 75% code coverage with 84+ unit tests
+- ✅ **Well-Tested**: 77% code coverage with 107 unit tests
 
 ## Installation
 
@@ -99,7 +100,7 @@ analyzer = ClimbingAnalyzer(window_size=30, fps=30)
 # Analyze each frame
 metrics = analyzer.analyze_frame(landmarks)
 
-# Available metrics:
+# Core Movement Metrics:
 # - hip_height: Current hip position
 # - com_velocity: Movement speed
 # - com_sway: Lateral stability (lower = more stable)
@@ -109,9 +110,22 @@ metrics = analyzer.analyze_frame(landmarks)
 # - foot_span: Distance between feet
 # - vertical_progress: Height gained from start
 
+# Efficiency & Technique:
+# - movement_economy: Vertical progress / total distance (higher = more efficient)
+# - is_lock_off: Static bent-arm position detected (boolean)
+# - left_lock_off, right_lock_off: Per-arm lock-off detection
+# - is_rest_position: Low-stress vertical position (boolean)
+
+# Joint Angles (8 joints):
+# - left_elbow, right_elbow: Elbow flexion angles
+# - left_shoulder, right_shoulder: Shoulder angles
+# - left_knee, right_knee: Knee flexion angles
+# - left_hip, right_hip: Hip angles
+
 # Get complete time-series history
 history = analyzer.get_history()
-# Returns: hip_heights, velocities, sways, jerks, body_angles, hand_spans, foot_spans
+# Returns: hip_heights, velocities, sways, jerks, body_angles, hand_spans, foot_spans,
+#          movement_economies, lock_offs, rest_positions, joint_angles (8 joints)
 ```
 
 ## Project Structure

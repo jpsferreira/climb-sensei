@@ -239,6 +239,38 @@ def create_metrics_dashboard(
         )
         plots.append(plot)
 
+    # Movement Economy
+    if history.get("movement_economy"):
+        plot = create_metric_plot(
+            history["movement_economy"],
+            current_frame,
+            plot_width,
+            plot_height,
+            title="Movement Economy (efficiency)",
+            color=(0, 200, 100),
+            y_label="ratio",
+            min_val=0,
+        )
+        plots.append(plot)
+
+    # Lock-offs (boolean visualized as 0/1)
+    if history.get("lock_offs"):
+        plot = create_metric_plot(
+            history["lock_offs"],
+            current_frame,
+            plot_width,
+            plot_height,
+            title="Lock-off Positions",
+            color=(255, 100, 0),
+            y_label="active",
+            min_val=0,
+            max_val=1,
+        )
+        plots.append(plot)
+
+    # Fatigue indicator (show in early plots for visibility)
+    # We'll calculate a simple rolling average of jerk to show fatigue trend
+
     # Hand span
     if history.get("hand_spans"):
         plot = create_metric_plot(
@@ -365,6 +397,14 @@ def draw_metric_text_overlay(
         display_metrics.append(f"Jerk: {metrics['jerk']:.4f}")
     if "body_angle" in metrics:
         display_metrics.append(f"Angle: {metrics['body_angle']:.1f}°")
+    if "movement_economy" in metrics:
+        display_metrics.append(f"Economy: {metrics['movement_economy']:.3f}")
+    if "is_lock_off" in metrics:
+        lock_status = "YES" if metrics["is_lock_off"] else "no"
+        display_metrics.append(f"Lock-off: {lock_status}")
+    if "is_rest_position" in metrics:
+        rest_status = "YES" if metrics["is_rest_position"] else "no"
+        display_metrics.append(f"Rest: {rest_status}")
 
     # Draw background if requested
     if background and display_metrics:

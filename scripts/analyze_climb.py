@@ -110,6 +110,35 @@ def analyze_climb(
     )
     print(f"  Average hand span: {summary['avg_hand_span']:.3f}")
     print(f"  Average foot span: {summary['avg_foot_span']:.3f}")
+    print("\nEfficiency & Technique:")
+    print(f"  Total distance traveled: {summary['total_distance_traveled']:.3f}")
+    print(
+        f"  Movement economy: {summary['avg_movement_economy']:.3f} (higher = more efficient)"
+    )
+    print("\nStrength & Technique:")
+    print(
+        f"  Lock-offs detected: {summary['lock_off_count']} ({summary['lock_off_percentage']:.1f}% of frames)"
+    )
+    print(
+        f"  Rest positions: {summary['rest_count']} ({summary['rest_percentage']:.1f}% of frames)"
+    )
+    print("\nFatigue & Endurance:")
+    print(
+        f"  Fatigue score: {summary['fatigue_score']:.3f} (0=no fatigue, 1=high fatigue)"
+    )
+    print("\nJoint Angles (average):")
+    print(
+        f"  Left elbow: {summary['avg_left_elbow']:.1f}°, Right elbow: {summary['avg_right_elbow']:.1f}°"
+    )
+    print(
+        f"  Left shoulder: {summary['avg_left_shoulder']:.1f}°, Right shoulder: {summary['avg_right_shoulder']:.1f}°"
+    )
+    print(
+        f"  Left knee: {summary['avg_left_knee']:.1f}°, Right knee: {summary['avg_right_knee']:.1f}°"
+    )
+    print(
+        f"  Left hip: {summary['avg_left_hip']:.1f}°, Right hip: {summary['avg_right_hip']:.1f}°"
+    )
     print("=" * 60)
 
     # Save to file if requested
