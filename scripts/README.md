@@ -44,14 +44,13 @@ python scripts/process_video.py input.mp4 output.mp4 --show-metrics --metrics
 - `output`: Path to save output video file (required)
 - `--detection-conf`: Minimum detection confidence, 0.0-1.0 (default: 0.5)
 - `--tracking-conf`: Minimum tracking confidence, 0.0-1.0 (default: 0.5)
-- `--no-smoothing`: Disable One Euro Filter smoothing
-- `--smoothing-cutoff`: Smoothing cutoff frequency (default: 1.0, lower = more smoothing)
-- `--smoothing-beta`: Smoothing speed coefficient (default: 0.007, higher = more adaptive)
 - `--show-metrics`: Overlay real-time metrics on the video
 - `--metrics`: Calculate and save metrics to JSON file
 - `--metrics-output`: Path for metrics JSON file (default: same name as output video)
 - `--include-head`: Include head keypoints (default: False, climbing-focused)
 - `--quiet`: Suppress progress updates
+
+**Note:** Temporal smoothing is always enabled via MediaPipe's built-in VIDEO mode filtering, which reduces jitter while maintaining responsiveness.
 
 ### Example
 
@@ -68,16 +67,15 @@ python scripts/process_video.py climbing_video.mp4 climbing_analyzed.mp4 --detec
 
 The script will:
 1. Read the input video frame by frame
-2. Detect pose landmarks in each frame
-3. Apply One Euro Filter smoothing (reduces jitter while maintaining responsiveness)
-4. Draw the landmarks and skeleton connections on each frame
-5. (Optional) Overlay real-time metrics on the video showing:
+2. Detect pose landmarks in each frame with built-in temporal smoothing (VIDEO mode)
+3. Draw the landmarks and skeleton connections on each frame
+4. (Optional) Overlay real-time metrics on the video showing:
    - Current frame joint angles (elbows, knees, hip)
    - Maximum reach distance
    - Lock-off detection (when arm angle < 90°)
    - Running averages of all metrics
-6. (Optional) Save detailed per-frame metrics to JSON file
-7. Save the annotated video
+5. (Optional) Save detailed per-frame metrics to JSON file
+6. Save the annotated video
 
 ### Metrics Overlay
 

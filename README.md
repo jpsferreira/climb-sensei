@@ -1,13 +1,16 @@
 # climb-sensei
 
-A Python pose estimation tool for analyzing climbing footage. Extract vertical movement metrics, calculate joint angles, and visualize biomechanical data using computer vision.
+A Python pose estimation tool for analyzing climbing footage. Extract vertical movement metrics, calculate biomechanics, visualize technique with animated dashboards, and analyze climbing performance using computer vision.
 
 ## Features
 
-- 🎯 **Pose Detection**: Real-time human pose estimation using MediaPipe
+- 🎯 **Pose Detection**: Real-time human pose estimation using MediaPipe with temporal smoothing
+- 📊 **Performance Analysis**: Comprehensive climbing metrics including speed, stability, smoothness, and body positioning
 - 📐 **Biomechanics**: Calculate joint angles, reach distances, and center of mass
-- 📹 **Video I/O**: Easy video processing with OpenCV
-- 🎨 **Visualization**: Draw pose landmarks and annotate metrics
+- 📹 **Video Processing**: Easy video I/O with pose overlay and animated metrics dashboards
+- 🎨 **Visualization**: Draw pose landmarks, annotate metrics, and create real-time performance graphs
+- 📈 **Temporal Analysis**: Track metrics over time with jerk calculation, sway detection, and progression tracking
+- ✅ **Well-Tested**: 75% code coverage with 84+ unit tests
 
 ## Installation
 

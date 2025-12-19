@@ -9,7 +9,7 @@ Usage:
 
     Or with optional confidence thresholds:
     python scripts/process_video.py input.mp4 output.mp4 --detection-conf 0.5 --tracking-conf 0.5
-    
+
     With metrics calculation:
     python scripts/process_video.py input.mp4 output.mp4 --metrics
 """
@@ -29,7 +29,6 @@ from climb_sensei.pose_engine import PoseEngine
 from climb_sensei.video_io import VideoReader, VideoWriter
 from climb_sensei.viz import draw_pose_landmarks, draw_metrics_overlay
 from climb_sensei.config import CLIMBING_CONNECTIONS, CLIMBING_LANDMARKS
-from climb_sensei.smoothing import LandmarkSmoother
 from climb_sensei.metrics import ClimbingMetrics
 
 
@@ -40,9 +39,6 @@ def process_video(
     min_tracking_confidence: float = 0.5,
     show_progress: bool = True,
     include_head: bool = False,
-    enable_smoothing: bool = True,
-    smoothing_min_cutoff: float = 1.0,
-    smoothing_beta: float = 0.007,
     calculate_metrics: bool = False,
     metrics_output: Optional[str] = None,
     show_metrics_overlay: bool = False,
@@ -56,16 +52,13 @@ def process_video(
         min_tracking_confidence: Minimum confidence for pose tracking.
         show_progress: Whether to print progress updates.
         include_head: Whether to include head keypoints (default: False for climbing).
-        enable_smoothing: Whether to apply One Euro Filter smoothing (default: True).
-        smoothing_min_cutoff: Minimum cutoff frequency for smoothing (default: 1.0).
-        smoothing_beta: Speed coefficient for smoothing (default: 0.007).
         calculate_metrics: Whether to calculate climbing metrics (default: False).
         metrics_output: Path to save metrics JSON file (optional).
         show_metrics_overlay: Whether to overlay metrics on video (default: False).
     """
     print(f"Processing video: {input_path}")
     print(f"Output will be saved to: {output_path}")
-    
+
     # Choose connections and landmarks based on include_head flag
     if include_head:
         from climb_sensei.config import FULL_POSE_CONNECTIONS
@@ -78,28 +71,18 @@ def process_video(
         landmarks = CLIMBING_LANDMARKS
         print("Using climbing pose (body only, no head keypoints)")
 
-    # Initialize smoother if enabled
-    if enable_smoothing:
-        smoother = LandmarkSmoother(
-            filter_type="one_euro", min_cutoff=smoothing_min_cutoff, beta=smoothing_beta
-        )
-        print(
-            f"Smoothing enabled (One Euro Filter: min_cutoff={smoothing_min_cutoff}, beta={smoothing_beta})"
-        )
-    else:
-        smoother = None
-        print("Smoothing disabled")
-    
+    print("Temporal smoothing enabled (MediaPipe built-in)")
+
     # Metrics collection
     if calculate_metrics or show_metrics_overlay:
         print("Metrics calculation enabled")
         frame_metrics = []
         # Running totals for cumulative metrics
         cumulative_sums = {
-            'left_elbow': 0.0,
-            'right_elbow': 0.0,
-            'max_reach': 0.0,
-            'extension': 0.0,
+            "left_elbow": 0.0,
+            "right_elbow": 0.0,
+            "max_reach": 0.0,
+            "extension": 0.0,
         }
         metrics_count = 0
     else:
@@ -143,39 +126,36 @@ def process_video(
 
                     frame_num += 1
 
-                    # Run pose detection
+                    # Run pose detection (with built-in temporal smoothing)
                     results = engine.process(frame)
 
-                    # Apply smoothing if enabled and extract landmarks for metrics
-                    if results and results.pose_landmarks and smoother:
-                        # Extract landmarks
-                        raw_landmarks = engine.extract_landmarks(results)
-                        
-                        # Smooth landmarks
-                        smoothed_landmarks = smoother.smooth(raw_landmarks)
-                        
-                        # Use smoothed landmarks for metrics if calculating
-                        landmarks_for_metrics = smoothed_landmarks
-                    elif results and results.pose_landmarks:
+                    # Extract landmarks for metrics
+                    if results and results.pose_landmarks:
                         landmarks_for_metrics = engine.extract_landmarks(results)
                     else:
                         landmarks_for_metrics = None
-                    
+
                     # Calculate metrics if enabled
-                    if (calculate_metrics or show_metrics_overlay) and landmarks_for_metrics:
-                        metrics = ClimbingMetrics.calculate_all_metrics(landmarks_for_metrics)
+                    if (
+                        calculate_metrics or show_metrics_overlay
+                    ) and landmarks_for_metrics:
+                        metrics = ClimbingMetrics.calculate_all_metrics(
+                            landmarks_for_metrics
+                        )
                         metrics["frame"] = frame_num
                         metrics["timestamp"] = frame_num / reader.fps
-                        
+
                         if calculate_metrics:
                             frame_metrics.append(metrics)
-                        
+
                         # Update cumulative metrics
                         if cumulative_sums is not None:
-                            cumulative_sums['left_elbow'] += metrics['left_elbow_angle']
-                            cumulative_sums['right_elbow'] += metrics['right_elbow_angle']
-                            cumulative_sums['max_reach'] += metrics['max_reach']
-                            cumulative_sums['extension'] += metrics['body_extension']
+                            cumulative_sums["left_elbow"] += metrics["left_elbow_angle"]
+                            cumulative_sums["right_elbow"] += metrics[
+                                "right_elbow_angle"
+                            ]
+                            cumulative_sums["max_reach"] += metrics["max_reach"]
+                            cumulative_sums["extension"] += metrics["body_extension"]
                             metrics_count += 1
                     else:
                         metrics = None
@@ -192,23 +172,27 @@ def process_video(
                     else:
                         # No pose detected, use original frame
                         annotated_frame = frame
-                    
+
                     # Add metrics overlay if enabled
                     if show_metrics_overlay and metrics:
                         # Calculate current averages
                         cumulative_metrics = None
                         if metrics_count > 0:
                             cumulative_metrics = {
-                                'avg_left_elbow': cumulative_sums['left_elbow'] / metrics_count,
-                                'avg_right_elbow': cumulative_sums['right_elbow'] / metrics_count,
-                                'avg_max_reach': cumulative_sums['max_reach'] / metrics_count,
-                                'avg_extension': cumulative_sums['extension'] / metrics_count,
+                                "avg_left_elbow": cumulative_sums["left_elbow"]
+                                / metrics_count,
+                                "avg_right_elbow": cumulative_sums["right_elbow"]
+                                / metrics_count,
+                                "avg_max_reach": cumulative_sums["max_reach"]
+                                / metrics_count,
+                                "avg_extension": cumulative_sums["extension"]
+                                / metrics_count,
                             }
-                        
+
                         annotated_frame = draw_metrics_overlay(
                             annotated_frame,
                             current_metrics=metrics,
-                            cumulative_metrics=cumulative_metrics
+                            cumulative_metrics=cumulative_metrics,
                         )
 
                     # Write to output video
@@ -219,33 +203,43 @@ def process_video(
                     iterator.set_postfix({"detected": detected_frames})
 
                 iterator.close()
-                
+
                 # Save metrics to file if requested
                 if calculate_metrics and frame_metrics:
                     if metrics_output is None:
                         # Default: save next to output video
-                        metrics_output = Path(output_path).with_suffix('.json')
-                    
+                        metrics_output = Path(output_path).with_suffix(".json")
+
                     print(f"\nSaving metrics to: {metrics_output}")
-                    with open(metrics_output, 'w') as f:
-                        json.dump({
-                            "video": input_path,
-                            "fps": reader.fps,
-                            "total_frames": frame_num,
-                            "detected_frames": detected_frames,
-                            "metrics": frame_metrics
-                        }, f, indent=2)
-                    
+                    with open(metrics_output, "w") as f:
+                        json.dump(
+                            {
+                                "video": input_path,
+                                "fps": reader.fps,
+                                "total_frames": frame_num,
+                                "detected_frames": detected_frames,
+                                "metrics": frame_metrics,
+                            },
+                            f,
+                            indent=2,
+                        )
+
                     # Print summary statistics
                     if frame_metrics:
                         print("\nMetrics Summary:")
-                        avg_left_elbow = sum(m["left_elbow_angle"] for m in frame_metrics) / len(frame_metrics)
-                        avg_right_elbow = sum(m["right_elbow_angle"] for m in frame_metrics) / len(frame_metrics)
-                        avg_max_reach = sum(m["max_reach"] for m in frame_metrics) / len(frame_metrics)
+                        avg_left_elbow = sum(
+                            m["left_elbow_angle"] for m in frame_metrics
+                        ) / len(frame_metrics)
+                        avg_right_elbow = sum(
+                            m["right_elbow_angle"] for m in frame_metrics
+                        ) / len(frame_metrics)
+                        avg_max_reach = sum(
+                            m["max_reach"] for m in frame_metrics
+                        ) / len(frame_metrics)
                         print(f"  Average left elbow angle: {avg_left_elbow:.1f}°")
                         print(f"  Average right elbow angle: {avg_right_elbow:.1f}°")
                         print(f"  Average max reach: {avg_max_reach:.3f}")
-                
+
                 # Final summary
                 print(f"\nProcessing complete!")
                 print(f"Total frames processed: {frame_num}")
@@ -293,24 +287,6 @@ Examples:
     )
 
     parser.add_argument(
-        "--no-smoothing", action="store_true", help="Disable One Euro Filter smoothing"
-    )
-
-    parser.add_argument(
-        "--smoothing-cutoff",
-        type=float,
-        default=1.0,
-        help="Smoothing min cutoff frequency (default: 1.0, lower = more smoothing)",
-    )
-
-    parser.add_argument(
-        "--smoothing-beta",
-        type=float,
-        default=0.007,
-        help="Smoothing speed coefficient (default: 0.007, higher = more adaptive)",
-    )
-    
-    parser.add_argument(
         "--show-metrics",
         action="store_true",
         help="Overlay metrics on video (shows current and average values)",
@@ -325,13 +301,13 @@ Examples:
         action="store_true",
         help="Include head keypoints (default: False, only body keypoints for climbing)",
     )
-    
+
     parser.add_argument(
         "--metrics",
         action="store_true",
         help="Calculate climbing metrics (joint angles, reach, etc.)",
     )
-    
+
     parser.add_argument(
         "--metrics-output",
         type=str,
@@ -362,9 +338,6 @@ Examples:
             min_tracking_confidence=args.tracking_conf,
             show_progress=not args.quiet,
             include_head=args.include_head,
-            enable_smoothing=not args.no_smoothing,
-            smoothing_min_cutoff=args.smoothing_cutoff,
-            smoothing_beta=args.smoothing_beta,
             calculate_metrics=args.metrics,
             metrics_output=args.metrics_output,
             show_metrics_overlay=args.show_metrics,
