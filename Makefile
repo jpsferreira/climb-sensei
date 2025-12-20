@@ -110,6 +110,23 @@ build: clean-build ## Build wheel file
 	@uv build
 	@echo "✅ Build complete!"
 
+.PHONY: docs
+docs: ## Serve documentation locally
+	@echo "🚀 Serving documentation at http://127.0.0.1:8000"
+	@uv run mkdocs serve
+
+.PHONY: docs-build
+docs-build: ## Build documentation site
+	@echo "🚀 Building documentation"
+	@uv run mkdocs build
+	@echo "✅ Documentation built in site/"
+
+.PHONY: docs-deploy
+docs-deploy: ## Deploy documentation to GitHub Pages
+	@echo "🚀 Deploying documentation to GitHub Pages"
+	@uv run mkdocs gh-deploy --force
+	@echo "✅ Documentation deployed!"
+
 .PHONY: clean-build
 clean-build: ## Clean build artifacts
 	@echo "🧹 Cleaning build artifacts..."
