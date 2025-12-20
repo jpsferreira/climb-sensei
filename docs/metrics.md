@@ -1,6 +1,19 @@
 # Metrics Reference
 
-Complete documentation of all 25+ climbing metrics available in climb-sensei.
+Complete documentation of all 25+ climbing metrics including calculation methods, scientific rationale, and practical interpretation.
+
+## Understanding the Coordinate System
+
+All metrics use **normalized coordinates** (0.0 - 1.0) from MediaPipe Pose estimation:
+
+- **X-axis**: 0.0 = left edge, 1.0 = right edge
+- **Y-axis**: 0.0 = top edge, 1.0 = bottom edge (inverted from typical graphics)
+
+This normalization ensures metrics work across different video resolutions and climbing wall sizes.
+
+**Time-based metrics** use the video frame rate (default 30 fps) to convert frame-based measurements into per-second values.
+
+---
 
 ## Core Movement Metrics
 
@@ -8,15 +21,33 @@ Complete documentation of all 25+ climbing metrics available in climb-sensei.
 
 **Key**: `hip_height`
 **Type**: `float`
-**Units**: Normalized coordinates (0.0 - 1.0)
+**Range**: 0.0 (top) to 1.0 (bottom)
 
-Current vertical position of the hips. In normalized MediaPipe coordinates where 0.0 is top of frame and 1.0 is bottom.
+#### Calculation
 
-**Interpretation**:
+```python
+left_hip_y = landmarks[LEFT_HIP].y
+right_hip_y = landmarks[RIGHT_HIP].y
+hip_height = (left_hip_y + right_hip_y) / 2.0
+```
 
-- Lower values = higher position in frame
-- Decreasing over time = climbing upward
-- Used as the primary vertical position indicator
+#### Rationale
+
+The hips represent the body's center of mass more consistently than other landmarks (shoulders move with arm positions, knees with leg positions). Averaging both hips reduces noise from asymmetric positions like hip flags or body rotation.
+
+#### Interpretation
+
+- **Lower values** (→ 0.0) = higher in frame = climbing up
+- **Higher values** (→ 1.0) = lower in frame = descending
+- **Decreasing trend** = vertical progress
+- **Constant value** = static position (rest/lock-off/stuck)
+
+#### What You Can Learn
+
+✅ **Total ascent**: `initial_hip_height - final_hip_height`
+✅ **Climb efficiency**: Smooth decrease = good beta, fluctuations = wasted height
+✅ **Rest positions**: Plateaus in the graph
+✅ **Crux sections**: Prolonged plateaus or increases (downclimbing)
 
 ---
 
@@ -26,14 +57,40 @@ Current vertical position of the hips. In normalized MediaPipe coordinates where
 **Type**: `float`
 **Units**: Normalized units per second
 
-Speed of movement calculated from center of mass displacement over time.
+#### Calculation
 
-**Interpretation**:
+```python
+# Center of mass from shoulders and hips
+core_points = [left_shoulder, right_shoulder, left_hip, right_hip]
+com_current = weighted_average(core_points)
+com_previous = com_at_previous_frame
 
-- Higher values = faster movement
-- Typical climbing: 0.01 - 0.1
-- Very fast moves: > 0.15
-- Near stationary: < 0.005
+# Euclidean distance
+dx = com_current.x - com_previous.x
+dy = com_current.y - com_previous.y
+distance = sqrt(dx² + dy²)
+
+# Convert to velocity
+velocity = distance / (1/fps)  # Distance per second
+```
+
+#### Rationale
+
+Center of mass (COM) provides a single point representing the entire body's movement. Using core points (shoulders + hips) excludes limb movements that don't represent whole-body displacement. Velocity captures movement speed regardless of direction (up, down, or lateral).
+
+#### Interpretation
+
+- **0.01 - 0.1**: Normal climbing pace
+- **> 0.15**: Very fast/dynamic moves
+- **< 0.005**: Near stationary (rest, lock-off, stuck)
+- **Spikes**: Dynamic movements, jumps, quick repositioning
+
+#### What You Can Learn
+
+✅ **Climbing style**: Consistent velocity = static climbing, spikes = dynamic
+✅ **Fatigue onset**: Decreasing average velocity over time
+✅ **Route difficulty**: Sections with low velocity = technical/difficult
+✅ **Movement efficiency**: High velocity with low energy expenditure = skilled
 
 ---
 
@@ -41,17 +98,35 @@ Speed of movement calculated from center of mass displacement over time.
 
 **Key**: `com_sway`
 **Type**: `float`
-**Units**: Normalized units
+**Units**: Normalized units (standard deviation)
 
-Lateral instability measure - standard deviation of horizontal position over recent frames.
+#### Calculation
 
-**Interpretation**:
+```python
+# Collect horizontal positions over window (default 30 frames = 1 second)
+com_x_positions = [com.x for com in last_30_frames]
 
-- Lower values = more stable
-- Excellent stability: < 0.01
-- Good stability: 0.01 - 0.02
-- Poor stability: > 0.03
-- Indicates control and technique quality
+# Standard deviation of lateral position
+sway = std_dev(com_x_positions)
+```
+
+#### Rationale
+
+Lateral stability is a key indicator of control and technique. Experienced climbers minimize unnecessary horizontal movement, keeping their center of mass aligned with the line of ascent. Standard deviation captures the variability in side-to-side movement over a sliding time window.
+
+#### Interpretation
+
+- **< 0.01**: Excellent stability (competition-level technique)
+- **0.01 - 0.02**: Good stability (experienced climber)
+- **0.02 - 0.03**: Moderate stability (intermediate)
+- **> 0.03**: Poor stability (beginner, pumped, or very overhung)
+
+#### What You Can Learn
+
+✅ **Technical skill**: Lower sway = better body positioning
+✅ **Route character**: High sway on slab = poor footwork, on overhang = expected
+✅ **Fatigue indicator**: Increasing sway = losing control
+✅ **Specific weaknesses**: Compare sway on different hold types (crimps vs slopers)
 
 ---
 
@@ -61,14 +136,49 @@ Lateral instability measure - standard deviation of horizontal position over rec
 **Type**: `float`
 **Units**: Normalized units per second²
 
-Rate of change of acceleration - measures movement smoothness.
+#### Calculation
 
-**Interpretation**:
+```python
+# Jerk is the rate of change of acceleration
+# Requires at least 4 frames for numerical differentiation
 
-- Lower values = smoother movement
-- Smooth climbing: < 0.001
-- Jerky movement: > 0.005
-- Indicates fatigue or poor technique when high
+# Velocities
+v1 = distance(frame[n-3], frame[n-2]) * fps
+v2 = distance(frame[n-2], frame[n-1]) * fps
+v3 = distance(frame[n-1], frame[n]) * fps
+
+# Accelerations
+a1 = (v2 - v1) * fps
+a2 = (v3 - v2) * fps
+
+# Jerk
+jerk = abs(a2 - a1) * fps
+```
+
+#### Rationale
+
+Jerk measures movement smoothness. Smooth, controlled climbing has low jerk (gradual accelerations). Jerky movement indicates:
+
+- Overgripping (tension-release cycles)
+- Poor technique (fighting the wall instead of flowing)
+- Fatigue (muscle control degradation)
+- Fear/hesitation (stop-start movements)
+
+This is a **second-order derivative**, making it sensitive to movement quality.
+
+#### Interpretation
+
+- **< 0.001**: Very smooth (expert technique)
+- **0.001 - 0.005**: Normal climbing smoothness
+- **> 0.005**: Jerky movement (technical issues or fatigue)
+- **High variance**: Inconsistent movement quality
+
+#### What You Can Learn
+
+✅ **Technical proficiency**: Lower jerk = better movement control
+✅ **Fatigue detection**: Increasing jerk = muscle control degradation
+✅ **Learning progress**: Jerk decreases as climber learns route
+✅ **Crux identification**: Jerk spikes at difficult sections
 
 ---
 
@@ -78,17 +188,44 @@ Rate of change of acceleration - measures movement smoothness.
 **Type**: `float`
 **Units**: Degrees (0° - 90°)
 
-Lean angle from vertical, measured from hip-shoulder axis.
+#### Calculation
 
-**Calculation**: `arctan(abs(dx) / abs(dy))` where dx is horizontal distance and dy is vertical distance between shoulders and hips.
+```python
+# Vector from hips to shoulders
+hip_center = (left_hip + right_hip) / 2
+shoulder_center = (left_shoulder + right_shoulder) / 2
 
-**Interpretation**:
+dx = abs(shoulder_center.x - hip_center.x)  # Horizontal component
+dy = abs(shoulder_center.y - hip_center.y)  # Vertical component
 
-- 0° = Perfectly vertical (straight up)
-- 45° = 45-degree lean
-- 90° = Horizontal (laying out)
-- Typical rest position: 5-15°
-- Steep overhang climbing: 30-60°
+# Angle from vertical
+body_angle = atan(dx / dy) * (180 / π)
+```
+
+#### Rationale
+
+Body angle indicates lean from vertical. This metric reveals:
+
+- **Wall angle compensation**: More lean on overhangs
+- **Rest positions**: Near-vertical (0-15°) positions are less strenuous
+- **Dynamic loading**: Large angles = more force on arms
+- **Technique choices**: Keeping hips close (low angle) vs. away from wall
+
+Using `atan(dx/dy)` gives angle from vertical (not horizontal), making 0° = vertical stance, which is more intuitive for climbing.
+
+#### Interpretation
+
+- **0-15°**: Vertical/slab stance (efficient, restable)
+- **15-30°**: Moderate lean (typical vert climbing)
+- **30-50°**: Significant lean (overhang, roof approach)
+- **50-90°**: Extreme lean (steep overhang, horizontal roof)
+
+#### What You Can Learn
+
+✅ **Wall angle estimation**: Average body angle correlates with route steepness
+✅ **Rest technique**: Low angles indicate good rest positions
+✅ **Energy expenditure**: Higher angles = more arm loading = faster fatigue
+✅ **Style analysis**: Consistent vs. variable angles = different climbing approaches
 
 ---
 
@@ -96,15 +233,45 @@ Lean angle from vertical, measured from hip-shoulder axis.
 
 **Key**: `hand_span`
 **Type**: `float`
-**Units**: Normalized units
+**Units**: Normalized distance
 
-Distance between left and right wrists.
+#### Calculation
 
-**Interpretation**:
+```python
+left_wrist = landmarks[LEFT_WRIST]
+right_wrist = landmarks[RIGHT_WRIST]
 
-- Larger values = wider reach
-- Changing rapidly = dynamic movement
-- Small values = hands close together (mantling, jamming)
+dx = right_wrist.x - left_wrist.x
+dy = right_wrist.y - left_wrist.y
+hand_span = sqrt(dx² + dy²)
+```
+
+#### Rationale
+
+Hand span indicates reach width and body compression. Wide spans suggest:
+
+- Underclings or gastons
+- Mantling or compression moves
+- Open body position
+
+Narrow spans suggest:
+
+- Tight hand positions (chimneys, arêtes)
+- Crossed hands (sideways movement)
+- Compressed body position
+
+#### Interpretation
+
+- **> 0.4**: Very wide (full extension, underclings)
+- **0.2 - 0.4**: Normal climbing reach
+- **< 0.2**: Narrow (mantling, compression, or sideways)
+
+#### What You Can Learn
+
+✅ **Movement type**: Rapid changes = dynamic repositioning
+✅ **Route character**: Consistently wide = horizontal traverse, narrow = vertical crack
+✅ **Reach efficiency**: Compare span to vertical progress (wide ≠ always better)
+✅ **Technique variety**: High variance = diverse move types
 
 ---
 
@@ -112,14 +279,40 @@ Distance between left and right wrists.
 
 **Key**: `foot_span`
 **Type**: `float`
-**Units**: Normalized units
+**Units**: Normalized distance
 
-Distance between left and right ankles.
+#### Calculation
 
-**Interpretation**:
+```python
+left_ankle = landmarks[LEFT_ANKLE]
+right_ankle = landmarks[RIGHT_ANKLE]
 
-- Larger values = wider stance
-- Very small values = feet together (stemming, crack climbing)
+dx = right_ankle.x - left_ankle.x
+dy = right_ankle.y - left_ankle.y
+foot_span = sqrt(dx² + dy²)
+```
+
+#### Rationale
+
+Foot span reveals base of support and leg positioning:
+
+- **Wide stance**: Stability, slab technique, stemming
+- **Narrow stance**: Vertical climbing, drop knees, heel hooks
+
+Changes in foot span indicate footwork adjustments and weight shifts.
+
+#### Interpretation
+
+- **> 0.3**: Wide stance (slab, stemming, stability)
+- **0.1 - 0.3**: Normal footwork
+- **< 0.1**: Feet together (flagging, drop knee, barn door prevention)
+
+#### What You Can Learn
+
+✅ **Base of support**: Wider = more stable but less mobile
+✅ **Footwork quality**: Smooth transitions = good technique
+✅ **Route type**: Wide spans = slab/chimney, narrow = overhang
+✅ **Efficiency**: Excessive foot movement = wasted energy
 
 ---
 
@@ -127,16 +320,40 @@ Distance between left and right ankles.
 
 **Key**: `vertical_progress`
 **Type**: `float`
-**Units**: Normalized units (cumulative)
+**Units**: Normalized distance (cumulative)
 
-Total vertical distance climbed from starting position.
+#### Calculation
 
-**Interpretation**:
+```python
+initial_hip_height = hip_height_at_frame_0
+current_hip_height = hip_height_at_current_frame
 
-- Cumulative metric (increases over time)
-- Measures total height gained
-- Typical boulder problem: 0.3 - 0.6
-- Full rope length: 2.0 - 3.0
+vertical_progress = initial_hip_height - current_hip_height
+```
+
+Since Y-axis is inverted (0=top), _decreasing_ hip height = climbing up, so progress is initial minus current.
+
+#### Rationale
+
+Cumulative metric tracking total height gained from start position. Unlike instantaneous hip height, this provides:
+
+- Absolute climb progress
+- Ability to detect downclimbing (negative progress)
+- Performance comparison across attempts
+
+#### Interpretation
+
+- **Increasing**: Making upward progress
+- **Plateauing**: Static position or horizontal traversing
+- **Decreasing**: Downclimbing or lowering
+- **Final value**: Total vertical distance climbed
+
+#### What You Can Learn
+
+✅ **Climb completion**: Compare to route height
+✅ **Efficiency metric**: Use in economy calculation
+✅ **Attempt comparison**: Normalize performance across tries
+✅ **Crux identification**: Progress stalls = difficult sections
 
 ---
 
@@ -148,16 +365,41 @@ Total vertical distance climbed from starting position.
 **Type**: `float`
 **Units**: Ratio (0.0 - 1.0)
 
-Efficiency calculated as vertical progress divided by total distance traveled.
+#### Calculation
 
-**Calculation**: `vertical_progress / total_distance_traveled`
+```python
+# Track cumulative distance traveled by COM
+total_distance = sum(distance_between_consecutive_frames)
 
-**Interpretation**:
+# Vertical progress (from Hip Height metric)
+vertical_progress = initial_hip_height - current_hip_height
 
-- 1.0 = Perfect efficiency (straight up)
-- 0.7 - 0.9 = Excellent efficiency
-- 0.5 - 0.7 = Good efficiency
-- < 0.5 = Poor efficiency (too much lateral movement)
+# Economy ratio
+movement_economy = vertical_progress / total_distance
+```
+
+#### Rationale
+
+Perfect efficiency would be moving straight up (economy = 1.0). In reality, climbers move laterally to reach holds, creating a less efficient path. Movement economy quantifies this:
+
+- **High economy** (0.7-1.0): Efficient movement, good route reading, minimal deviation
+- **Low economy** (< 0.5): Excessive lateral/vertical wandering, poor beta, wasted energy
+
+This metric combines spatial efficiency with strategic climbing choices.
+
+#### Interpretation
+
+- **0.9 - 1.0**: Nearly perfect (impossible on real routes with holds)
+- **0.7 - 0.9**: Excellent efficiency (competition level, well-known route)
+- **0.5 - 0.7**: Good efficiency (normal recreational climbing)
+- **< 0.5**: Poor efficiency (onsight, poor beta, beginner)
+
+#### What You Can Learn
+
+✅ **Route knowledge**: Increases with practice (better beta)
+✅ **Climb grade impact**: More efficient on easier grades
+✅ **Style differences**: Boulder (lower) vs. route (higher)
+✅ **Energy expenditure**: Lower economy = faster fatigue
 
 ---
 
@@ -167,19 +409,42 @@ Efficiency calculated as vertical progress divided by total distance traveled.
 **Type**: `bool`
 **Units**: Boolean
 
-Detects static bent-arm positions indicating lock-off holds.
+#### Calculation
 
-**Detection Criteria**:
+```python
+# For each arm independently
+elbow_angle = calculate_joint_angle(shoulder, elbow, wrist)
+velocity = current_com_velocity
 
-- Elbow angle < 110° (bent arm)
-- Low velocity (< threshold)
-- Sustained for multiple frames
+# Detection criteria
+is_locked_off = (elbow_angle < 110°) AND (velocity < 0.005)
 
-**Interpretation**:
+# Both arms
+is_lock_off = left_lock_off OR right_lock_off
+```
 
-- `True` = Currently in lock-off
-- `left_lock_off` / `right_lock_off` = Per-arm detection
-- High lock-off percentage indicates strength-intensive climbing
+#### Rationale
+
+Lock-offs are static strength positions where climbers hold themselves with bent arms while reaching for the next hold. Detection requires:
+
+1. **Bent elbow** (< 110°): Holding with arm flexion, not straight-arm hanging
+2. **Low velocity** (< 0.005): Static position, not dynamic movement
+
+This identifies high-intensity strength moments that contribute to fatigue.
+
+#### Interpretation
+
+- **True**: Currently in static strength position
+- **High percentage**: Route requires significant static strength
+- **Frequent transitions**: Dynamic climbing with many lock-offs
+- **Duration**: Time in lock-off = strength demand
+
+#### What You Can Learn
+
+✅ **Strength requirements**: High lock-off % = power-endurance route
+✅ **Technique quality**: Fewer lock-offs = better efficiency (where possible)
+✅ **Fatigue contribution**: Lock-offs are metabolically expensive
+✅ **Training needs**: Frequent lock-offs = train static strength
 
 ---
 
@@ -189,24 +454,75 @@ Detects static bent-arm positions indicating lock-off holds.
 **Type**: `bool`
 **Units**: Boolean
 
-Identifies low-stress vertical positions where climber can recover.
+#### Calculation
 
-**Detection Criteria**:
+```python
+body_angle = calculate_body_angle(landmarks)
+velocity = current_com_velocity
 
-- Body angle < 20° (nearly vertical)
-- Low velocity (near stationary)
+# Detection criteria
+is_rest_position = (body_angle < 20°) AND (velocity < 0.005)
+```
 
-**Interpretation**:
+#### Rationale
 
-- `True` = Currently resting
-- High rest percentage = good route reading
-- Low rest percentage on hard routes = may indicate pumped climbing
+Rest positions are characterized by:
+
+1. **Near-vertical body** (< 20°): Minimal arm loading, weight on skeleton
+2. **Static position**: Not moving, allowing recovery
+
+Identifying rests reveals route reading and pacing strategy. Good climbers find and use rests even on hard routes.
+
+#### Interpretation
+
+- **True**: Currently in recovery position
+- **High percentage**: Route has many rests (easier) or climber is pacing well
+- **Low percentage**: Sustained difficulty or poor route reading
+- **Rest duration**: Longer = more recovery, but slower time
+
+#### What You Can Learn
+
+✅ **Route character**: Rest availability indicates sustained vs. intermittent difficulty
+✅ **Pacing strategy**: Using rests = good tactics, rushing through = poor pacing
+✅ **Fitness level**: Need for rests on easier routes = endurance limitation
+✅ **Competitive analysis**: Rest usage in competition (risk vs. recovery trade-off)
 
 ---
 
-## Joint Angles
+## Joint Angle Metrics
 
-All joint angles are measured in degrees using the three-point angle calculation.
+All joint angles use the same calculation method but different landmark triplets. Understanding one explains all eight.
+
+### Calculation Method (Generic)
+
+```python
+def calculate_joint_angle(point_a, point_b, point_c):
+    """
+    Calculate angle at point_b formed by points a-b-c.
+    Uses law of cosines via dot product.
+    """
+    # Vectors from joint to adjacent landmarks
+    ba = point_a - point_b
+    bc = point_c - point_b
+
+    # Dot product
+    dot_product = ba.x * bc.x + ba.y * bc.y
+
+    # Magnitudes
+    mag_ba = sqrt(ba.x² + ba.y²)
+    mag_bc = sqrt(bc.x² + bc.y²)
+
+    # Angle from dot product formula: cos(θ) = (a·b)/(|a||b|)
+    cos_angle = dot_product / (mag_ba * mag_bc)
+    cos_angle = clamp(cos_angle, -1.0, 1.0)  # Numerical safety
+
+    angle = arccos(cos_angle) * (180/π)  # Convert to degrees
+    return angle
+```
+
+This returns the **interior angle** (0° - 180°) at the middle point.
+
+---
 
 ### Elbow Angles
 
@@ -214,14 +530,29 @@ All joint angles are measured in degrees using the three-point angle calculation
 **Type**: `float`
 **Units**: Degrees (0° - 180°)
 
-Angle formed by shoulder-elbow-wrist.
+#### Specific Calculation
 
-**Interpretation**:
+```python
+left_elbow_angle = calculate_joint_angle(
+    left_shoulder,   # Point A
+    left_elbow,      # Point B (vertex)
+    left_wrist       # Point C
+)
+```
 
-- 180° = Fully extended (straight arm)
-- 90° = 90-degree bend
-- < 110° = Lock-off position
-- Typical climbing: 120° - 160°
+#### Interpretation
+
+- **170° - 180°**: Nearly straight (passive hanging, efficient)
+- **120° - 170°**: Slightly bent (active engagement)
+- **90° - 120°**: Moderate flexion (holding position)
+- **< 90°**: Deep flexion (lock-off, gaston, high power demand)
+
+#### What You Can Learn
+
+✅ **Arm efficiency**: More time with straight arms (>160°) = better technique
+✅ **Lock-off identification**: Values < 110° during static holds
+✅ **Fatigue progression**: Increasing average angle = arms tiring, straightening out
+✅ **Move type**: Rapid changes = dynamic, stable values = static
 
 ---
 
@@ -231,14 +562,29 @@ Angle formed by shoulder-elbow-wrist.
 **Type**: `float`
 **Units**: Degrees (0° - 180°)
 
-Angle formed by hip-shoulder-elbow.
+#### Specific Calculation
 
-**Interpretation**:
+```python
+left_shoulder_angle = calculate_joint_angle(
+    left_hip,        # Point A
+    left_shoulder,   # Point B (vertex)
+    left_elbow       # Point C
+)
+```
 
-- 90° = Arm perpendicular to body
-- > 90° = Arm raised above shoulder
-- < 90° = Arm below shoulder
-- High angles (>120°) = reaching overhead
+#### Interpretation
+
+- **< 90°**: Arm below shoulder (low reach, underclings)
+- **90°**: Arm perpendicular to body (neutral)
+- **> 90°**: Arm above shoulder (overhead reaches, typical climbing)
+- **> 120°**: High reach (extended overhead, dyno preparation)
+
+#### What You Can Learn
+
+✅ **Reach height**: Higher angles = reaching high
+✅ **Overhang adaptation**: Consistently high angles on steep terrain
+✅ **Move variety**: Angle range shows movement diversity
+✅ **Shoulder stress**: Prolonged extreme angles (>150° or <60°) = injury risk
 
 ---
 
@@ -248,14 +594,29 @@ Angle formed by hip-shoulder-elbow.
 **Type**: `float`
 **Units**: Degrees (0° - 180°)
 
-Angle formed by hip-knee-ankle.
+#### Specific Calculation
 
-**Interpretation**:
+```python
+left_knee_angle = calculate_joint_angle(
+    left_hip,        # Point A
+    left_knee,       # Point B (vertex)
+    left_ankle       # Point C
+)
+```
 
-- 180° = Fully extended leg
-- 90° = Deep squat
-- Typical climbing: 100° - 170°
-- < 100° = High step or knee bar
+#### Interpretation
+
+- **170° - 180°**: Straight leg (standing on holds, heel hooks)
+- **120° - 170°**: Slight bend (normal standing/stepping)
+- **90° - 120°**: Moderate flexion (squatting, high step preparation)
+- **< 90°**: Deep flexion (high steps, knee bars, drop knees)
+
+#### What You Can Learn
+
+✅ **Footwork type**: Deep flexion = high steps, straight = standing
+✅ **Leg strength demand**: More time in 90-120° = quad-intensive
+✅ **Drop knee detection**: One knee deep, other straight
+✅ **Efficiency**: Excessive knee bend = inefficient leg use
 
 ---
 
@@ -265,113 +626,220 @@ Angle formed by hip-knee-ankle.
 **Type**: `float`
 **Units**: Degrees (0° - 180°)
 
-Angle formed by shoulder-hip-knee.
+#### Specific Calculation
 
-**Interpretation**:
+```python
+left_hip_angle = calculate_joint_angle(
+    left_shoulder,   # Point A
+    left_hip,        # Point B (vertex)
+    left_knee        # Point C
+)
+```
 
-- 180° = Fully extended body
-- 90° = Bent at waist
-- Typical climbing: 140° - 170°
-- Low angles indicate hip flexibility moves
+#### Interpretation
+
+- **170° - 180°**: Fully extended (straight body, slab)
+- **140° - 170°**: Normal climbing position
+- **120° - 140°**: Moderate bend (bringing hips to wall)
+- **< 120°**: Deep bend (compression moves, bicycles, knee-chest positions)
+
+#### What You Can Learn
+
+✅ **Body position**: Lower angles = hips closer to wall = better technique on overhangs
+✅ **Compression moves**: Very low angles (< 120°) during compression
+✅ **Flexibility requirements**: Sustained low angles = hip flexibility needed
+✅ **Efficiency indicator**: Keeping hips in optimal for wall angle
 
 ---
 
 ## Summary Statistics
 
-Available via `analyzer.get_summary()`:
+These are computed from the full history of frame-by-frame metrics.
 
-### Velocity Statistics
+### Average Metrics
 
-- **`avg_velocity`**: Mean velocity over entire climb
-- **`max_velocity`**: Peak velocity reached
-- **`min_velocity`**: Minimum velocity (excluding stops)
-
-### Progress Metrics
-
-- **`total_vertical_progress`**: Total height gained
-- **`avg_movement_economy`**: Average efficiency ratio
-
-### Technique Counts
-
-- **`lock_off_count`**: Number of lock-off moments detected
-- **`lock_off_percentage`**: Percentage of frames in lock-off
-- **`rest_count`**: Number of rest positions
-- **`rest_percentage`**: Percentage of frames resting
-
-### Fatigue Indicator
-
-- **`fatigue_score`**: Movement quality degradation score
-  - 0.0 = No degradation
-  - 0.5 = Moderate fatigue
-  - > 1.0 = Significant fatigue
-
-### Joint Angle Averages
-
-- **`avg_joint_angles`**: Dictionary of average angles for all 8 joints
-
----
-
-## Time-Series History
-
-Available via `analyzer.get_history()`:
-
-Returns a dictionary with complete frame-by-frame history:
+All metrics prefixed with `avg_` are simple means:
 
 ```python
-{
-    'hip_heights': [0.8, 0.79, 0.78, ...],
-    'velocities': [0.05, 0.06, 0.04, ...],
-    'sways': [0.01, 0.015, 0.012, ...],
-    'jerks': [0.0005, 0.0008, 0.0004, ...],
-    'body_angles': [15.2, 18.5, 12.3, ...],
-    'hand_spans': [0.35, 0.38, 0.42, ...],
-    'foot_spans': [0.28, 0.30, 0.29, ...],
-    'movement_economy': [0.85, 0.82, 0.88, ...],
-    'lock_offs': [False, False, True, ...],
-    'rest_positions': [False, True, True, ...],
-    'joint_angles': {
-        'left_elbow': [145, 148, 142, ...],
-        'right_elbow': [150, 152, 149, ...],
-        # ... all 8 joints
-    }
-}
+avg_velocity = mean(all_velocity_values)
+avg_sway = mean(all_sway_values)
+# etc.
 ```
 
----
+**Use**: Characterize overall climb performance, compare attempts, track improvement.
 
-## Usage Examples
+### Maximum Metrics
 
-### Analyzing Real-Time Performance
+Metrics like `max_velocity`, `max_sway` identify peak values:
 
 ```python
-metrics = analyzer.analyze_frame(landmarks)
+max_velocity = max(all_velocity_values)
+max_jerk = max(all_jerk_values)
+```
 
-# Check if climber is efficient
-if metrics['movement_economy'] > 0.8:
-    print("Excellent technique!")
+**Use**: Identify hardest moments, dynamic peaks, loss of control incidents.
 
-# Detect fatigue
-if metrics['jerk'] > 0.005:
-    print("Movement becoming jerky - possible fatigue")
+### Count Metrics
 
-# Monitor stability
-if metrics['com_sway'] > 0.03:
-    print("Unstable - focus on control")
+`lock_off_count` and `rest_count` sum boolean frames:
+
+```python
+lock_off_count = sum(1 for frame in frames if frame.is_lock_off)
+```
+
+**Use**: Quantify specific technique occurrences.
+
+### Percentage Metrics
+
+Convert counts to percentages of total climb time:
+
+```python
+lock_off_percentage = (lock_off_count / total_frames) * 100
+```
+
+**Use**: Normalize for climb duration, enable cross-climb comparison.
+
+### Fatigue Score
+
+**Calculation**:
+
+```python
+# Split climb into thirds
+first_third_quality = mean(movement_smoothness[:N/3])
+last_third_quality = mean(movement_smoothness[-N/3:])
+
+# Degradation ratio
+fatigue_score = (first_third_quality - last_third_quality) / first_third_quality
+```
+
+**Interpretation**:
+
+- **0.0**: No quality degradation
+- **0.3**: Moderate fatigue
+- **> 0.5**: Significant fatigue
+- **Negative**: Actually improving (learning route during climb)
+
+**Use**: Detect endurance limitations, compare climb pacing strategies.
+
+---
+
+## Practical Application Examples
+
+### Analyzing a Training Session
+
+```python
+summary = analyzer.get_summary()
+
+# Technique efficiency
+if summary['avg_movement_economy'] > 0.7:
+    print("✅ Good route reading and efficiency")
+else:
+    print("❌ Work on beta optimization")
+
+# Endurance assessment
+if summary['fatigue_score'] > 0.4:
+    print("❌ Endurance limitation - train power endurance")
+
+# Strength requirements
+if summary['lock_off_percentage'] > 30:
+    print("💪 Route requires significant static strength")
 ```
 
 ### Comparing Climb Attempts
 
 ```python
-# After each climb
+attempt1_economy = 0.65
+attempt2_economy = 0.73
+
+improvement = ((attempt2_economy - attempt1_economy) / attempt1_economy) * 100
+print(f"Efficiency improved by {improvement:.1f}%")
+```
+
+### Identifying Weaknesses
+
+```python
+history = analyzer.get_history()
+
+# Find high-sway sections
+high_sway_frames = [i for i, s in enumerate(history['sways']) if s > 0.03]
+
+# Cross-reference with video timestamps
+problem_timestamps = [frame/fps for frame in high_sway_frames]
+print(f"Loss of control at: {problem_timestamps} seconds")
+```
+
+### Route Characterization
+
+```python
 summary = analyzer.get_summary()
 
-climbs = []
-climbs.append({
-    'avg_velocity': summary['avg_velocity'],
-    'movement_economy': summary['avg_movement_economy'],
-    'lock_off_percentage': summary['lock_off_percentage']
-})
+avg_body_angle = summary['avg_body_angle']
+lock_off_pct = summary['lock_off_percentage']
+rest_pct = summary['rest_percentage']
 
-# Compare best attempt
-best = max(climbs, key=lambda x: x['movement_economy'])
+if avg_body_angle < 20 and rest_pct > 20:
+    print("Route: Vertical, technical, good rests")
+elif avg_body_angle > 40 and lock_off_pct > 25:
+    print("Route: Overhung, powerful, sustained")
 ```
+
+---
+
+## Metric Relationships and Dependencies
+
+### Dependent Metrics
+
+Some metrics are calculated from others:
+
+- **movement_economy** requires: `vertical_progress`, `total_distance_traveled`
+- **jerk** requires: at least 4 frames of `velocity` history
+- **is_lock_off** requires: `elbow_angle`, `velocity`
+- **fatigue_score** requires: full climb history
+
+### Inversely Correlated
+
+- **velocity** ↑ → **sway** ↑ (faster = less stable)
+- **body_angle** ↑ → **rest_percentage** ↓ (lean = harder)
+- **movement_economy** ↑ → **total_distance** ↓ (efficient = less wandering)
+
+### Independently Varying
+
+- **hand_span** vs **foot_span**: Different body configurations
+- **elbow_angle** vs **shoulder_angle**: Joint-specific positioning
+
+---
+
+## Limitations and Considerations
+
+### MediaPipe Accuracy
+
+- Occluded landmarks (behind wall/body): May cause brief metric errors
+- 2D projection from 3D space: Distance metrics less accurate on angle to camera
+- Confidence thresholds: Low-confidence frames should be filtered
+
+### Metric Reliability
+
+- **Most reliable**: Hip height, velocity, joint angles (use core visible landmarks)
+- **Moderate**: Sway, body angle (sensitive to camera angle)
+- **Least reliable**: Spans on routes with camera not perpendicular to wall
+
+### Interpretation Context
+
+Always consider:
+
+- **Wall angle**: Overhangs naturally have higher body angles
+- **Route style**: Slab vs. overhang climbing have different normal ranges
+- **Climber experience**: Beginners have higher variance in all metrics
+- **Video quality**: Poor lighting/resolution affects MediaPipe accuracy
+
+---
+
+## Future Metric Development
+
+Potential additions:
+
+- **3D depth estimation**: More accurate distance calculations
+- **Reach efficiency**: Hand movement relative to height gained
+- **Breathing rate**: From shoulder movement patterns
+- **Chalk usage**: Hand stops indicating shake-outs
+- **Route-specific learning**: Metrics improvement over multiple attempts
