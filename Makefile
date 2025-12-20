@@ -8,26 +8,39 @@ install: ## Install the project using uv
 install-dev: ## Install with development dependencies
 	@echo "🚀 Installing with development dependencies"
 	@uv sync --extra dev
+	@uv run pre-commit install
 	@echo "✅ Development installation complete!"
+
+.PHONY: pre-commit-install
+pre-commit-install: ## Install pre-commit hooks
+	@echo "🚀 Installing pre-commit hooks"
+	@uv run pre-commit install
+	@echo "✅ Pre-commit hooks installed!"
+
+.PHONY: pre-commit
+pre-commit: ## Run pre-commit on all files
+	@echo "🚀 Running pre-commit checks"
+	@uv run pre-commit run --all-files
+	@echo "✅ Pre-commit checks complete!"
 
 .PHONY: check
 check: ## Run code quality tools (ruff linting)
 	@echo "🚀 Linting code: Running ruff check"
-	@ruff check .
+	@uv run ruff check .
 	@echo "✅ All checks passed!"
 
 .PHONY: format
 format: ## Format code with ruff and black
 	@echo "🚀 Formatting code: Running ruff format"
-	@ruff format .
+	@uv run ruff format .
 	@echo "🚀 Formatting code: Running black"
-	@black .
+	@uv run black .
 	@echo "✅ Code formatted!"
 
 .PHONY: lint-fix
 lint-fix: ## Fix linting issues automatically
 	@echo "🚀 Fixing linting issues: Running ruff check --fix"
-	@ruff check --fix .
+	@uv run ruff check --fix .
 	@echo "✅ Linting fixes applied!"
 
 .PHONY: test

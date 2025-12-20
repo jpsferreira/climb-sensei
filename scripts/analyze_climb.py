@@ -331,13 +331,13 @@ def main():
 Examples:
   # Text summary only
   python scripts/analyze_climb.py climbing.mp4
-  
+
   # Export JSON data
   python scripts/analyze_climb.py climbing.mp4 --json analysis.json
-  
+
   # Create annotated video
   python scripts/analyze_climb.py climbing.mp4 --video output.mp4
-  
+
   # Both outputs with custom dashboard
   python scripts/analyze_climb.py climbing.mp4 --json data.json --video output.mp4 --position left
         """,

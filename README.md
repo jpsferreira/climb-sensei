@@ -2,6 +2,12 @@
 
 A Python pose estimation tool for analyzing climbing footage. Extract vertical movement metrics, calculate biomechanics, visualize technique with animated dashboards, and analyze climbing performance using computer vision.
 
+```markdown
+[![CI](https://github.com/jpsferreira/climb-sensei/actions/workflows/ci.yaml/badge.svg)](https://github.com/jpsferreira/climb-sensei/actions/workflows/ci.yaml)
+[![Pre-commit](https://github.com/jpsferreira/climb-sensei/actions/workflows/pre-commit.yaml/badge.svg)](https://github.com/jpsferreira/climb-sensei/actions/workflows/pre-commit.yaml)
+[![codecov](https://codecov.io/gh/jpsferreira/climb-sensei/branch/main/graph/badge.svg)](https://codecov.io/gh/jpsferreira/climb-sensei)
+```
+
 ## Features
 
 - 🎯 **Pose Detection**: Real-time human pose estimation using MediaPipe with temporal smoothing
@@ -76,13 +82,13 @@ with PoseEngine() as engine:
             success, frame = video.read()
             if not success:
                 break
-                
+
             # Detect pose
             results = engine.process(frame)
             if results:
                 # Extract landmarks
                 landmarks = engine.extract_landmarks(results)
-                
+
                 # Analyze frame - get all metrics
                 metrics = analyzer.analyze_frame(landmarks)
                 print(f"Velocity: {metrics['com_velocity']:.4f}")
@@ -260,6 +266,7 @@ distance = calculate_total_distance_traveled(com_positions)
 For complete documentation of all 25+ available metrics, see [METRICS_REFERENCE.md](METRICS_REFERENCE.md).
 
 Key metric categories:
+
 - **Core Movement**: Velocity, sway, jerk, body angle, spans, vertical progress
 - **Efficiency & Technique**: Movement economy, lock-off detection, rest positions
 - **Joint Angles**: All 8 major joints (elbows, shoulders, knees, hips)
@@ -295,6 +302,7 @@ See [LICENSE](LICENSE) file for details.
 ## Contributing
 
 Contributions are welcome! Please ensure:
+
 - All functions have type hints
 - Comprehensive docstrings
 - Unit tests for new functionality
