@@ -142,7 +142,7 @@ class TestLockOffDetection:
         metrics = analyzer.analyze_frame(sample_landmarks)
 
         assert "is_lock_off" in metrics
-        assert metrics["is_lock_off"] == False
+        assert not metrics["is_lock_off"]
 
     def test_lock_off_detected_bent_arm_static(self, sample_landmarks):
         """Test lock-off detected with bent arm and low velocity."""
@@ -170,7 +170,7 @@ class TestLockOffDetection:
         metrics = analyzer.analyze_frame(landmarks)
 
         # Should detect lock-off
-        assert metrics["left_lock_off"] == True or metrics["is_lock_off"] == True
+        assert metrics["left_lock_off"] or metrics["is_lock_off"]
 
     def test_lock_off_count_in_summary(self, sample_landmarks):
         """Test lock-off count in summary."""
@@ -203,10 +203,7 @@ class TestRestPositionDetection:
         # Create landmarks with body in vertical position (shoulders directly above hips)
         landmarks = sample_landmarks.copy()
         # Make shoulders and hips aligned vertically for low body angle
-        avg_shoulder_x = (
-            landmarks[LandmarkIndex.LEFT_SHOULDER]["x"]
-            + landmarks[LandmarkIndex.RIGHT_SHOULDER]["x"]
-        ) / 2
+
         avg_hip_x = (
             landmarks[LandmarkIndex.LEFT_HIP]["x"]
             + landmarks[LandmarkIndex.RIGHT_HIP]["x"]
@@ -223,7 +220,7 @@ class TestRestPositionDetection:
 
         assert "is_rest_position" in metrics
         # With low body angle and no movement, should be rest
-        assert metrics["is_rest_position"] == True
+        assert metrics["is_rest_position"]
 
     def test_rest_position_not_detected_when_moving(self, sample_landmarks):
         """Test rest position not detected when moving."""
@@ -240,7 +237,7 @@ class TestRestPositionDetection:
         metrics = analyzer.analyze_frame(landmarks2)
 
         # Should not be rest position when moving
-        assert metrics["is_rest_position"] == False
+        assert not metrics["is_rest_position"]
 
     def test_rest_count_in_summary(self, sample_landmarks):
         """Test rest count in summary."""

@@ -262,14 +262,14 @@ class TestAdvancedClimbingMetrics:
         angle = AdvancedClimbingMetrics.calculate_body_angle(sample_landmarks)
 
         assert isinstance(angle, float)
-        # Angle should be in reasonable range
-        assert -180 <= angle <= 180
+        # Angle should be between 0 and 90 degrees (lean from vertical)
+        assert 0 <= angle <= 90
 
     def test_calculate_body_angle_vertical(self):
         """Test body angle when perfectly vertical."""
         landmarks = [{"x": 0.5, "y": 0.5, "z": 0.0} for _ in range(33)]
 
-        # Shoulders and hips aligned vertically
+        # Shoulders and hips aligned vertically (shoulders above hips in image coords)
         landmarks[11] = {"x": 0.5, "y": 0.4, "z": 0.0}  # LEFT_SHOULDER
         landmarks[12] = {"x": 0.5, "y": 0.4, "z": 0.0}  # RIGHT_SHOULDER
         landmarks[23] = {"x": 0.5, "y": 0.6, "z": 0.0}  # LEFT_HIP
@@ -277,21 +277,23 @@ class TestAdvancedClimbingMetrics:
 
         angle = AdvancedClimbingMetrics.calculate_body_angle(landmarks)
 
-        # When dx=0, arctan2(0, dy) gives 0 or 180 depending on sign
-        # For vertical alignment, we expect 0 or 180 degrees
-        assert abs(angle) < 1.0 or abs(angle - 180.0) < 1.0 or abs(angle + 180.0) < 1.0
+        # When perfectly vertical, angle should be 0
+        assert abs(angle) < 1.0
 
     def test_calculate_body_angle_leaning(self):
         """Test body angle when leaning."""
         landmarks = [{"x": 0.5, "y": 0.5, "z": 0.0} for _ in range(33)]
 
-        # Shoulders forward of hips (leaning forward)
+        # Shoulders offset from hips horizontally (leaning)
         landmarks[11] = {"x": 0.3, "y": 0.4, "z": 0.0}  # LEFT_SHOULDER
         landmarks[12] = {"x": 0.3, "y": 0.4, "z": 0.0}  # RIGHT_SHOULDER
         landmarks[23] = {"x": 0.5, "y": 0.6, "z": 0.0}  # LEFT_HIP
         landmarks[24] = {"x": 0.5, "y": 0.6, "z": 0.0}  # RIGHT_HIP
 
         angle = AdvancedClimbingMetrics.calculate_body_angle(landmarks)
+
+        # With dx=0.2 and dy=0.2, angle should be arctan(0.2/0.2) = 45 degrees
+        assert 40 < angle < 50
         """Test body angle with empty landmarks."""
         angle = AdvancedClimbingMetrics.calculate_body_angle([])
 

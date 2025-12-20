@@ -33,21 +33,26 @@ uv sync --extra dev
 ### Analyze a Climbing Video
 
 ```bash
-# Quick analysis with summary statistics
+# Quick analysis with terminal summary (fast)
 python scripts/analyze_climb.py climbing_video.mp4
 
-# Save detailed analysis to JSON
-python scripts/analyze_climb.py climbing_video.mp4 --output analysis.json
-```
+# Export detailed JSON data
+python scripts/analyze_climb.py climbing_video.mp4 --json analysis.json
 
-### Process Video with Animated Metrics Dashboard
+# Create annotated video with metrics dashboard on the side (default: no overlay)
+python scripts/analyze_climb.py climbing_video.mp4 --video output.mp4
 
-```bash
-# Add animated metrics dashboard to video (6 real-time plots)
-python scripts/process_video_with_metrics.py input.mp4 output.mp4
+# Customize dashboard position (left or right)
+python scripts/analyze_climb.py climbing_video.mp4 --video output.mp4 --position left
 
-# Position dashboard on left or bottom
-python scripts/process_video_with_metrics.py input.mp4 output.mp4 --position left
+# Use overlay mode instead of side-by-side
+python scripts/analyze_climb.py climbing_video.mp4 --video output.mp4 --overlay
+
+# Add text overlay with current metric values
+python scripts/analyze_climb.py climbing_video.mp4 --video output.mp4 --show-text
+
+# Export both JSON and video in one pass
+python scripts/analyze_climb.py climbing_video.mp4 --json data.json --video output.mp4
 ```
 
 ### Running the Demo
@@ -125,7 +130,13 @@ metrics = analyzer.analyze_frame(landmarks)
 # Get complete time-series history
 history = analyzer.get_history()
 # Returns: hip_heights, velocities, sways, jerks, body_angles, hand_spans, foot_spans,
-#          movement_economies, lock_offs, rest_positions, joint_angles (8 joints)
+#          movement_economy, lock_offs, rest_positions, joint_angles (8 joints)
+
+# Get summary statistics with all metrics
+summary = analyzer.get_summary()
+# Includes: avg_velocity, total_vertical_progress, avg_movement_economy,
+#           lock_off_count, lock_off_percentage, rest_count, rest_percentage,
+#           fatigue_score, and average joint angles
 ```
 
 ## Project Structure
@@ -135,12 +146,19 @@ climb-sensei/
 ├── src/climb_sensei/
 │   ├── __init__.py           # Package exports
 │   ├── __main__.py           # Demo application
+│   ├── config.py             # Configuration and constants
 │   ├── video_io.py           # Video input/output handling
 │   ├── pose_engine.py        # MediaPipe pose estimation
 │   ├── biomechanics.py       # Pure mathematical calculations
-│   └── viz.py                # Visualization utilities
+│   ├── metrics.py            # ClimbingAnalyzer with temporal tracking
+│   ├── metrics_viz.py        # Metrics dashboard visualization
+│   └── viz.py                # Pose visualization utilities
+├── scripts/
+│   └── analyze_climb.py      # Unified CLI (analysis + video generation)
 ├── tests/
-│   └── test_biomechanics.py  # Unit tests
+│   ├── test_*.py             # 107 comprehensive unit tests
+│   └── __init__.py
+├── METRICS_REFERENCE.md      # Complete metrics documentation
 └── pyproject.toml            # Project configuration
 ```
 
@@ -148,10 +166,13 @@ climb-sensei/
 
 The package follows strict **Separation of Concerns**:
 
+- **config**: Application-wide configuration and constants
 - **video_io**: Handles all video I/O operations (no business logic)
 - **pose_engine**: Wraps MediaPipe pose detection (single responsibility)
 - **biomechanics**: Pure mathematical functions (stateless, testable)
-- **viz**: Rendering and annotation utilities (presentation layer)
+- **metrics**: Temporal analysis with ClimbingAnalyzer (OOP, stateful tracking)
+- **metrics_viz**: Dashboard visualization (plots and overlays)
+- **viz**: Pose rendering and annotation utilities (presentation layer)
 
 ## Testing
 
@@ -211,7 +232,9 @@ with VideoWriter('output.mp4', fps=30, width=640, height=480) as writer:
 from climb_sensei.biomechanics import (
     calculate_joint_angle,
     calculate_reach_distance,
-    calculate_center_of_mass
+    calculate_center_of_mass,
+    calculate_limb_angles,
+    calculate_total_distance_traveled
 )
 
 # Joint angle at point B formed by A-B-C
@@ -222,14 +245,34 @@ distance = calculate_reach_distance(point_a, point_b)
 
 # Weighted center of mass
 center = calculate_center_of_mass(points, weights)
+
+# Calculate all 8 joint angles at once
+angles = calculate_limb_angles(landmarks)
+# Returns: left_elbow, right_elbow, left_shoulder, right_shoulder,
+#          left_knee, right_knee, left_hip, right_hip
+
+# Total distance traveled by center of mass
+distance = calculate_total_distance_traveled(com_positions)
 ```
+
+## Metrics Documentation
+
+For complete documentation of all 25+ available metrics, see [METRICS_REFERENCE.md](METRICS_REFERENCE.md).
+
+Key metric categories:
+- **Core Movement**: Velocity, sway, jerk, body angle, spans, vertical progress
+- **Efficiency & Technique**: Movement economy, lock-off detection, rest positions
+- **Joint Angles**: All 8 major joints (elbows, shoulders, knees, hips)
+- **Fatigue & Endurance**: Quality degradation scoring
 
 ## Requirements
 
-- Python 3.12+
-- mediapipe >= 0.10.0
+- Python 3.13+ (tested on 3.13.5)
+- mediapipe >= 0.10.30
 - opencv-python >= 4.8.0
 - numpy >= 1.24.0
+- pytest >= 9.0.0 (for testing)
+- pytest-cov >= 7.0.0 (for coverage)
 
 ## Development
 

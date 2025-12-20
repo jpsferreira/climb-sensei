@@ -138,7 +138,7 @@ def calculate_center_of_mass(
 
 
 def calculate_limb_angles(
-    landmarks: list[dict[str, float]], landmark_indices: "LandmarkIndex"
+    landmarks: list[dict[str, float]], landmark_indices: object
 ) -> dict[str, float]:
     """Calculate joint angles for all major limbs.
 

@@ -27,11 +27,26 @@ from climb_sensei.metrics import ClimbingAnalyzer, AdvancedClimbingMetrics
 from climb_sensei.metrics_viz import (
     create_metric_plot,
     create_metrics_dashboard,
+    compose_frame_with_dashboard,
     overlay_metrics_on_frame,
     draw_metric_text_overlay,
 )
+from climb_sensei.models import (
+    Landmark,
+    FrameMetrics,
+    ClimbingSummary,
+    ClimbingAnalysis,
+)
+from climb_sensei.protocols import (
+    PoseDetector,
+    MetricsAnalyzer,
+    AnalysisRepository,
+)
+from climb_sensei.facade import ClimbingSensei
+from climb_sensei.builder import ClimbingAnalyzerBuilder
+from climb_sensei.repository import JSONRepository, CSVRepository
 
-__version__ = "0.1.0"
+__version__ = "0.3.0"
 
 __all__ = [
     "PoseEngine",
@@ -54,6 +69,21 @@ __all__ = [
     "AdvancedClimbingMetrics",
     "create_metric_plot",
     "create_metrics_dashboard",
+    "compose_frame_with_dashboard",
     "overlay_metrics_on_frame",
     "draw_metric_text_overlay",
+    # New typed models
+    "Landmark",
+    "FrameMetrics",
+    "ClimbingSummary",
+    "ClimbingAnalysis",
+    # Protocols for extensibility
+    "PoseDetector",
+    "MetricsAnalyzer",
+    "AnalysisRepository",
+    # Phase 2: Simplified API patterns
+    "ClimbingSensei",
+    "ClimbingAnalyzerBuilder",
+    "JSONRepository",
+    "CSVRepository",
 ]

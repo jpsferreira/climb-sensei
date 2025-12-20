@@ -7,16 +7,17 @@ and overlay them on video frames.
 from typing import List, Dict, Optional, Tuple
 import numpy as np
 import cv2
+from .config import VisualizationConfig
 
 
 def create_metric_plot(
     values: List[float],
     current_frame: int,
-    width: int = 300,
-    height: int = 100,
+    width: int = VisualizationConfig.PLOT_WIDTH,
+    height: int = VisualizationConfig.PLOT_HEIGHT,
     title: str = "",
     color: Tuple[int, int, int] = (0, 255, 0),
-    background_color: Tuple[int, int, int] = (40, 40, 40),
+    background_color: Tuple[int, int, int] = VisualizationConfig.PLOT_BACKGROUND_COLOR,
     show_current: bool = True,
     y_label: str = "",
     min_val: Optional[float] = None,
@@ -57,11 +58,11 @@ def create_metric_plot(
     if value_range == 0:
         value_range = 1.0
 
-    # Plot margins
-    margin_left = 50
-    margin_right = 10
-    margin_top = 30
-    margin_bottom = 20
+    # Plot margins - from config
+    margin_left = VisualizationConfig.PLOT_MARGIN_LEFT
+    margin_right = VisualizationConfig.PLOT_MARGIN_RIGHT
+    margin_top = VisualizationConfig.PLOT_MARGIN_TOP
+    margin_bottom = VisualizationConfig.PLOT_MARGIN_BOTTOM
 
     plot_width = width - margin_left - margin_right
     plot_height = height - margin_top - margin_bottom
@@ -71,11 +72,11 @@ def create_metric_plot(
         cv2.putText(
             plot,
             title,
-            (margin_left, 20),
+            (margin_left, 25),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.5,
-            (200, 200, 200),
-            1,
+            VisualizationConfig.PLOT_TITLE_FONT_SCALE,
+            VisualizationConfig.PLOT_TITLE_COLOR,
+            VisualizationConfig.PLOT_TITLE_THICKNESS,
             cv2.LINE_AA,
         )
 
@@ -87,9 +88,9 @@ def create_metric_plot(
             f"{max_val:.2f}",
             (5, margin_top + 5),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.3,
-            (150, 150, 150),
-            1,
+            VisualizationConfig.PLOT_LABEL_FONT_SCALE,
+            VisualizationConfig.PLOT_LABEL_COLOR,
+            VisualizationConfig.PLOT_LABEL_THICKNESS,
             cv2.LINE_AA,
         )
         # Min value
@@ -98,9 +99,9 @@ def create_metric_plot(
             f"{min_val:.2f}",
             (5, height - margin_bottom),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.3,
-            (150, 150, 150),
-            1,
+            VisualizationConfig.PLOT_LABEL_FONT_SCALE,
+            VisualizationConfig.PLOT_LABEL_COLOR,
+            VisualizationConfig.PLOT_LABEL_THICKNESS,
             cv2.LINE_AA,
         )
 
@@ -113,7 +114,13 @@ def create_metric_plot(
     # Draw grid lines
     for i in range(5):
         y = margin_top + (plot_height * i // 4)
-        cv2.line(plot, (margin_left, y), (width - margin_right, y), (60, 60, 60), 1)
+        cv2.line(
+            plot,
+            (margin_left, y),
+            (width - margin_right, y),
+            VisualizationConfig.PLOT_GRID_COLOR,
+            1,
+        )
 
     # Draw data line
     num_values = len(values)
@@ -126,20 +133,39 @@ def create_metric_plot(
 
         # Draw line segments
         for i in range(len(points) - 1):
-            cv2.line(plot, points[i], points[i + 1], color, 2, cv2.LINE_AA)
+            cv2.line(
+                plot,
+                points[i],
+                points[i + 1],
+                color,
+                VisualizationConfig.PLOT_LINE_THICKNESS,
+                cv2.LINE_AA,
+            )
 
         # Highlight current position
         if show_current and current_frame < len(points):
             curr_point = points[current_frame]
-            cv2.circle(plot, curr_point, 4, (255, 255, 255), -1)
-            cv2.circle(plot, curr_point, 6, color, 2)
+            cv2.circle(
+                plot,
+                curr_point,
+                VisualizationConfig.PLOT_CURRENT_MARKER_INNER_RADIUS,
+                VisualizationConfig.PLOT_CURRENT_MARKER_INNER_COLOR,
+                -1,
+            )
+            cv2.circle(
+                plot,
+                curr_point,
+                VisualizationConfig.PLOT_CURRENT_MARKER_OUTER_RADIUS,
+                color,
+                VisualizationConfig.PLOT_CURRENT_MARKER_OUTER_THICKNESS,
+            )
 
             # Draw vertical line at current position
             cv2.line(
                 plot,
                 (curr_point[0], margin_top),
                 (curr_point[0], height - margin_bottom),
-                (100, 100, 100),
+                VisualizationConfig.PLOT_CURRENT_LINE_COLOR,
                 1,
             )
 
@@ -150,8 +176,8 @@ def create_metrics_dashboard(
     history: Dict[str, List[float]],
     current_frame: int,
     fps: float = 30.0,
-    plot_width: int = 350,
-    plot_height: int = 100,
+    plot_width: int = VisualizationConfig.PLOT_WIDTH,
+    plot_height: int = VisualizationConfig.PLOT_HEIGHT,
 ) -> np.ndarray:
     """Create a dashboard with multiple metric plots.
 
@@ -292,6 +318,52 @@ def create_metrics_dashboard(
         dashboard = np.zeros((100, plot_width, 3), dtype=np.uint8)
 
     return dashboard
+
+
+def compose_frame_with_dashboard(
+    frame: np.ndarray,
+    dashboard: np.ndarray,
+    position: str = "right",
+    spacing: int = 0,
+) -> np.ndarray:
+    """Compose video frame side-by-side with metrics dashboard (no overlay).
+
+    Args:
+        frame: Input video frame
+        dashboard: Metrics dashboard image
+        position: Where to place dashboard ("right" or "left")
+        spacing: Pixels of spacing between frame and dashboard
+
+    Returns:
+        Composite frame with video and dashboard side-by-side
+    """
+    frame_h, frame_w = frame.shape[:2]
+    dash_h, dash_w = dashboard.shape[:2]
+
+    # Match dashboard height to frame height
+    if dash_h != frame_h:
+        # Scale dashboard to match frame height while maintaining aspect ratio
+        scale = frame_h / dash_h
+        new_w = int(dash_w * scale)
+        dashboard = cv2.resize(
+            dashboard, (new_w, frame_h), interpolation=cv2.INTER_LINEAR
+        )
+        dash_h, dash_w = dashboard.shape[:2]
+
+    # Create composite frame
+    total_width = frame_w + dash_w + spacing
+    composite = np.zeros((frame_h, total_width, 3), dtype=np.uint8)
+
+    if position == "right":
+        # Video on left, dashboard on right
+        composite[:, :frame_w] = frame
+        composite[:, frame_w + spacing :] = dashboard
+    else:  # left
+        # Dashboard on left, video on right
+        composite[:, :dash_w] = dashboard
+        composite[:, dash_w + spacing :] = frame
+
+    return composite
 
 
 def overlay_metrics_on_frame(

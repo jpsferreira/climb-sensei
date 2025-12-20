@@ -24,6 +24,7 @@ from collections import deque
 import numpy as np
 from .config import LandmarkIndex, MetricsConfig
 from .biomechanics import calculate_center_of_mass, calculate_limb_angles
+from .models import FrameMetrics, ClimbingSummary
 
 
 class ClimbingAnalyzer:
@@ -231,10 +232,9 @@ class ClimbingAnalyzer:
         metrics["right_lock_off"] = right_lock_off
 
         # Rest position detection (low body angle AND low velocity)
-        # Body angle close to 0° or 180° indicates vertical position
-        angle_from_vertical = min(abs(body_angle), abs(180 - abs(body_angle)))
+        # Body angle close to 0° indicates vertical position
         is_rest_position = (
-            angle_from_vertical < MetricsConfig.REST_BODY_ANGLE_THRESHOLD
+            body_angle < MetricsConfig.REST_BODY_ANGLE_THRESHOLD
             and velocity < MetricsConfig.REST_VELOCITY_THRESHOLD
         )
         metrics["is_rest_position"] = is_rest_position
@@ -275,7 +275,46 @@ class ClimbingAnalyzer:
             angle_value = joint_angles.get(joint_name, 0.0)
             self._history_joint_angles[joint_name].append(angle_value)
 
+        # Return dictionary for backward compatibility
+        # TODO: In next major version, return FrameMetrics directly
         return metrics
+
+    def analyze_frame_typed(self, landmarks: List[Dict[str, float]]) -> FrameMetrics:
+        """Analyze frame and return typed metrics object.
+
+        This is the preferred method for type-safe code. Returns an immutable
+        FrameMetrics object instead of a dictionary.
+
+        Args:
+            landmarks: List of landmark dictionaries
+
+        Returns:
+            Immutable FrameMetrics object with type safety
+        """
+        metrics_dict = self.analyze_frame(landmarks)
+        return FrameMetrics(
+            hip_height=metrics_dict["hip_height"],
+            com_velocity=metrics_dict["com_velocity"],
+            com_sway=metrics_dict["com_sway"],
+            jerk=metrics_dict["jerk"],
+            vertical_progress=metrics_dict["vertical_progress"],
+            movement_economy=metrics_dict["movement_economy"],
+            is_lock_off=metrics_dict["is_lock_off"],
+            left_lock_off=metrics_dict["left_lock_off"],
+            right_lock_off=metrics_dict["right_lock_off"],
+            is_rest_position=metrics_dict["is_rest_position"],
+            body_angle=metrics_dict["body_angle"],
+            hand_span=metrics_dict["hand_span"],
+            foot_span=metrics_dict["foot_span"],
+            left_elbow=metrics_dict["left_elbow"],
+            right_elbow=metrics_dict["right_elbow"],
+            left_shoulder=metrics_dict["left_shoulder"],
+            right_shoulder=metrics_dict["right_shoulder"],
+            left_knee=metrics_dict["left_knee"],
+            right_knee=metrics_dict["right_knee"],
+            left_hip=metrics_dict["left_hip"],
+            right_hip=metrics_dict["right_hip"],
+        )
 
     def get_summary(self) -> Dict[str, float]:
         """Get summary statistics for the entire climb.
@@ -389,7 +428,48 @@ class ClimbingAnalyzer:
             if angles:
                 summary[f"avg_{joint_name}"] = float(np.mean(angles))
 
+        # Return dictionary for backward compatibility
+        # TODO: In next major version, return ClimbingSummary directly
         return summary
+
+    def get_summary_typed(self) -> ClimbingSummary:
+        """Get typed summary statistics.
+
+        Returns immutable ClimbingSummary object for type-safe code.
+
+        Returns:
+            ClimbingSummary object with all statistics
+        """
+        summary_dict = self.get_summary()
+        return ClimbingSummary(
+            total_frames=summary_dict["total_frames"],
+            total_vertical_progress=summary_dict["total_vertical_progress"],
+            max_height=summary_dict["max_height"],
+            avg_velocity=summary_dict["avg_velocity"],
+            max_velocity=summary_dict["max_velocity"],
+            avg_sway=summary_dict["avg_sway"],
+            max_sway=summary_dict["max_sway"],
+            avg_jerk=summary_dict["avg_jerk"],
+            max_jerk=summary_dict["max_jerk"],
+            avg_body_angle=summary_dict["avg_body_angle"],
+            avg_hand_span=summary_dict["avg_hand_span"],
+            avg_foot_span=summary_dict["avg_foot_span"],
+            total_distance_traveled=summary_dict["total_distance_traveled"],
+            avg_movement_economy=summary_dict["avg_movement_economy"],
+            lock_off_count=summary_dict["lock_off_count"],
+            lock_off_percentage=summary_dict["lock_off_percentage"],
+            rest_count=summary_dict["rest_count"],
+            rest_percentage=summary_dict["rest_percentage"],
+            fatigue_score=summary_dict["fatigue_score"],
+            avg_left_elbow=summary_dict["avg_left_elbow"],
+            avg_right_elbow=summary_dict["avg_right_elbow"],
+            avg_left_shoulder=summary_dict["avg_left_shoulder"],
+            avg_right_shoulder=summary_dict["avg_right_shoulder"],
+            avg_left_knee=summary_dict["avg_left_knee"],
+            avg_right_knee=summary_dict["avg_right_knee"],
+            avg_left_hip=summary_dict["avg_left_hip"],
+            avg_right_hip=summary_dict["avg_right_hip"],
+        )
 
     def _calculate_fatigue_score(self) -> float:
         """Calculate fatigue score based on quality degradation.
@@ -607,11 +687,15 @@ class AdvancedClimbingMetrics:
     def calculate_body_angle(landmarks: List[Dict[str, float]]) -> float:
         """Calculate body lean angle from vertical.
 
+        Measures the deviation from a perfectly vertical torso alignment.
+        In climbing, 0° = vertical (shoulders directly above hips),
+        positive values indicate lean.
+
         Args:
             landmarks: List of landmark dictionaries
 
         Returns:
-            Angle in degrees (0 = vertical, positive = leaning back)
+            Angle in degrees (0 = vertical, up to 90 = horizontal lean)
         """
         if len(landmarks) < 33:
             return 0.0
@@ -635,9 +719,17 @@ class AdvancedClimbingMetrics:
             + landmarks[LandmarkIndex.RIGHT_HIP]["y"]
         ) / 2
 
-        # Calculate angle from vertical
-        dx = shoulder_x - hip_x
-        dy = shoulder_y - hip_y
+        # Calculate horizontal and vertical distances
+        dx = abs(shoulder_x - hip_x)  # Horizontal distance (lean)
+        dy = abs(
+            hip_y - shoulder_y
+        )  # Vertical distance (in image coords, y increases down)
 
-        angle = np.degrees(np.arctan2(dx, dy))
+        # Handle edge case where shoulders and hips are at same position
+        if dy < 1e-6:
+            return 90.0  # Horizontal body
+
+        # Calculate angle from vertical using arctan
+        # arctan(dx/dy) gives angle from vertical axis
+        angle = np.degrees(np.arctan(dx / dy))
         return float(angle)

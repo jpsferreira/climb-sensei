@@ -7,6 +7,7 @@ This module defines application-wide configuration including:
 - Visualization styling (colors, dimensions, etc.)
 """
 
+from dataclasses import dataclass
 from typing import FrozenSet, Tuple, Dict
 
 
@@ -222,40 +223,65 @@ FULL_POSE_CONNECTIONS: FrozenSet[Tuple[int, int]] = frozenset(
 # ==============================================================================
 
 
+@dataclass(frozen=True)
 class PoseConfig:
-    """Pose detection and tracking configuration."""
+    """Immutable pose detection and tracking configuration.
 
-    # Model confidence thresholds
-    DEFAULT_DETECTION_CONFIDENCE = 0.5
-    DEFAULT_TRACKING_CONFIDENCE = 0.5
+    Attributes:
+        min_detection_confidence: Minimum confidence for pose detection (0.0-1.0)
+        min_tracking_confidence: Minimum confidence for pose tracking (0.0-1.0)
+        timestamp_increment_ms: Milliseconds per frame for temporal smoothing
+    """
 
-    # Video mode temporal smoothing
-    TIMESTAMP_INCREMENT_MS = 33  # ~30fps (33ms per frame)
+    min_detection_confidence: float = 0.5
+    min_tracking_confidence: float = 0.5
+    timestamp_increment_ms: int = 33  # ~30fps
+
+    # Keep class constants for backward compatibility
+    DEFAULT_DETECTION_CONFIDENCE: float = 0.5
+    DEFAULT_TRACKING_CONFIDENCE: float = 0.5
+    TIMESTAMP_INCREMENT_MS: int = 33
+
+    def __post_init__(self):
+        """Validate configuration values."""
+        if not 0.0 <= self.min_detection_confidence <= 1.0:
+            raise ValueError("min_detection_confidence must be between 0.0 and 1.0")
+        if not 0.0 <= self.min_tracking_confidence <= 1.0:
+            raise ValueError("min_tracking_confidence must be between 0.0 and 1.0")
 
 
+@dataclass(frozen=True)
 class MetricsConfig:
-    """Metrics calculation configuration."""
+    """Immutable metrics calculation configuration.
 
-    # Lock-off detection threshold (degrees)
-    # An elbow angle less than this indicates a lock-off position
-    LOCK_OFF_THRESHOLD_DEGREES = 90
+    Attributes:
+        lock_off_threshold_degrees: Elbow angle threshold for lock-off detection
+        rest_velocity_threshold: Max velocity for rest position detection
+        rest_body_angle_threshold: Max body angle for rest position (degrees)
+        efficient_economy_ratio: Threshold for efficient movement economy
+        fatigue_window_size: Number of frames for fatigue analysis
+        com_body_weight: Weight factor for center of mass calculation
+    """
 
-    # Rest position thresholds
-    REST_VELOCITY_THRESHOLD = 0.01  # COM velocity threshold for static positions
-    REST_BODY_ANGLE_THRESHOLD = 15  # Max body angle (degrees) for rest position
+    lock_off_threshold_degrees: float = 90.0
+    lock_off_velocity_threshold: float = 0.002
+    rest_velocity_threshold: float = 0.01
+    rest_body_angle_threshold: float = 15.0
+    efficient_economy_ratio: float = 0.8
+    fatigue_window_size: int = 90
+    com_body_weight: float = 1.0
 
-    # Movement economy thresholds
-    EFFICIENT_ECONOMY_RATIO = (
-        0.8  # vertical_progress / total_distance (higher = better)
-    )
-
-    # Fatigue detection window (frames)
-    FATIGUE_WINDOW_SIZE = 90  # 3 seconds at 30fps
-
-    # Center of mass calculation - body part weights (normalized)
-    COM_BODY_WEIGHT = 1.0
+    # Keep class constants for backward compatibility
+    LOCK_OFF_THRESHOLD_DEGREES: float = 90
+    LOCK_OFF_VELOCITY_THRESHOLD: float = 0.002
+    REST_VELOCITY_THRESHOLD: float = 0.01
+    REST_BODY_ANGLE_THRESHOLD: float = 15
+    EFFICIENT_ECONOMY_RATIO: float = 0.8
+    FATIGUE_WINDOW_SIZE: int = 90
+    COM_BODY_WEIGHT: float = 1.0
 
 
+# Keep VisualizationConfig as regular class (has mutable defaults)
 class VisualizationConfig:
     """Visualization styling configuration."""
 
@@ -272,21 +298,47 @@ class VisualizationConfig:
     }
 
     # Drawing dimensions
-    DEFAULT_LINE_THICKNESS = 2
-    DEFAULT_CIRCLE_RADIUS = 5
-    LANDMARK_BORDER_THICKNESS = 1
+    DEFAULT_LINE_THICKNESS = 3
+    DEFAULT_CIRCLE_RADIUS = 7
+    LANDMARK_BORDER_THICKNESS = 2
 
     # Text styling
-    DEFAULT_FONT_SCALE = 0.6
+    DEFAULT_FONT_SCALE = 3.0
     DEFAULT_FONT_THICKNESS = 2
 
     # Metrics overlay layout
-    METRICS_OVERLAY_PADDING = 10
-    METRICS_LINE_HEIGHT = 25
+    METRICS_OVERLAY_PADDING = 15
+    METRICS_LINE_HEIGHT = 50
     METRICS_OVERLAY_BG_ALPHA = 0.7
 
     # Angle annotation
     ANGLE_ANNOTATION_PADDING = 5
+
+    # Plot settings for metrics dashboard
+    PLOT_WIDTH = 500
+    PLOT_HEIGHT = 150
+    PLOT_BACKGROUND_COLOR = (40, 40, 40)  # BGR
+    PLOT_MARGIN_LEFT = 70
+    PLOT_MARGIN_RIGHT = 15
+    PLOT_MARGIN_TOP = 40
+    PLOT_MARGIN_BOTTOM = 25
+
+    # Plot text styling
+    PLOT_TITLE_FONT_SCALE = 0.8
+    PLOT_TITLE_THICKNESS = 2
+    PLOT_TITLE_COLOR = (200, 200, 200)  # BGR
+    PLOT_LABEL_FONT_SCALE = 0.5
+    PLOT_LABEL_THICKNESS = 2
+    PLOT_LABEL_COLOR = (150, 150, 150)  # BGR
+
+    # Plot elements
+    PLOT_GRID_COLOR = (60, 60, 60)  # BGR
+    PLOT_LINE_THICKNESS = 2
+    PLOT_CURRENT_MARKER_INNER_COLOR = (255, 255, 255)  # BGR - white
+    PLOT_CURRENT_MARKER_INNER_RADIUS = 4
+    PLOT_CURRENT_MARKER_OUTER_RADIUS = 6
+    PLOT_CURRENT_MARKER_OUTER_THICKNESS = 2
+    PLOT_CURRENT_LINE_COLOR = (100, 100, 100)  # BGR - gray vertical line
 
 
 # ==============================================================================
