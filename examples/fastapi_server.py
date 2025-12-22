@@ -1,15 +1,26 @@
 #!/usr/bin/env python3
 """
-Example: Backend API Integration for Video Upload Service
+Example: FastAPI for Video Upload Service
 
 This example demonstrates how to integrate climb-sensei's video quality
-checking into a backend API service that processes uploaded videos.
+checking into a FastAPI backend service that processes uploaded videos.
 
 The workflow is:
 1. User uploads video
 2. Validate video quality
 3. If valid, process with climb-sensei
 4. Return results
+
+Installation:
+    pip install fastapi uvicorn python-multipart
+
+Usage:
+    python examples/fastapi_server.py
+
+    Then in another terminal:
+    curl -F "video=@your_video.mp4" http://localhost:8000/upload
+
+    Or visit http://localhost:8000/docs for interactive API docs
 """
 
 import json
@@ -175,51 +186,33 @@ def handle_upload(filepath: str, output_json: str = None) -> Dict:
     return response
 
 
-# Example usage for different API frameworks:
-
-
-def flask_example():
-    """Example Flask API endpoint"""
-    from flask import Flask, jsonify, request
-
-    app = Flask(__name__)
-
-    @app.route("/upload", methods=["POST"])
-    def upload_video():
-        # Get uploaded file
-        video_file = request.files.get("video")
-        if not video_file:
-            return jsonify({"error": "No video file provided"}), 400
-
-        # Save to temp location
-        temp_path = f"/tmp/{video_file.filename}"
-        video_file.save(temp_path)
-
-        try:
-            # Process with climb-sensei
-            response = handle_upload(temp_path)
-
-            if response["success"]:
-                return jsonify(response), 200
-            else:
-                return jsonify(response), 400
-
-        finally:
-            # Clean up temp file
-            Path(temp_path).unlink(missing_ok=True)
-
-    return app
-
-
-def fastapi_example():
-    """Example FastAPI endpoint"""
+def create_app():
+    """Create and configure FastAPI app."""
     from fastapi import FastAPI, File, UploadFile
     from fastapi.responses import JSONResponse
 
-    app = FastAPI()
+    app = FastAPI(
+        title="climb-sensei API",
+        description="Video analysis API for climbing performance",
+        version="1.0.0",
+    )
+
+    @app.get("/")
+    async def index():
+        """Health check endpoint."""
+        return {"service": "climb-sensei API", "version": "1.0.0", "status": "running"}
 
     @app.post("/upload")
     async def upload_video(video: UploadFile = File(...)):
+        """
+        Process uploaded video.
+
+        Args:
+            video: Uploaded video file (multipart/form-data)
+
+        Returns:
+            JSON response with validation and analysis results
+        """
         # Save to temp location
         temp_path = f"/tmp/{video.filename}"
 
@@ -245,23 +238,18 @@ def fastapi_example():
 
 
 if __name__ == "__main__":
-    import sys
+    import uvicorn
 
-    if len(sys.argv) < 2:
-        print("Usage: python backend_api_integration.py <video_file> [output.json]")
-        sys.exit(1)
-
-    video_path = sys.argv[1]
-    output_path = sys.argv[2] if len(sys.argv) > 2 else None
-
-    # Process video
-    result = handle_upload(video_path, output_path)
-
-    # Print results
     print("\n" + "=" * 60)
-    print("CLIMB-SENSEI BACKEND API - PROCESSING RESULTS")
+    print("Starting climb-sensei FastAPI server")
     print("=" * 60)
-    print(json.dumps(result, indent=2))
+    print("\nEndpoints:")
+    print("  GET  /          - Health check")
+    print("  POST /upload    - Upload and analyze video")
+    print("  GET  /docs      - Interactive API documentation")
+    print("\nExample usage:")
+    print('  curl -F "video=@climb.mp4" http://localhost:8000/upload')
+    print("\n" + "=" * 60 + "\n")
 
-    # Exit with appropriate code
-    sys.exit(0 if result["success"] else 1)
+    app = create_app()
+    uvicorn.run(app, host="0.0.0.0", port=8000)

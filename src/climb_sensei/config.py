@@ -242,7 +242,7 @@ class PoseConfig:
     DEFAULT_TRACKING_CONFIDENCE: float = 0.5
     TIMESTAMP_INCREMENT_MS: int = 33
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate configuration values."""
         if not 0.0 <= self.min_detection_confidence <= 1.0:
             raise ValueError("min_detection_confidence must be between 0.0 and 1.0")

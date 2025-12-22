@@ -551,7 +551,7 @@ class ClimbingAnalyzer:
 
         return history
 
-    def reset(self):
+    def reset(self) -> None:
         """Reset the analyzer for a new climb."""
         self._hip_heights.clear()
         self._com_positions.clear()

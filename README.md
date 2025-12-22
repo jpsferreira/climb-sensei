@@ -44,6 +44,28 @@ python scripts/analyze_climb.py climbing_video.mp4 --json analysis.json
 
 ### Python API
 
+**Recommended: Use the ClimbingSensei facade (simple, automatic quality validation)**
+
+```python
+from climb_sensei import ClimbingSensei
+
+# Automatic quality validation and analysis
+with ClimbingSensei('climbing_video.mp4') as sensei:
+    analysis = sensei.analyze()
+
+# Access results
+print(f"Max height: {analysis.summary.max_height:.2f}m")
+print(f"Video quality: {analysis.video_quality.resolution_quality}")
+print(f"Tracking quality: {analysis.tracking_quality.quality_level}")
+
+# Export to JSON
+import json
+with open('results.json', 'w') as f:
+    json.dump(analysis.to_dict(), f, indent=2)
+```
+
+**Advanced: Direct API access for custom workflows**
+
 ```python
 from climb_sensei import PoseEngine, VideoReader, ClimbingAnalyzer
 
@@ -51,11 +73,7 @@ analyzer = ClimbingAnalyzer(window_size=30, fps=30)
 
 with PoseEngine() as engine:
     with VideoReader('climbing_video.mp4') as video:
-        while True:
-            success, frame = video.read()
-            if not success:
-                break
-
+        for frame in video:
             results = engine.process(frame)
             if results:
                 landmarks = engine.extract_landmarks(results)

@@ -35,11 +35,10 @@ from tqdm import tqdm
 # Add src to path for development
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from climb_sensei.pose_engine import PoseEngine
+from climb_sensei import ClimbingSensei
 from climb_sensei.video_io import VideoReader, VideoWriter
 from climb_sensei.viz import draw_pose_landmarks
 from climb_sensei.config import CLIMBING_CONNECTIONS, CLIMBING_LANDMARKS
-from climb_sensei.metrics import ClimbingAnalyzer
 from climb_sensei.metrics_viz import (
     create_metrics_dashboard,
     compose_frame_with_dashboard,
@@ -76,68 +75,88 @@ def analyze_climb(
     if json_path:
         print(f"Will export JSON: {json_path}")
 
-    # Initialize components
-    with VideoReader(input_path) as reader:
+    # Step 1: Analyze with ClimbingSensei (includes quality validation)
+    print("\nRunning analysis with quality validation...")
+    with ClimbingSensei(input_path, validate_quality=True) as sensei:
+        analysis = sensei.analyze(verbose=show_progress)
+
+    # Extract results
+    summary = analysis.summary.to_dict()
+    history = analysis.history
+
+    # Print quality reports
+    if analysis.video_quality:
+        vq = analysis.video_quality
         print(
-            f"Video: {reader.width}x{reader.height} @ {reader.fps} fps, {reader.frame_count} frames"
+            f"\nVideo Quality: {vq.resolution_quality} resolution, {vq.fps_quality} FPS"
+        )
+        if vq.warnings:
+            for warning in vq.warnings:
+                print(f"  ⚠️  {warning}")
+
+    if analysis.tracking_quality:
+        tq = analysis.tracking_quality
+        print(
+            f"Tracking Quality: {tq.quality_level} ({tq.detection_rate}% detection rate)"
         )
 
-        analyzer = ClimbingAnalyzer(window_size=30, fps=reader.fps)
+    # Step 2: Generate video output if requested
+    if not video_path:
+        # No video output needed, skip to summary
+        detected_frames = summary["total_frames"]
+        frame_num = summary["total_frames"]
+    else:
+        print("\nGenerating annotated video...")
 
-        # Open video writer if needed
-        writer = None
-
-        if video_path and not use_overlay:
-            # For side-by-side, we need to calculate output dimensions after first frame
-            # We'll initialize writer lazily after creating first dashboard
-            pass
-        elif video_path:
-            # For overlay mode, dimensions match input
-            writer = VideoWriter(
-                video_path, fps=reader.fps, width=reader.width, height=reader.height
+        # Re-process for video generation
+        with VideoReader(input_path) as reader:
+            print(
+                f"Video: {reader.width}x{reader.height} @ {reader.fps} fps, {reader.frame_count} frames"
             )
-            writer.__enter__()
 
-        try:
-            with PoseEngine() as engine:
-                frame_metrics = []
-                detected_frames = 0
-                frame_num = 0
+            # Open video writer if needed
+            writer = None
 
-                # Progress bar
-                iterator = tqdm(
-                    total=reader.frame_count,
-                    desc="Processing" if video_path else "Analyzing",
-                    unit="frame",
-                    disable=not show_progress,
+            if not use_overlay:
+                # For side-by-side, we need to calculate output dimensions after first frame
+                # We'll initialize writer lazily after creating first dashboard
+                pass
+            else:
+                # For overlay mode, dimensions match input
+                writer = VideoWriter(
+                    video_path, fps=reader.fps, width=reader.width, height=reader.height
                 )
+                writer.__enter__()
 
-                # Process frames
-                while True:
-                    success, frame = reader.read()
-                    if not success:
-                        break
+            try:
+                from climb_sensei.pose_engine import PoseEngine
 
-                    frame_num += 1
+                with PoseEngine() as engine:
+                    detected_frames = 0
+                    frame_num = 0
 
-                    # Detect pose
-                    results = engine.process(frame)
+                    # Progress bar
+                    iterator = tqdm(
+                        total=reader.frame_count,
+                        desc="Generating video",
+                        unit="frame",
+                        disable=not show_progress,
+                    )
 
-                    if results and results.pose_landmarks:
-                        detected_frames += 1
-                        landmarks = engine.extract_landmarks(results)
+                    # Process frames for video generation
+                    while True:
+                        success, frame = reader.read()
+                        if not success:
+                            break
 
-                        # Analyze frame
-                        metrics = analyzer.analyze_frame(landmarks)
+                        frame_num += 1
 
-                        # Store metrics if JSON export requested
-                        if json_path:
-                            metrics["frame"] = frame_num
-                            metrics["timestamp"] = frame_num / reader.fps
-                            frame_metrics.append(metrics)
+                        # Detect pose for visualization
+                        results = engine.process(frame)
 
-                        # Create annotated frame if video output requested
-                        if video_path:
+                        if results and results.pose_landmarks:
+                            detected_frames += 1
+
                             # Draw pose
                             annotated_frame = draw_pose_landmarks(
                                 frame,
@@ -146,10 +165,7 @@ def analyze_climb(
                                 landmarks_to_draw=CLIMBING_LANDMARKS,
                             )
 
-                            # Get metrics history for plotting
-                            history = analyzer.get_history()
-
-                            # Create dashboard
+                            # Create dashboard using pre-computed history
                             dashboard = create_metrics_dashboard(
                                 history,
                                 current_frame=frame_num - 1,  # 0-indexed
@@ -188,11 +204,20 @@ def analyze_climb(
                                     )
                                     writer.__enter__()
 
-                            # Optionally add text overlay
-                            if show_text:
+                            # Optionally add text overlay with current frame metrics
+                            if show_text and frame_num - 1 < len(
+                                history.get("com_velocity", [])
+                            ):
+                                # Build current metrics dict from history
+                                idx = frame_num - 1
+                                current_metrics = {}
+                                for key, values in history.items():
+                                    if idx < len(values):
+                                        current_metrics[key] = values[idx]
+
                                 output_frame = draw_metric_text_overlay(
                                     output_frame,
-                                    metrics,
+                                    current_metrics,
                                     position=(10, 30),
                                 )
 
@@ -218,15 +243,12 @@ def analyze_climb(
                     if video_path:
                         iterator.set_postfix({"detected": detected_frames})
 
-                iterator.close()
+                    iterator.close()
 
-        finally:
-            # Close video writer if it was opened
-            if writer:
-                writer.__exit__(None, None, None)
-
-    # Get summary statistics
-    summary = analyzer.get_summary()
+            finally:
+                # Close video writer if it was opened
+                if writer:
+                    writer.__exit__(None, None, None)
 
     # Print comprehensive summary
     print("\n" + "=" * 60)
@@ -287,30 +309,9 @@ def analyze_climb(
 
     # Save JSON if requested
     if json_path:
-        # Convert numpy types to native Python types for JSON serialization
-        def convert_numpy(obj):
-            """Convert numpy types to native Python types."""
-            import numpy as np
-
-            if isinstance(obj, (np.integer, np.int64, np.int32, np.int16, np.int8)):
-                return int(obj)
-            elif isinstance(obj, (np.floating, np.float64, np.float32, np.float16)):
-                return float(obj)
-            elif isinstance(obj, (np.bool_, bool)):
-                return bool(obj)
-            elif isinstance(obj, np.ndarray):
-                return obj.tolist()
-            elif isinstance(obj, dict):
-                return {key: convert_numpy(value) for key, value in obj.items()}
-            elif isinstance(obj, list):
-                return [convert_numpy(item) for item in obj]
-            return obj
-
-        output_data = {
-            "video": input_path,
-            "summary": convert_numpy(summary),
-            "frame_metrics": convert_numpy(frame_metrics),
-        }
+        # Use the analysis object's to_dict method (handles serialization)
+        output_data = analysis.to_dict()
+        output_data["video"] = input_path  # Add video path for reference
 
         with open(json_path, "w") as f:
             json.dump(output_data, f, indent=2)

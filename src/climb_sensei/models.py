@@ -5,7 +5,11 @@ of landmarks, metrics, and analysis results.
 """
 
 from dataclasses import dataclass, asdict
-from typing import Dict
+from typing import Dict, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from climb_sensei.video_quality import VideoQualityReport
+    from climb_sensei.tracking_quality import TrackingQualityReport
 
 
 @dataclass(frozen=True)
@@ -190,23 +194,51 @@ class ClimbingAnalysis:
         summary: Aggregated statistics
         history: Frame-by-frame metric history
         video_path: Path to analyzed video
+        video_quality: Video quality report (if validation was run)
+        tracking_quality: Pose tracking quality report (if validation was run)
     """
 
     summary: ClimbingSummary
     history: Dict[str, list]
     video_path: str | None = None
+    video_quality: "VideoQualityReport | None" = None
+    tracking_quality: "TrackingQualityReport | None" = None
 
     def to_dict(self) -> Dict:
         """Convert to dictionary for serialization.
 
         Returns:
-            Dictionary with summary, history, and video_path
+            Dictionary with summary, history, video_path, and quality reports
         """
-        return {
+        result = {
             "summary": self.summary.to_dict(),
             "history": self.history,
             "video_path": self.video_path,
         }
+
+        # Add quality reports if present
+        if self.video_quality:
+            result["video_quality"] = {
+                "is_valid": self.video_quality.is_valid,
+                "resolution_quality": self.video_quality.resolution_quality,
+                "fps_quality": self.video_quality.fps_quality,
+                "duration_quality": self.video_quality.duration_quality,
+                "issues": self.video_quality.issues,
+                "warnings": self.video_quality.warnings,
+            }
+
+        if self.tracking_quality:
+            result["tracking_quality"] = {
+                "is_trackable": self.tracking_quality.is_trackable,
+                "quality_level": self.tracking_quality.quality_level,
+                "detection_rate": self.tracking_quality.detection_rate,
+                "avg_confidence": self.tracking_quality.avg_landmark_confidence,
+                "tracking_smoothness": self.tracking_quality.tracking_smoothness,
+                "issues": self.tracking_quality.issues,
+                "warnings": self.tracking_quality.warnings,
+            }
+
+        return result
 
     @classmethod
     def from_dict(cls, d: Dict) -> "ClimbingAnalysis":

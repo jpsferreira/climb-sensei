@@ -1,198 +1,165 @@
 #!/usr/bin/env python3
 """
-Example: Analyzing Tracking Quality During Video Processing
+Example: Analyzing Climbing Video with Quality Validation
 
-This example demonstrates how to analyze skeleton tracking quality
-while processing a climbing video, without re-running pose detection.
+This example demonstrates the simplified ClimbingSensei facade which
+automatically validates video and tracking quality during analysis.
+
+The facade handles:
+1. Video quality validation (format, resolution, FPS, lighting, stability)
+2. Pose detection and metrics calculation
+3. Tracking quality assessment (detection rate, confidence, smoothness)
+4. Combined results in a single analysis object
 """
 
-from climb_sensei import (
-    ClimbingAnalyzer,
-    PoseEngine,
-    VideoReader,
-    analyze_tracking_from_landmarks,
-)
+from climb_sensei import ClimbingSensei
 
 
-def analyze_with_tracking_quality(video_path: str):
+def analyze_climb(video_path: str):
     """
-    Analyze climbing video and assess tracking quality simultaneously.
+    Analyze climbing video with automatic quality validation.
 
     Args:
         video_path: Path to the climbing video file.
+
+    Returns:
+        ClimbingAnalysis with metrics and quality reports.
     """
-    analyzer = ClimbingAnalyzer(window_size=30, fps=30)
-    landmarks_history = []
+    print(f"Analyzing: {video_path}")
+    print("=" * 70)
 
-    print(f"Processing video: {video_path}")
+    # Use ClimbingSensei facade - handles everything automatically
+    with ClimbingSensei(video_path, validate_quality=True) as sensei:
+        # This single call:
+        # - Validates video quality
+        # - Processes all frames
+        # - Calculates metrics
+        # - Assesses tracking quality
+        analysis = sensei.analyze(verbose=True)
 
-    with PoseEngine() as engine:
-        with VideoReader(video_path) as reader:
-            # Update analyzer with actual FPS
-            analyzer = ClimbingAnalyzer(window_size=int(reader.fps), fps=reader.fps)
-
-            frame_count = 0
-            while True:
-                success, frame = reader.read()
-                if not success:
-                    break
-
-                frame_count += 1
-
-                # Detect pose
-                results = engine.process(frame)
-
-                if results:
-                    landmarks = engine.extract_landmarks(results)
-
-                    if landmarks:
-                        # Analyze frame metrics
-                        analyzer.analyze_frame(landmarks)
-
-                        # Store landmarks for tracking quality analysis
-                        landmarks_history.append(landmarks)
-                    else:
-                        landmarks_history.append(None)
-                else:
-                    landmarks_history.append(None)
-
-                # Progress feedback
-                if frame_count % 100 == 0:
-                    print(f"  Processed {frame_count} frames...")
-
-    print(f"\nCompleted processing {frame_count} frames")
-
-    # Get climbing analysis summary
-    climbing_summary = analyzer.get_summary()
-
-    # Analyze tracking quality from the landmarks we already extracted
-    print("\nAnalyzing tracking quality...")
-    tracking_report = analyze_tracking_from_landmarks(
-        landmarks_history,
-        sample_rate=1,  # Already processed all frames
-        file_path=video_path,
-    )
-
-    return {
-        "climbing_analysis": climbing_summary,
-        "tracking_quality": tracking_report,
-        "frames_processed": frame_count,
-    }
+    return analysis
 
 
-def print_results(results):
-    """Print combined results."""
-    climbing = results["climbing_analysis"]
-    tracking = results["tracking_quality"]
+def print_results(analysis):
+    """Print analysis results with quality information."""
+    climbing = analysis.summary
+    video_quality = analysis.video_quality
+    tracking = analysis.tracking_quality
 
     print("\n" + "=" * 70)
     print("CLIMBING ANALYSIS RESULTS")
     print("=" * 70)
-    print(f"Frames Processed: {results['frames_processed']}")
-    print(f"Average Velocity: {climbing['avg_velocity']:.4f}")
-    print(f"Total Vertical Progress: {climbing['total_vertical_progress']:.3f}")
-    print(f"Average Movement Economy: {climbing['avg_movement_economy']:.4f}")
-    print(f"Lock-off Count: {climbing['lock_off_count']}")
-    print(f"Rest Position Count: {climbing['rest_count']}")
-    print(f"Fatigue Score: {climbing['fatigue_score']:.3f}")
+    print(f"Frames Processed: {climbing.total_frames}")
+    print(f"Average Velocity: {climbing.avg_velocity:.4f}")
+    print(f"Total Vertical Progress: {climbing.total_vertical_progress:.3f}")
+    print(f"Average Movement Economy: {climbing.avg_movement_economy:.4f}")
+    print(f"Lock-off Count: {climbing.lock_off_count}")
+    print(f"Rest Position Count: {climbing.rest_count}")
+    print(f"Fatigue Score: {climbing.fatigue_score:.3f}")
 
-    print("\n" + "=" * 70)
-    print("TRACKING QUALITY REPORT")
-    print("=" * 70)
-    status = "✅ TRACKABLE" if tracking.is_trackable else "❌ NOT TRACKABLE"
-    print(f"Status: {status}")
-    print(f"Quality Level: {tracking.quality_level.upper()}")
-    print(
-        f"Detection Rate: {tracking.detection_rate}% ({tracking.frames_with_pose}/{tracking.total_frames})"
-    )
-    print(f"Avg Confidence: {tracking.avg_landmark_confidence:.3f}")
-    print(f"Avg Visibility: {tracking.avg_visibility_score:.1f}%")
-    print(f"Tracking Smoothness: {tracking.tracking_smoothness:.3f}")
-    print(f"Tracking Loss Events: {tracking.tracking_loss_events}")
+    # Video quality information
+    if video_quality:
+        print("\n" + "=" * 70)
+        print("VIDEO QUALITY REPORT")
+        print("=" * 70)
+        status = "\u2705 VALID" if video_quality.is_valid else "\u274c INVALID"
+        print(f"Status: {status}")
+        print(
+            f"Resolution: {video_quality.width}x{video_quality.height} ({video_quality.resolution_quality})"
+        )
+        print(f"FPS: {video_quality.fps} ({video_quality.fps_quality})")
+        print(
+            f"Duration: {video_quality.duration_seconds:.1f}s ({video_quality.duration_quality})"
+        )
+        if video_quality.lighting_quality:
+            print(f"Lighting: {video_quality.lighting_quality}")
+        if video_quality.stability_quality:
+            print(f"Stability: {video_quality.stability_quality}")
 
-    if tracking.issues:
-        print("\n❌ Tracking Issues:")
-        for issue in tracking.issues:
-            print(f"  • {issue}")
+    # Tracking quality information
+    if tracking:
+        print("\n" + "=" * 70)
+        print("TRACKING QUALITY REPORT")
+        print("=" * 70)
+        status = "\u2705 TRACKABLE" if tracking.is_trackable else "\u274c NOT TRACKABLE"
+        print(f"Status: {status}")
+        print(f"Quality Level: {tracking.quality_level.upper()}")
+        print(
+            f"Detection Rate: {tracking.detection_rate}% ({tracking.frames_with_pose}/{tracking.total_frames})"
+        )
+        print(f"Avg Confidence: {tracking.avg_landmark_confidence:.3f}")
+        print(f"Avg Visibility: {tracking.avg_visibility_score:.1f}%")
+        print(f"Tracking Smoothness: {tracking.tracking_smoothness:.3f}")
+        print(f"Tracking Loss Events: {tracking.tracking_loss_events}")
 
-    if tracking.warnings:
-        print("\n⚠️  Tracking Warnings:")
-        for warning in tracking.warnings:
-            print(f"  • {warning}")
+        if tracking.issues:
+            print("\n\u274c Tracking Issues:")
+            for issue in tracking.issues:
+                print(f"  \u2022 {issue}")
+
+        if tracking.warnings:
+            print("\n\u26a0\ufe0f  Tracking Warnings:")
+            for warning in tracking.warnings:
+                print(f"  \u2022 {warning}")
 
     print("\n" + "=" * 70)
 
     # Combined recommendations
-    print("\n💡 RECOMMENDATIONS")
+    print("\nRECOMMENDATIONS")
     print("=" * 70)
 
-    if not tracking.is_trackable:
-        print("⚠️  Poor tracking quality detected:")
-        print("  • Results may be unreliable")
-        print("  • Consider re-recording with:")
+    if tracking and not tracking.is_trackable:
+        print("\u26a0\ufe0f  Poor tracking quality detected:")
+        print("  \u2022 Results may be unreliable")
+        print("  \u2022 Consider re-recording with:")
         print("    - Better lighting")
         print("    - More stable camera position")
         print("    - Clearer view of the climber")
-    elif tracking.quality_level == "acceptable":
-        print("⚠️  Acceptable but not optimal tracking:")
-        print("  • Results should be interpreted carefully")
-        print("  • Some metrics may have reduced accuracy")
+    elif tracking and tracking.quality_level == "acceptable":
+        print("\u26a0\ufe0f  Acceptable but not optimal tracking:")
+        print("  \u2022 Results should be interpreted carefully")
+        print("  \u2022 Some metrics may have reduced accuracy")
     else:
-        print("✅ Good tracking quality - results are reliable!")
+        print("\u2705 Good quality - results are reliable!")
 
-    if climbing["fatigue_score"] > 0.5:
-        print(f"\n⚠️  High fatigue score ({climbing['fatigue_score']:.2f}):")
-        print("  • Movement quality degraded over time")
-        print("  • Consider shorter attempts or more rest")
+    if climbing.fatigue_score > 0.5:
+        print(f"\n\u26a0\ufe0f  High fatigue score ({climbing.fatigue_score:.2f}):")
+        print("  \u2022 Movement quality degraded over time")
+        print("  \u2022 Consider shorter attempts or more rest")
 
 
 if __name__ == "__main__":
     import sys
 
     if len(sys.argv) < 2:
-        print("Usage: python analyze_with_tracking.py <video_file>")
+        print("Usage: python analyze_with_tracking.py <video_file> [output.json]")
+        print("\nExample:")
+        print("  python analyze_with_tracking.py climb.mp4")
+        print("  python analyze_with_tracking.py climb.mp4 results.json")
         sys.exit(1)
 
     video_path = sys.argv[1]
 
     try:
-        results = analyze_with_tracking_quality(video_path)
-        print_results(results)
+        # Analyze using the facade - simple and automatic!
+        analysis = analyze_climb(video_path)
 
-        # Export to JSON if needed
+        # Print comprehensive results
+        print_results(analysis)
+
+        # Export to JSON if requested
         if len(sys.argv) > 2:
             import json
 
             output_file = sys.argv[2]
 
-            # Convert tracking report to dict
-            tracking_dict = {
-                "is_trackable": results["tracking_quality"].is_trackable,
-                "quality_level": results["tracking_quality"].quality_level,
-                "detection_rate": results["tracking_quality"].detection_rate,
-                "avg_confidence": results["tracking_quality"].avg_landmark_confidence,
-                "avg_visibility": results["tracking_quality"].avg_visibility_score,
-                "tracking_smoothness": results["tracking_quality"].tracking_smoothness,
-                "tracking_loss_events": results[
-                    "tracking_quality"
-                ].tracking_loss_events,
-                "issues": results["tracking_quality"].issues,
-                "warnings": results["tracking_quality"].warnings,
-            }
-
-            export_data = {
-                "climbing_analysis": results["climbing_analysis"],
-                "tracking_quality": tracking_dict,
-                "frames_processed": results["frames_processed"],
-            }
-
             with open(output_file, "w") as f:
-                json.dump(export_data, f, indent=2)
+                json.dump(analysis.to_dict(), f, indent=2)
 
-            print(f"\n✅ Results exported to: {output_file}")
+            print(f"\n\u2705 Results exported to: {output_file}")
 
     except Exception as e:
-        print(f"\n❌ Error: {e}")
+        print(f"\n\u274c Error: {e}")
         import traceback
 
         traceback.print_exc()
