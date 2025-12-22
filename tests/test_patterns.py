@@ -1,4 +1,4 @@
-"""Tests for Phase 2: Facade, Builder, and Repository patterns."""
+"""Tests for Phase 2: Facade and Repository patterns."""
 
 import pytest
 import json
@@ -7,94 +7,11 @@ from unittest.mock import Mock
 
 from climb_sensei import (
     ClimbingSensei,
-    ClimbingAnalyzerBuilder,
     JSONRepository,
     CSVRepository,
     ClimbingAnalysis,
     ClimbingSummary,
-    ClimbingAnalyzer,
-    MetricsConfig,
 )
-
-
-class TestClimbingAnalyzerBuilder:
-    """Test the Builder pattern for ClimbingAnalyzer."""
-
-    def test_default_build(self):
-        """Test building with default values."""
-        builder = ClimbingAnalyzerBuilder()
-        analyzer = builder.build()
-
-        assert isinstance(analyzer, ClimbingAnalyzer)
-        assert analyzer.window_size == 30
-        assert analyzer.fps == 30.0
-
-    def test_fluent_api(self):
-        """Test fluent chaining of builder methods."""
-        analyzer = ClimbingAnalyzerBuilder().with_window_size(60).with_fps(60.0).build()
-
-        assert analyzer.window_size == 60
-        assert analyzer.fps == 60.0
-
-    def test_with_window_size(self):
-        """Test setting window size."""
-        analyzer = ClimbingAnalyzerBuilder().with_window_size(45).build()
-        assert analyzer.window_size == 45
-
-    def test_with_fps(self):
-        """Test setting fps."""
-        analyzer = ClimbingAnalyzerBuilder().with_fps(25.0).build()
-        assert analyzer.fps == 25.0
-
-    def test_with_config(self):
-        """Test setting complete config."""
-        config = MetricsConfig(lock_off_threshold_degrees=85.0)
-        builder = ClimbingAnalyzerBuilder().with_config(config)
-        # Just verify builder accepts config
-        assert builder._config.lock_off_threshold_degrees == 85.0
-
-    def test_with_individual_thresholds(self):
-        """Test setting individual threshold values."""
-        builder = (
-            ClimbingAnalyzerBuilder()
-            .with_velocity_threshold(0.12)
-            .with_sway_threshold(0.08)
-        )
-
-        # Verify builder stores these values
-        assert builder._velocity_threshold == 0.12
-        assert builder._sway_threshold == 0.08
-
-        # Build still works
-        analyzer = builder.build()
-        assert isinstance(analyzer, ClimbingAnalyzer)
-
-    def test_invalid_window_size(self):
-        """Test that invalid window size raises error."""
-        with pytest.raises(ValueError, match="must be positive"):
-            ClimbingAnalyzerBuilder().with_window_size(0)
-
-    def test_invalid_fps(self):
-        """Test that invalid fps raises error."""
-        with pytest.raises(ValueError, match="must be positive"):
-            ClimbingAnalyzerBuilder().with_fps(-10.0)
-
-    def test_reset(self):
-        """Test resetting builder to defaults."""
-        builder = (
-            ClimbingAnalyzerBuilder().with_window_size(100).with_fps(120.0).reset()
-        )
-
-        analyzer = builder.build()
-        assert analyzer.window_size == 30  # Back to default
-        assert analyzer.fps == 30.0
-
-    def test_builder_repr(self):
-        """Test string representation."""
-        builder = ClimbingAnalyzerBuilder().with_window_size(45)
-        repr_str = repr(builder)
-        assert "ClimbingAnalyzerBuilder" in repr_str
-        assert "45" in repr_str
 
 
 class TestClimbingSenseiFacade:
@@ -441,18 +358,6 @@ class TestProtocolConformance:
 
 class TestIntegration:
     """Integration tests combining Phase 2 patterns."""
-
-    def test_builder_with_facade(self, tmp_path):
-        """Test using builder pattern with facade."""
-        # Create a mock video file
-        video_path = tmp_path / "test.mp4"
-        video_path.write_text("fake")
-
-        # Build custom analyzer
-        analyzer = ClimbingAnalyzerBuilder().with_window_size(45).with_fps(25.0).build()
-
-        # Could inject into facade if we added that feature
-        assert analyzer.window_size == 45
 
     def test_facade_with_repository(self, tmp_path):
         """Test analyzing with facade and saving with repository."""
