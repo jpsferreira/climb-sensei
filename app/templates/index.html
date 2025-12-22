@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ClimbingSensei - Video Analysis</title>
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>🧗 ClimbingSensei</h1>
+        <p class="subtitle">AI-Powered Climbing Performance Analysis</p>
+      </header>
+
+      <div class="upload-section">
+        <h2>Upload Video</h2>
+        <form id="uploadForm" enctype="multipart/form-data">
+          <div class="file-input-wrapper">
+            <input
+              type="file"
+              id="videoFile"
+              name="file"
+              accept="video/*"
+              required
+            />
+            <label for="videoFile" class="file-label">
+              <span id="fileName">Choose a climbing video...</span>
+            </label>
+          </div>
+
+          <div class="options">
+            <h3>Analysis Options</h3>
+            <p class="help-text">Select which analyses to run on your video</p>
+
+            <div class="checkbox-group">
+              <label class="checkbox-label">
+                <input type="checkbox" name="run_metrics" checked />
+                <span class="checkbox-text">
+                  <strong>📊 Performance Metrics</strong>
+                  <small
+                    >Calculate velocity, stability, efficiency, and 20+ other
+                    metrics</small
+                  >
+                </span>
+              </label>
+
+              <label class="checkbox-label">
+                <input type="checkbox" name="run_quality" checked />
+                <span class="checkbox-text">
+                  <strong>✅ Quality Validation</strong>
+                  <small
+                    >Check video and tracking quality before processing</small
+                  >
+                </span>
+              </label>
+
+              <label class="checkbox-label">
+                <input type="checkbox" name="run_video" />
+                <span class="checkbox-text">
+                  <strong>🎥 Generate Annotated Video</strong>
+                  <small
+                    >Create video with pose visualization and metrics
+                    dashboard</small
+                  >
+                </span>
+              </label>
+            </div>
+
+            <div class="video-options" id="videoOptions" style="display: none">
+              <h4>Video Settings</h4>
+              <label>
+                Dashboard Position:
+                <select name="dashboard_position">
+                  <option value="right">Right</option>
+                  <option value="left">Left</option>
+                </select>
+              </label>
+            </div>
+          </div>
+
+          <button type="submit" class="btn-primary">Analyze Video</button>
+        </form>
+      </div>
+
+      <div id="loadingSection" class="loading-section" style="display: none">
+        <div class="spinner"></div>
+        <h3>Processing Video...</h3>
+        <p id="loadingText">Extracting pose landmarks using MediaPipe...</p>
+        <p class="help-text">
+          This demonstrates the two-phase API: extract once, analyze in
+          parallel!
+        </p>
+      </div>
+
+      <div id="resultsSection" class="results-section" style="display: none">
+        <h2>Analysis Results</h2>
+
+        <div id="videoQuality" class="result-card" style="display: none">
+          <h3>📹 Video Quality</h3>
+          <div id="videoQualityContent"></div>
+        </div>
+
+        <div id="trackingQuality" class="result-card" style="display: none">
+          <h3>🎯 Tracking Quality</h3>
+          <div id="trackingQualityContent"></div>
+        </div>
+
+        <div id="metrics" class="result-card" style="display: none">
+          <h3>📊 Performance Metrics</h3>
+          <div id="metricsContent"></div>
+        </div>
+
+        <div id="videoOutput" class="result-card" style="display: none">
+          <h3>🎥 Annotated Video</h3>
+          <video
+            id="outputVideo"
+            controls
+            style="max-width: 100%; border-radius: 8px"
+          ></video>
+        </div>
+
+        <div class="actions">
+          <button
+            onclick="downloadJSON()"
+            class="btn-secondary"
+            id="downloadBtn"
+            style="display: none"
+          >
+            Download Full Analysis (JSON)
+          </button>
+          <button onclick="location.reload()" class="btn-primary">
+            Analyze Another Video
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      <p>
+        Powered by <strong>ClimbingSensei</strong> | Using MediaPipe Pose
+        Detection
+      </p>
+      <p class="help-text">
+        Two-Phase API Demo: Extract landmarks once, generate multiple outputs
+        efficiently
+      </p>
+    </footer>
+
+    <script>
+      let currentAnalysisId = null;
+
+      // File input handling
+      document
+        .getElementById("videoFile")
+        .addEventListener("change", function (e) {
+          const fileName =
+            e.target.files[0]?.name || "Choose a climbing video...";
+          document.getElementById("fileName").textContent = fileName;
+        });
+
+      // Show/hide video options
+      document
+        .querySelector('input[name="run_video"]')
+        .addEventListener("change", function (e) {
+          document.getElementById("videoOptions").style.display = e.target
+            .checked
+            ? "block"
+            : "none";
+        });
+
+      // Form submission
+      document
+        .getElementById("uploadForm")
+        .addEventListener("submit", async function (e) {
+          e.preventDefault();
+
+          const formData = new FormData(this);
+
+          // Show loading
+          document.querySelector(".upload-section").style.display = "none";
+          document.getElementById("resultsSection").style.display = "none";
+          document.getElementById("loadingSection").style.display = "block";
+
+          try {
+            const response = await fetch("/upload", {
+              method: "POST",
+              body: formData,
+            });
+
+            if (!response.ok) {
+              const error = await response.json();
+              throw new Error(error.detail || "Upload failed");
+            }
+
+            const results = await response.json();
+            currentAnalysisId = results.analysis_id;
+
+            // Hide loading, show results
+            document.getElementById("loadingSection").style.display = "none";
+            document.getElementById("resultsSection").style.display = "block";
+
+            // Display results
+            displayResults(results);
+          } catch (error) {
+            alert("Error: " + error.message);
+            location.reload();
+          }
+        });
+
+      function displayResults(results) {
+        // Video Quality
+        if (results.video_quality) {
+          const vq = results.video_quality;
+          document.getElementById("videoQuality").style.display = "block";
+          document.getElementById("videoQualityContent").innerHTML = `
+                    <div class="metric-grid">
+                        <div class="metric">
+                            <span class="label">Status:</span>
+                            <span class="value ${vq.is_valid ? "success" : "error"}">
+                                ${vq.is_valid ? "✓ Valid" : "✗ Invalid"}
+                            </span>
+                        </div>
+                        <div class="metric">
+                            <span class="label">Resolution:</span>
+                            <span class="value">${vq.resolution} (${vq.resolution_quality})</span>
+                        </div>
+                        <div class="metric">
+                            <span class="label">FPS Quality:</span>
+                            <span class="value">${vq.fps_quality}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="label">Duration:</span>
+                            <span class="value">${vq.duration}</span>
+                        </div>
+                    </div>
+                    ${
+                      vq.warnings.length > 0
+                        ? `
+                        <div class="warnings">
+                            <strong>⚠️ Warnings:</strong>
+                            <ul>${vq.warnings.map((w) => `<li>${w}</li>`).join("")}</ul>
+                        </div>
+                    `
+                        : ""
+                    }
+                `;
+        }
+
+        // Tracking Quality
+        if (results.tracking_quality) {
+          const tq = results.tracking_quality;
+          document.getElementById("trackingQuality").style.display = "block";
+          document.getElementById("trackingQualityContent").innerHTML = `
+                    <div class="metric-grid">
+                        <div class="metric">
+                            <span class="label">Quality Level:</span>
+                            <span class="value quality-${tq.quality_level.toLowerCase()}">${tq.quality_level}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="label">Detection Rate:</span>
+                            <span class="value">${tq.detection_rate}%</span>
+                        </div>
+                        <div class="metric">
+                            <span class="label">Tracking Smoothness:</span>
+                            <span class="value">${tq.tracking_smoothness.toFixed(4)}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="label">Avg Confidence:</span>
+                            <span class="value">${tq.avg_confidence.toFixed(4)}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="label">Loss Events:</span>
+                            <span class="value">${tq.tracking_loss_events}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="label">Trackable:</span>
+                            <span class="value ${tq.is_trackable ? "success" : "error"}">
+                                ${tq.is_trackable ? "Yes" : "No"}
+                            </span>
+                        </div>
+                    </div>
+                    ${
+                      tq.warnings && tq.warnings.length > 0
+                        ? `
+                        <div class="warnings">
+                            <strong>⚠️ Warnings:</strong>
+                            <ul>${tq.warnings.map((w) => `<li>${w}</li>`).join("")}</ul>
+                        </div>
+                    `
+                        : ""
+                    }
+                `;
+        }
+
+        // Metrics
+        if (results.metrics) {
+          const m = results.metrics;
+          document.getElementById("metrics").style.display = "block";
+          document.getElementById("metricsContent").innerHTML = `
+                    <div class="metric-grid">
+                        <div class="metric">
+                            <span class="label">Frames Analyzed:</span>
+                            <span class="value">${m.total_frames}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="label">Max Height:</span>
+                            <span class="value">${m.max_height}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="label">Avg Velocity:</span>
+                            <span class="value">${m.avg_velocity} u/s</span>
+                        </div>
+                        <div class="metric">
+                            <span class="label">Max Velocity:</span>
+                            <span class="value">${m.max_velocity} u/s</span>
+                        </div>
+                        <div class="metric">
+                            <span class="label">Lateral Sway:</span>
+                            <span class="value">${m.avg_sway}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="label">Smoothness (Jerk):</span>
+                            <span class="value">${m.avg_jerk}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="label">Body Angle:</span>
+                            <span class="value">${m.avg_body_angle}°</span>
+                        </div>
+                        <div class="metric">
+                            <span class="label">Movement Economy:</span>
+                            <span class="value">${m.movement_economy}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="label">Lock-offs Detected:</span>
+                            <span class="value">${m.lock_off_count}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="label">Rest Positions:</span>
+                            <span class="value">${m.rest_count}</span>
+                        </div>
+                    </div>
+                `;
+          document.getElementById("downloadBtn").style.display = "inline-block";
+        }
+
+        // Video Output
+        if (results.video_output) {
+          document.getElementById("videoOutput").style.display = "block";
+          document.getElementById("outputVideo").src = results.video_output;
+        }
+      }
+
+      async function downloadJSON() {
+        if (!currentAnalysisId) return;
+        window.location.href = `/download/${currentAnalysisId}`;
+      }
+    </script>
+  </body>
+</html>

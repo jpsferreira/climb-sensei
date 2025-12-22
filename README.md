@@ -29,7 +29,27 @@ pip install uv
 uv sync
 ```
 
-### Analyze a Video
+### Web App (Easiest!)
+
+Launch the web interface to upload videos and view results in your browser:
+
+```bash
+python run_app.py
+```
+
+Then open `http://localhost:8000` and upload a climbing video!
+
+**Features:**
+
+- 📤 Drag-and-drop video upload
+- ⚙️ Select which analyses to run (metrics, video, quality checks)
+- 📊 Interactive results display
+- 💾 Download full analysis as JSON
+- 🎥 View annotated videos in browser
+
+See [app/README.md](app/README.md) for details.
+
+### Command Line
 
 ```bash
 # Quick terminal analysis
