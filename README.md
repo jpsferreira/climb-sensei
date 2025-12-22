@@ -64,6 +64,35 @@ with open('results.json', 'w') as f:
     json.dump(analysis.to_dict(), f, indent=2)
 ```
 
+**Two-Phase API: For backend APIs and parallel processing**
+
+When you need to generate multiple outputs from one video (e.g., metrics + annotated video), use the two-phase approach to avoid re-processing:
+
+```python
+from climb_sensei import ClimbingSensei
+
+with ClimbingSensei('climbing_video.mp4') as sensei:
+    # Phase 1: Extract landmarks once (expensive MediaPipe pass)
+    extracted = sensei.extract_landmarks()
+
+    # Phase 2: Analyze from cached landmarks (fast, can run in parallel)
+    analysis = sensei.analyze_from_landmarks(
+        landmarks_sequence=extracted['landmarks'],
+        fps=extracted['fps']
+    )
+
+    # Reuse pose_results for video generation (no re-processing!)
+    # See scripts/analyze_climb.py for complete example
+    for pose_result in extracted['pose_results']:
+        # Draw pose, create dashboard, compose video...
+        pass
+
+# Benefits:
+# - 50% faster when generating video output
+# - Enables parallel processing of metrics/video/quality
+# - Perfect for backend APIs with multiple output requirements
+```
+
 **Advanced: Direct API access for custom workflows**
 
 ```python

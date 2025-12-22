@@ -75,10 +75,33 @@ def analyze_climb(
     if json_path:
         print(f"Will export JSON: {json_path}")
 
-    # Step 1: Analyze with ClimbingSensei (includes quality validation)
-    print("\nRunning analysis with quality validation...")
+    # Step 1: Extract landmarks once (with quality validation)
+    # This is the expensive operation - we only do it once!
+    print("\nExtracting landmarks with quality validation...")
     with ClimbingSensei(input_path, validate_quality=True) as sensei:
-        analysis = sensei.analyze(verbose=show_progress)
+        # Phase 1: Extract landmarks (single MediaPipe pass)
+        extracted = sensei.extract_landmarks(verbose=show_progress)
+
+        # Phase 2: Analyze from cached landmarks (fast)
+        print("\nAnalyzing climbing metrics...")
+        analysis = sensei.analyze_from_landmarks(
+            landmarks_sequence=extracted["landmarks"],
+            fps=extracted["fps"],
+            validate_tracking_quality=True,
+            verbose=show_progress,
+        )
+
+    # Add video quality from extraction phase
+    if extracted["video_quality"] is not None:
+        from climb_sensei.models import ClimbingAnalysis
+
+        analysis = ClimbingAnalysis(
+            summary=analysis.summary,
+            history=analysis.history,
+            video_path=analysis.video_path,
+            video_quality=extracted["video_quality"],
+            tracking_quality=analysis.tracking_quality,
+        )
 
     # Extract results
     summary = analysis.summary.to_dict()
@@ -100,15 +123,15 @@ def analyze_climb(
             f"Tracking Quality: {tq.quality_level} ({tq.detection_rate}% detection rate)"
         )
 
-    # Step 2: Generate video output if requested
+    # Step 2: Generate video output if requested (reusing cached landmarks!)
     if not video_path:
-        # No video output needed, skip to summary
+        # No video output needed
         detected_frames = summary["total_frames"]
         frame_num = summary["total_frames"]
     else:
-        print("\nGenerating annotated video...")
+        print("\nGenerating annotated video from cached landmarks...")
 
-        # Re-process for video generation
+        # Use cached landmarks for video generation (no re-processing!)
         with VideoReader(input_path) as reader:
             print(
                 f"Video: {reader.width}x{reader.height} @ {reader.fps} fps, {reader.frame_count} frames"
@@ -129,121 +152,115 @@ def analyze_climb(
                 writer.__enter__()
 
             try:
-                from climb_sensei.pose_engine import PoseEngine
+                # No need for PoseEngine - we're using cached results!
+                detected_frames = 0
+                frame_num = 0
 
-                with PoseEngine() as engine:
-                    detected_frames = 0
-                    frame_num = 0
+                # Progress bar
+                iterator = tqdm(
+                    total=reader.frame_count,
+                    desc="Generating video",
+                    unit="frame",
+                    disable=not show_progress,
+                )
 
-                    # Progress bar
-                    iterator = tqdm(
-                        total=reader.frame_count,
-                        desc="Generating video",
-                        unit="frame",
-                        disable=not show_progress,
-                    )
+                # Process frames for video generation using cached pose results
+                for pose_result in extracted["pose_results"]:
+                    success, frame = reader.read()
+                    if not success:
+                        break
 
-                    # Process frames for video generation
-                    while True:
-                        success, frame = reader.read()
-                        if not success:
-                            break
+                    frame_num += 1
 
-                        frame_num += 1
+                    # Use cached pose results instead of re-detecting
+                    if pose_result is not None:
+                        detected_frames += 1
 
-                        # Detect pose for visualization
-                        results = engine.process(frame)
+                        # Draw pose using cached results (no re-processing needed!)
+                        annotated_frame = draw_pose_landmarks(
+                            frame,
+                            pose_result,
+                            connections=CLIMBING_CONNECTIONS,
+                            landmarks_to_draw=CLIMBING_LANDMARKS,
+                        )
 
-                        if results and results.pose_landmarks:
-                            detected_frames += 1
+                        # Create dashboard using pre-computed history
+                        dashboard = create_metrics_dashboard(
+                            history,
+                            current_frame=frame_num - 1,  # 0-indexed
+                            fps=reader.fps,
+                        )
 
-                            # Draw pose
-                            annotated_frame = draw_pose_landmarks(
-                                frame,
-                                results,
-                                connections=CLIMBING_CONNECTIONS,
-                                landmarks_to_draw=CLIMBING_LANDMARKS,
+                        # Compose frame with dashboard
+                        if use_overlay:
+                            # Overlay mode: dashboard on top of video
+                            output_frame = overlay_metrics_on_frame(
+                                annotated_frame,
+                                dashboard,
+                                position=dashboard_position,
+                                alpha=0.85,
+                            )
+                        else:
+                            # Side-by-side mode: no overlay
+                            output_frame = compose_frame_with_dashboard(
+                                annotated_frame,
+                                dashboard,
+                                position=dashboard_position,
+                                spacing=0,
                             )
 
-                            # Create dashboard using pre-computed history
-                            dashboard = create_metrics_dashboard(
-                                history,
-                                current_frame=frame_num - 1,  # 0-indexed
-                                fps=reader.fps,
+                            # Initialize writer on first frame (now we know output dimensions)
+                            if writer is None:
+                                out_h, out_w = output_frame.shape[:2]
+                                print(
+                                    f"Output video: {out_w}x{out_h} (video + dashboard side-by-side)"
+                                )
+                                writer = VideoWriter(
+                                    video_path,
+                                    fps=reader.fps,
+                                    width=out_w,
+                                    height=out_h,
+                                )
+                                writer.__enter__()
+
+                        # Optionally add text overlay with current frame metrics
+                        if show_text and frame_num - 1 < len(
+                            history.get("com_velocity", [])
+                        ):
+                            # Build current metrics dict from history
+                            idx = frame_num - 1
+                            current_metrics = {}
+                            for key, values in history.items():
+                                if idx < len(values):
+                                    current_metrics[key] = values[idx]
+
+                            output_frame = draw_metric_text_overlay(
+                                output_frame,
+                                current_metrics,
+                                position=(10, 30),
                             )
 
-                            # Compose frame with dashboard
-                            if use_overlay:
-                                # Overlay mode: dashboard on top of video
-                                output_frame = overlay_metrics_on_frame(
-                                    annotated_frame,
-                                    dashboard,
-                                    position=dashboard_position,
-                                    alpha=0.85,
-                                )
-                            else:
-                                # Side-by-side mode: no overlay
-                                output_frame = compose_frame_with_dashboard(
-                                    annotated_frame,
-                                    dashboard,
-                                    position=dashboard_position,
-                                    spacing=0,
-                                )
-
-                                # Initialize writer on first frame (now we know output dimensions)
-                                if writer is None:
-                                    out_h, out_w = output_frame.shape[:2]
-                                    print(
-                                        f"Output video: {out_w}x{out_h} (video + dashboard side-by-side)"
-                                    )
-                                    writer = VideoWriter(
-                                        video_path,
-                                        fps=reader.fps,
-                                        width=out_w,
-                                        height=out_h,
-                                    )
-                                    writer.__enter__()
-
-                            # Optionally add text overlay with current frame metrics
-                            if show_text and frame_num - 1 < len(
-                                history.get("com_velocity", [])
-                            ):
-                                # Build current metrics dict from history
-                                idx = frame_num - 1
-                                current_metrics = {}
-                                for key, values in history.items():
-                                    if idx < len(values):
-                                        current_metrics[key] = values[idx]
-
-                                output_frame = draw_metric_text_overlay(
-                                    output_frame,
-                                    current_metrics,
-                                    position=(10, 30),
-                                )
-
-                            writer.write(output_frame)
+                        writer.write(output_frame)
                     else:
                         # No pose detected
-                        if video_path:
-                            if use_overlay or writer is None:
-                                # For overlay mode or before writer initialized, write original frame
-                                if writer:
-                                    writer.write(frame)
-                            else:
-                                # For side-by-side, create blank dashboard
-                                blank_dashboard = np.zeros(
-                                    (reader.height, 500, 3), dtype=np.uint8
-                                )
-                                output_frame = compose_frame_with_dashboard(
-                                    frame, blank_dashboard, position=dashboard_position
-                                )
-                                writer.write(output_frame)
+                        if use_overlay or writer is None:
+                            # For overlay mode or before writer initialized, write original frame
+                            if writer:
+                                writer.write(frame)
+                        else:
+                            # For side-by-side, create blank dashboard
+                            blank_dashboard = np.zeros(
+                                (reader.height, 500, 3), dtype=np.uint8
+                            )
+                            output_frame = compose_frame_with_dashboard(
+                                frame, blank_dashboard, position=dashboard_position
+                            )
+                            writer.write(output_frame)
 
                     iterator.update(1)
-                    if video_path:
-                        iterator.set_postfix({"detected": detected_frames})
+                    iterator.set_postfix({"detected": detected_frames})
 
-                    iterator.close()
+                iterator.close()
 
             finally:
                 # Close video writer if it was opened

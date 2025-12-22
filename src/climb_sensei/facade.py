@@ -97,8 +97,13 @@ class ClimbingSensei:
     def analyze(self, verbose: bool = True) -> ClimbingAnalysis:
         """Run complete analysis on the climbing video.
 
-        This method processes the entire video, detecting poses and calculating
-        metrics for each frame, then returns a comprehensive analysis.
+        This is a convenience method that combines extract_landmarks() and
+        analyze_from_landmarks() in a single call.
+
+        For more control (e.g., parallel processing, video generation),
+        use the two-phase approach:
+        1. extract_landmarks() - Extract poses once
+        2. analyze_from_landmarks() - Analyze metrics (can run in parallel)
 
         If validate_quality=True (default), automatically checks:
         - Video quality (format, resolution, FPS, lighting, stability)
@@ -114,14 +119,78 @@ class ClimbingSensei:
             FileNotFoundError: If video file doesn't exist
             ValueError: If video cannot be read or quality validation fails
         """
+        # Phase 1: Extract landmarks and validate video quality
+        extracted = self.extract_landmarks(
+            verbose=verbose,
+            validate_video_quality=self.validate_quality,
+        )
+
+        # Phase 2: Analyze from landmarks
+        analysis = self.analyze_from_landmarks(
+            landmarks_sequence=extracted["landmarks"],
+            fps=extracted["fps"],
+            validate_tracking_quality=self.validate_quality,
+            verbose=verbose,
+        )
+
+        # Add video quality report from extraction phase
+        if extracted["video_quality"] is not None:
+            # Create new analysis with video quality included
+            self._analysis = ClimbingAnalysis(
+                summary=analysis.summary,
+                history=analysis.history,
+                video_path=analysis.video_path,
+                video_quality=extracted["video_quality"],
+                tracking_quality=analysis.tracking_quality,
+            )
+        else:
+            self._analysis = analysis
+
+        return self._analysis
+
+    def extract_landmarks(
+        self, verbose: bool = True, validate_video_quality: bool = True
+    ) -> dict:
+        """Phase 1: Extract landmarks from video (single pass).
+
+        This method performs video quality validation and pose detection,
+        returning all landmarks for efficient downstream processing.
+
+        Use this when you need to:
+        - Process landmarks multiple times (analysis + video generation)
+        - Run multiple analyses in parallel
+        - Separate extraction from analysis in backend APIs
+
+        Args:
+            verbose: If True, print progress information
+            validate_video_quality: If True, check video quality first
+
+        Returns:
+            Dictionary with:
+            - 'landmarks': List of landmark lists (one per frame)
+            - 'pose_results': List of MediaPipe pose results (for drawing)
+            - 'video_quality': VideoQualityReport (if validation enabled)
+            - 'fps': Actual video FPS
+            - 'frame_count': Number of frames processed
+
+        Raises:
+            FileNotFoundError: If video file doesn't exist
+            ValueError: If video quality validation fails
+
+        Example:
+            >>> sensei = ClimbingSensei("climb.mp4")
+            >>> extracted = sensei.extract_landmarks()
+            >>> # Now use landmarks for multiple purposes
+            >>> analysis = sensei.analyze_from_landmarks(extracted['landmarks'])
+            >>> video = generate_video(extracted['pose_results'])  # Parallel!
+        """
         if not self.video_path.exists():
             raise FileNotFoundError(f"Video not found: {self.video_path}")
 
         video_quality_report: Optional[VideoQualityReport] = None
-        tracking_quality_report: Optional[TrackingQualityReport] = None
 
         # Step 1: Validate video quality (if enabled)
-        if self.validate_quality:
+        if validate_video_quality:
             if verbose:
                 print("Checking video quality...")
 
@@ -140,11 +209,15 @@ class ClimbingSensei:
                 for warning in video_quality_report.warnings:
                     print(f"  - {warning}")
 
-        # Step 2: Process video and extract landmarks
-        frame_count = 0
+        # Step 2: Extract all landmarks (single pass)
         landmarks_history = []
+        pose_results_history = []
+        frame_count = 0
+        actual_fps = self.fps
 
         with VideoReader(str(self.video_path)) as video:
+            actual_fps = video.fps  # Get actual FPS from video
+
             while True:
                 success, frame = video.read()
                 if not success:
@@ -156,39 +229,94 @@ class ClimbingSensei:
                 if pose_result and pose_result.pose_landmarks:
                     # Extract landmarks
                     landmarks = self.pose_engine.extract_landmarks(pose_result)
-
-                    # Analyze frame
-                    self.analyzer.analyze_frame(landmarks)
-
-                    # Store for tracking quality analysis
-                    if self.validate_quality:
-                        landmarks_history.append(landmarks)
-
+                    landmarks_history.append(landmarks)
+                    pose_results_history.append(pose_result)
                     frame_count += 1
 
                     if verbose and frame_count % 100 == 0:
-                        print(f"Processed {frame_count} frames...")
+                        print(f"Extracted {frame_count} frames...")
                 else:
                     # No pose detected
-                    if self.validate_quality:
-                        landmarks_history.append(None)
+                    landmarks_history.append(None)
+                    pose_results_history.append(None)
 
         if verbose:
-            print(f"Analysis complete! Processed {frame_count} frames total.")
+            print(
+                f"Extraction complete! Processed {len(landmarks_history)} frames total."
+            )
 
-        # Step 3: Validate tracking quality (if enabled)
-        if self.validate_quality and landmarks_history:
+        return {
+            "landmarks": landmarks_history,
+            "pose_results": pose_results_history,
+            "video_quality": video_quality_report,
+            "fps": actual_fps,
+            "frame_count": frame_count,
+        }
+
+    def analyze_from_landmarks(
+        self,
+        landmarks_sequence: list,
+        fps: Optional[float] = None,
+        validate_tracking_quality: bool = True,
+        verbose: bool = True,
+    ) -> ClimbingAnalysis:
+        """Phase 2: Analyze pre-extracted landmarks.
+
+        This method takes landmarks from extract_landmarks() and performs
+        climbing analysis and tracking quality assessment.
+
+        This enables:
+        - Parallel processing of different analyses
+        - Reusing landmarks for video generation
+        - Efficient backend API workflows
+
+        Args:
+            landmarks_sequence: List of landmark lists from extract_landmarks()
+            fps: Override FPS (uses video FPS if not provided)
+            validate_tracking_quality: If True, assess tracking quality
+            verbose: If True, print progress information
+
+        Returns:
+            ClimbingAnalysis with summary, history, and quality reports
+
+        Example:
+            >>> extracted = sensei.extract_landmarks()
+            >>> analysis = sensei.analyze_from_landmarks(extracted['landmarks'])
+        """
+        # Use provided FPS or default
+        analysis_fps = fps or self.fps
+
+        # Reset analyzer with correct FPS
+        if self._analyzer is None or self._analyzer.fps != analysis_fps:
+            self._analyzer = ClimbingAnalyzer(
+                window_size=self.window_size,
+                fps=analysis_fps,
+            )
+        else:
+            self._analyzer.reset()
+
+        # Process landmarks for climbing analysis
+        frame_count = 0
+        for landmarks in landmarks_sequence:
+            if landmarks is not None:
+                self.analyzer.analyze_frame(landmarks)
+                frame_count += 1
+
+        if verbose:
+            print(f"Analyzed {frame_count} frames with pose data.")
+
+        # Validate tracking quality (if enabled)
+        tracking_quality_report: Optional[TrackingQualityReport] = None
+        if validate_tracking_quality:
             if verbose:
                 print("Analyzing tracking quality...")
 
             # Convert landmarks from dict format to (x, y) tuple format
-            # for tracking quality analysis
             converted_landmarks = []
-            for frame_landmarks in landmarks_history:
+            for frame_landmarks in landmarks_sequence:
                 if frame_landmarks is None:
                     converted_landmarks.append(None)
                 else:
-                    # Convert list of dicts to list of (x, y) tuples
                     tuples = [(lm["x"], lm["y"]) for lm in frame_landmarks]
                     converted_landmarks.append(tuples)
 
@@ -196,28 +324,24 @@ class ClimbingSensei:
                 converted_landmarks, sample_rate=1, file_path=str(self.video_path)
             )
 
-            if not tracking_quality_report.is_trackable:
-                if verbose:
-                    print("⚠️  Warning: Poor tracking quality detected.")
-                    print("    Results may be unreliable. Consider:")
-                    print("    - Better lighting conditions")
-                    print("    - More stable camera position")
-                    print("    - Clearer view of climber")
+            if not tracking_quality_report.is_trackable and verbose:
+                print("⚠️  Warning: Poor tracking quality detected.")
+                print("    Results may be unreliable.")
             elif verbose and tracking_quality_report.warnings:
                 print("⚠️  Tracking quality warnings:")
                 for warning in tracking_quality_report.warnings:
                     print(f"  - {warning}")
 
-        # Step 4: Get results
+        # Get results
         summary = self.analyzer.get_summary_typed()
         history = self.analyzer.get_history()
 
-        # Create analysis object with quality reports
+        # Create analysis object
         self._analysis = ClimbingAnalysis(
             summary=summary,
             history=history,
             video_path=str(self.video_path),
-            video_quality=video_quality_report,
+            video_quality=None,  # Only available from extract_landmarks
             tracking_quality=tracking_quality_report,
         )
 
