@@ -4,7 +4,7 @@
 
 ### Prerequisites
 
-- Python 3.12 or 3.13
+- Python 3.12 or higher
 - [uv](https://github.com/astral-sh/uv) package manager
 - Git
 
@@ -175,7 +175,7 @@ uv run pytest tests/ --cov --cov-report=html
 open htmlcov/index.html
 ```
 
-Current coverage: **82%** (164 tests)
+Run `make coverage` to see current coverage statistics.
 
 ### Writing Tests
 
@@ -268,7 +268,7 @@ Four automated workflows:
 - **Triggers**: Push to main, pull requests
 - **Jobs**:
   - Quality: Ruff + Black checks
-  - Test: Python 3.12 & 3.13
+  - Test: Multiple Python versions
   - Coverage: Upload to Codecov
 
 #### 2. Pre-commit (`pre-commit.yaml`)

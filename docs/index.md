@@ -11,7 +11,8 @@ A Python pose estimation tool for analyzing climbing footage. Extract vertical m
 - 📹 **Video Processing**: Easy video I/O with pose overlay and animated metrics dashboards
 - 🎨 **Visualization**: Draw pose landmarks, annotate metrics, and create real-time performance graphs
 - 📈 **Temporal Analysis**: Track metrics over time with jerk calculation, sway detection, and progression tracking
-- ✅ **Well-Tested**: 82% code coverage with 164 unit tests
+- ✅ **Video Quality Validation**: Pre-processing quality checks for resolution, FPS, duration, lighting, and stability
+- 🧪 **Well-Tested**: Comprehensive test suite with high code coverage
 
 ## Quick Example
 
@@ -60,14 +61,14 @@ climb-sensei/
 ├── scripts/
 │   └── analyze_climb.py      # Unified CLI (analysis + video generation)
 ├── tests/
-│   ├── test_*.py             # 164 comprehensive unit tests
+│   ├── test_*.py             # Comprehensive unit tests
 │   └── __init__.py
 └── docs/                     # Documentation
 ```
 
 ## Requirements
 
-- Python 3.12+ (tested on 3.12 and 3.13)
+- Python 3.12+
 - mediapipe >= 0.10.30
 - opencv-python >= 4.8.0
 - numpy >= 1.24.0

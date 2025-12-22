@@ -67,7 +67,7 @@ python -m climb_sensei
 
 ## Requirements
 
-- Python 3.12 or higher (tested on 3.12 and 3.13)
+- Python 3.12 or higher
 - macOS, Linux, or Windows
 - Webcam or video files for analysis
 

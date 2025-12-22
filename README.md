@@ -14,7 +14,8 @@ A Python pose estimation tool for analyzing climbing footage. Extract vertical m
 - 📐 **Biomechanics**: Joint angles, reach distances, center of mass
 - 📹 **Video Processing**: Annotated videos with side-by-side dashboards
 - 🎨 **Visualization**: Pose landmarks and real-time metric graphs
-- ✅ **Well-Tested**: 82% code coverage with 164 unit tests
+- ✅ **Video Quality Validation**: Pre-processing quality checks for backend APIs
+- 🧪 **Tested**: Comprehensive test suite with high code coverage
 
 ## Quick Start
 
@@ -65,6 +66,28 @@ with PoseEngine() as engine:
 
 summary = analyzer.get_summary()
 print(f"Total progress: {summary['total_vertical_progress']:.3f}")
+```
+
+### Video Quality Validation
+
+```python
+from climb_sensei import check_video_quality
+
+# Validate video before processing
+report = check_video_quality('video.mp4', deep_check=True)
+
+if report.is_valid:
+    # Process with climb-sensei
+    pass
+else:
+    print("Quality issues:", report.issues)
+```
+
+Or use the CLI:
+
+```bash
+# Check video quality
+python scripts/check_video_quality.py video.mp4 --deep --json report.json
 ```
 
 ## Documentation

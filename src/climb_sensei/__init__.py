@@ -45,6 +45,17 @@ from climb_sensei.protocols import (
 from climb_sensei.facade import ClimbingSensei
 from climb_sensei.builder import ClimbingAnalyzerBuilder
 from climb_sensei.repository import JSONRepository, CSVRepository
+from climb_sensei.video_quality import (
+    VideoQualityChecker,
+    VideoQualityReport,
+    check_video_quality,
+)
+from climb_sensei.tracking_quality import (
+    TrackingQualityAnalyzer,
+    TrackingQualityReport,
+    analyze_tracking_quality,
+    analyze_tracking_from_landmarks,
+)
 
 __version__ = "0.3.0"
 
@@ -86,4 +97,13 @@ __all__ = [
     "ClimbingAnalyzerBuilder",
     "JSONRepository",
     "CSVRepository",
+    # Video quality checking
+    "VideoQualityChecker",
+    "VideoQualityReport",
+    "check_video_quality",
+    # Tracking quality analysis
+    "TrackingQualityAnalyzer",
+    "TrackingQualityReport",
+    "analyze_tracking_quality",
+    "analyze_tracking_from_landmarks",
 ]

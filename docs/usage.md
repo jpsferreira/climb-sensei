@@ -80,6 +80,258 @@ summary = analyzer.get_summary()
 # - avg_joint_angles: Average angle for each joint
 ```
 
+## Video Quality Validation
+
+Before processing videos, especially in a backend API service, validate video quality to ensure successful analysis.
+
+### Quick Validation
+
+```python
+from climb_sensei import check_video_quality
+
+# Basic quality check
+report = check_video_quality('uploaded_video.mp4')
+
+if report.is_valid:
+    print("✓ Video is ready for processing")
+else:
+    print("✗ Video has issues:")
+    for issue in report.issues:
+        print(f"  - {issue}")
+    for warning in report.warnings:
+        print(f"  ⚠ {warning}")
+```
+
+### Deep Quality Analysis
+
+```python
+# Include lighting and stability checks
+report = check_video_quality('video.mp4', deep_check=True)
+
+# Check specific quality aspects
+print(f"Format: {report.format_compatible}")
+print(f"Resolution: {report.resolution_quality}")  # 'poor', 'acceptable', 'good', 'excellent'
+print(f"FPS: {report.fps_quality}")
+print(f"Duration: {report.duration_quality}")
+
+# Deep analysis results (if enabled)
+if report.lighting_quality:
+    print(f"Lighting: {report.lighting_quality}")  # 'dark', 'acceptable', 'good'
+if report.stability_quality:
+    print(f"Stability: {report.stability_quality}")  # 'shaky', 'acceptable', 'stable'
+```
+
+### Using VideoQualityChecker
+
+```python
+from climb_sensei import VideoQualityChecker
+
+# Initialize with custom thresholds
+checker = VideoQualityChecker(
+    min_resolution=(640, 480),       # Minimum width, height
+    recommended_resolution=(1280, 720),
+    optimal_resolution=(1920, 1080),
+    min_fps=15,
+    recommended_fps=30,
+    optimal_fps=60,
+    min_duration=5.0,                # Seconds
+    max_duration=600.0,
+    optimal_min_duration=10.0,
+    optimal_max_duration=180.0
+)
+
+# Check video
+report = checker.check_video('video.mp4', deep_check=True)
+
+# Access detailed properties
+print(f"Width: {report.width}px, Height: {report.height}px")
+print(f"FPS: {report.fps}")
+print(f"Duration: {report.duration:.2f}s")
+print(f"Codec: {report.codec}")
+```
+
+### Backend API Integration
+
+```python
+from climb_sensei import check_video_quality
+import json
+
+def validate_uploaded_video(filepath):
+    """
+    Validate video before processing in backend service.
+    Returns (valid, response_data).
+    """
+    report = check_video_quality(filepath, deep_check=True)
+
+    if report.is_valid:
+        return True, {
+            'status': 'valid',
+            'properties': {
+                'width': report.width,
+                'height': report.height,
+                'fps': report.fps,
+                'duration': report.duration,
+                'codec': report.codec
+            }
+        }
+    else:
+        return False, {
+            'status': 'invalid',
+            'errors': report.issues,
+            'warnings': report.warnings,
+            'quality': {
+                'resolution': report.resolution_quality,
+                'fps': report.fps_quality,
+                'duration': report.duration_quality,
+                'lighting': report.lighting_quality,
+                'stability': report.stability_quality
+            }
+        }
+
+# Usage in API endpoint
+is_valid, response = validate_uploaded_video('/tmp/upload.mp4')
+if not is_valid:
+    return json.dumps(response), 400  # Bad Request
+```
+
+### CLI Tool
+
+Use the included script for command-line validation:
+
+```bash
+# Basic check
+python scripts/check_video_quality.py video.mp4
+
+# Deep check with lighting and stability analysis
+python scripts/check_video_quality.py video.mp4 --deep
+
+# Export to JSON
+python scripts/check_video_quality.py video.mp4 --json report.json
+
+# Quiet mode (only return exit code)
+python scripts/check_video_quality.py video.mp4 --quiet
+# Exit code: 0 = valid, 1 = invalid, 2 = error
+```
+
+## Tracking Quality Analysis
+
+Analyze the quality of pose/skeleton tracking to ensure reliable results. Can be used with videos or with already-extracted landmarks.
+
+### From Video File
+
+```python
+from climb_sensei import analyze_tracking_quality
+
+# Analyze tracking quality from video
+report = analyze_tracking_quality('climbing.mp4', sample_rate=5)
+
+if report.is_trackable:
+    print(f"✓ Detection rate: {report.detection_rate}%")
+    print(f"  Smoothness: {report.tracking_smoothness:.3f}")
+    print(f"  Quality: {report.quality_level}")
+else:
+    print("✗ Poor tracking quality:")
+    for issue in report.issues:
+        print(f"  - {issue}")
+```
+
+### From Landmarks (More Efficient)
+
+When landmarks are already extracted (e.g., during `analyze_climb`), analyze tracking quality without re-running pose detection:
+
+```python
+from climb_sensei import (
+    PoseEngine,
+    VideoReader,
+    ClimbingAnalyzer,
+    analyze_tracking_from_landmarks,
+)
+
+analyzer = ClimbingAnalyzer(window_size=30, fps=30)
+landmarks_history = []
+
+with PoseEngine() as engine:
+    with VideoReader('climbing.mp4') as reader:
+        while True:
+            success, frame = reader.read()
+            if not success:
+                break
+
+            results = engine.process(frame)
+            if results:
+                landmarks = engine.extract_landmarks(results)
+                if landmarks:
+                    analyzer.analyze_frame(landmarks)
+                    landmarks_history.append(landmarks)
+                else:
+                    landmarks_history.append(None)
+            else:
+                landmarks_history.append(None)
+
+# Get climbing metrics
+climbing_summary = analyzer.get_summary()
+
+# Analyze tracking quality from landmarks we already have
+tracking_report = analyze_tracking_from_landmarks(landmarks_history)
+
+print(f"Detection rate: {tracking_report.detection_rate}%")
+print(f"Smoothness: {tracking_report.tracking_smoothness:.3f}")
+print(f"Tracking losses: {tracking_report.tracking_loss_events}")
+```
+
+### Using TrackingQualityAnalyzer
+
+```python
+from climb_sensei import TrackingQualityAnalyzer
+
+# Initialize with custom thresholds
+analyzer = TrackingQualityAnalyzer(
+    min_detection_rate=80.0,      # Minimum % of frames with detection
+    min_avg_confidence=0.6,        # Minimum average landmark confidence
+    min_visibility=70.0,           # Minimum % of visible landmarks
+    min_smoothness=0.7,            # Minimum smoothness score
+    max_tracking_losses=3,         # Maximum acceptable tracking loss events
+    sample_rate=5,                 # Analyze every 5th frame
+)
+
+# Analyze from video
+report = analyzer.analyze_video('video.mp4')
+
+# Or analyze from landmarks
+report = analyzer.analyze_from_landmarks(landmarks_sequence)
+
+# Check quality
+print(f"Quality level: {report.quality_level}")  # poor/acceptable/good/excellent
+print(f"Is trackable: {report.is_trackable}")
+```
+
+### Tracking Quality Metrics
+
+The report includes:
+
+- **`detection_rate`**: Percentage of frames with pose detected
+- **`avg_landmark_confidence`**: Average confidence across all landmarks (0-1)
+- **`avg_visibility_score`**: Average percentage of visible landmarks
+- **`tracking_smoothness`**: Smoothness based on landmark jitter (0-1, higher = smoother)
+- **`tracking_loss_events`**: Number of times tracking was lost then regained
+- **`quality_level`**: Overall quality ('poor', 'acceptable', 'good', 'excellent')
+- **`is_trackable`**: Whether video has sufficient tracking quality
+- **`issues`**: List of critical tracking problems
+- **`warnings`**: List of quality concerns
+
+### CLI Tool with Tracking
+
+```bash
+# Video quality + tracking quality analysis
+python scripts/check_video_quality.py video.mp4 --tracking
+
+# With custom sample rate
+python scripts/check_video_quality.py video.mp4 --tracking --sample-rate 10
+
+# Complete analysis with JSON export
+python scripts/check_video_quality.py video.mp4 --deep --tracking --json quality.json
+```
+
 ## Video Processing
 
 ### Reading Videos

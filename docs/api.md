@@ -11,6 +11,63 @@ heading_level: 3
 
 ---
 
+## Video Quality
+
+### VideoQualityChecker
+
+::: climb_sensei.video_quality.VideoQualityChecker
+options:
+show_source: true
+heading_level: 3
+
+### VideoQualityReport
+
+::: climb_sensei.video_quality.VideoQualityReport
+options:
+show_source: true
+heading_level: 3
+
+### check_video_quality
+
+::: climb_sensei.video_quality.check_video_quality
+options:
+show_source: true
+heading_level: 3
+
+---
+
+## Tracking Quality
+
+### TrackingQualityAnalyzer
+
+::: climb_sensei.tracking_quality.TrackingQualityAnalyzer
+options:
+show_source: true
+heading_level: 3
+
+### TrackingQualityReport
+
+::: climb_sensei.tracking_quality.TrackingQualityReport
+options:
+show_source: true
+heading_level: 3
+
+### analyze_tracking_quality
+
+::: climb_sensei.tracking_quality.analyze_tracking_quality
+options:
+show_source: true
+heading_level: 3
+
+### analyze_tracking_from_landmarks
+
+::: climb_sensei.tracking_quality.analyze_tracking_from_landmarks
+options:
+show_source: true
+heading_level: 3
+
+---
+
 ## PoseEngine
 
 ::: climb_sensei.pose_engine.PoseEngine

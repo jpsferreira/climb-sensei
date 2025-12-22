@@ -8,7 +8,7 @@ climb-sensei follows strict **Separation of Concerns** principles for maintainab
 2. **Stateless Functions**: Pure functions in biomechanics module
 3. **Dependency Injection**: Context managers for resource management
 4. **Type Safety**: Comprehensive type hints throughout
-5. **Test Coverage**: 82% coverage with 164 unit tests
+5. **Test Coverage**: Comprehensive test suite with high code coverage
 
 ## Module Overview
 
@@ -167,7 +167,7 @@ VideoWriter → Output Video
 
 ## Testing Strategy
 
-### Unit Tests (164 tests, 82% coverage)
+### Unit Tests
 
 **biomechanics.py**: Pure function testing
 
