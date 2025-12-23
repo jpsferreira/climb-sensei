@@ -144,17 +144,219 @@ async def upload_video(
 
                 # Add summary to results (convert numpy types to Python native types)
                 summary = analysis.summary
+                history = analysis.history
+
+                # Build documentation URLs
+                BASE_DOC_URL = "https://jpsferreira.github.io/climb-sensei/metrics/"
+
+                def _doc_url(metric_key: str) -> str:
+                    anchor = metric_key.replace("_", "-")
+                    return f"{BASE_DOC_URL}#{anchor}"
+
+                # Categorize metrics for better presentation
+                def _get_metric_value(key: str) -> float:
+                    """Get average value for a metric from history."""
+                    if key not in history:
+                        return 0.0
+                    vals = [
+                        float(v) for v in history[key] if isinstance(v, (int, float))
+                    ]
+                    if vals:
+                        return round(sum(vals) / len(vals), 4)
+                    return 0.0
+
+                # Organized metric categories
+                categories = {
+                    "overview": {
+                        "title": "Overview",
+                        "metrics": {
+                            "total_frames": {
+                                "label": "Total Frames",
+                                "value": int(summary.total_frames),
+                                "unit": "",
+                            },
+                            "duration": {
+                                "label": "Duration",
+                                "value": round(
+                                    int(summary.total_frames) / float(extracted["fps"]),
+                                    1,
+                                ),
+                                "unit": "s",
+                            },
+                        },
+                    },
+                    "movement": {
+                        "title": "Movement & Velocity",
+                        "metrics": {
+                            "vertical_progress": {
+                                "label": "Total Vertical Progress",
+                                "value": round(
+                                    float(summary.total_vertical_progress), 3
+                                ),
+                                "unit": "",
+                                "doc": _doc_url("vertical_progress"),
+                            },
+                            "max_height": {
+                                "label": "Maximum Height",
+                                "value": round(float(summary.max_height), 3),
+                                "unit": "",
+                                "doc": _doc_url("max_height"),
+                            },
+                            "avg_velocity": {
+                                "label": "Average Velocity",
+                                "value": round(float(summary.avg_velocity), 4),
+                                "unit": "u/s",
+                                "doc": _doc_url("com_velocity"),
+                            },
+                            "max_velocity": {
+                                "label": "Maximum Velocity",
+                                "value": round(float(summary.max_velocity), 4),
+                                "unit": "u/s",
+                                "doc": _doc_url("com_velocity"),
+                            },
+                            "total_distance": {
+                                "label": "Total Distance Traveled",
+                                "value": round(
+                                    float(summary.total_distance_traveled), 3
+                                ),
+                                "unit": "",
+                                "doc": _doc_url("total_distance_traveled"),
+                            },
+                        },
+                    },
+                    "stability": {
+                        "title": "Stability & Control",
+                        "metrics": {
+                            "avg_sway": {
+                                "label": "Average Lateral Sway",
+                                "value": round(float(summary.avg_sway), 4),
+                                "unit": "",
+                                "doc": _doc_url("com_sway"),
+                            },
+                            "max_sway": {
+                                "label": "Maximum Sway",
+                                "value": round(float(summary.max_sway), 4),
+                                "unit": "",
+                                "doc": _doc_url("com_sway"),
+                            },
+                            "avg_jerk": {
+                                "label": "Average Jerk (Smoothness)",
+                                "value": round(float(summary.avg_jerk), 2),
+                                "unit": "",
+                                "doc": _doc_url("com_jerk"),
+                            },
+                            "max_jerk": {
+                                "label": "Maximum Jerk",
+                                "value": round(float(summary.max_jerk), 2),
+                                "unit": "",
+                                "doc": _doc_url("com_jerk"),
+                            },
+                        },
+                    },
+                    "positioning": {
+                        "title": "Body Positioning",
+                        "metrics": {
+                            "avg_body_angle": {
+                                "label": "Average Body Angle",
+                                "value": round(float(summary.avg_body_angle), 1),
+                                "unit": "°",
+                                "doc": _doc_url("body_angle"),
+                            },
+                            "avg_hand_span": {
+                                "label": "Average Hand Span",
+                                "value": round(float(summary.avg_hand_span), 3),
+                                "unit": "",
+                                "doc": _doc_url("hand_span"),
+                            },
+                            "avg_foot_span": {
+                                "label": "Average Foot Span",
+                                "value": round(float(summary.avg_foot_span), 3),
+                                "unit": "",
+                                "doc": _doc_url("foot_span"),
+                            },
+                        },
+                    },
+                    "efficiency": {
+                        "title": "Efficiency & Technique",
+                        "metrics": {
+                            "movement_economy": {
+                                "label": "Movement Economy",
+                                "value": round(float(summary.avg_movement_economy), 3),
+                                "unit": "",
+                                "doc": _doc_url("movement_economy"),
+                            },
+                            "lock_off_count": {
+                                "label": "Lock-offs Detected",
+                                "value": int(summary.lock_off_count),
+                                "unit": "",
+                                "doc": _doc_url("lock_off_count"),
+                            },
+                            "rest_count": {
+                                "label": "Rest Positions",
+                                "value": int(summary.rest_count),
+                                "unit": "",
+                                "doc": _doc_url("rest_count"),
+                            },
+                        },
+                    },
+                    "biomechanics": {
+                        "title": "Joint Angles & Biomechanics",
+                        "metrics": {
+                            "left_elbow_angle": {
+                                "label": "Left Elbow Angle",
+                                "value": _get_metric_value("left_elbow_angle"),
+                                "unit": "°",
+                                "doc": _doc_url("left_elbow_angle"),
+                            },
+                            "right_elbow_angle": {
+                                "label": "Right Elbow Angle",
+                                "value": _get_metric_value("right_elbow_angle"),
+                                "unit": "°",
+                                "doc": _doc_url("right_elbow_angle"),
+                            },
+                            "left_shoulder_angle": {
+                                "label": "Left Shoulder Angle",
+                                "value": _get_metric_value("left_shoulder_angle"),
+                                "unit": "°",
+                                "doc": _doc_url("left_shoulder_angle"),
+                            },
+                            "right_shoulder_angle": {
+                                "label": "Right Shoulder Angle",
+                                "value": _get_metric_value("right_shoulder_angle"),
+                                "unit": "°",
+                                "doc": _doc_url("right_shoulder_angle"),
+                            },
+                            "left_knee_angle": {
+                                "label": "Left Knee Angle",
+                                "value": _get_metric_value("left_knee_angle"),
+                                "unit": "°",
+                                "doc": _doc_url("left_knee_angle"),
+                            },
+                            "right_knee_angle": {
+                                "label": "Right Knee Angle",
+                                "value": _get_metric_value("right_knee_angle"),
+                                "unit": "°",
+                                "doc": _doc_url("right_knee_angle"),
+                            },
+                            "left_hip_angle": {
+                                "label": "Left Hip Angle",
+                                "value": _get_metric_value("left_hip_angle"),
+                                "unit": "°",
+                                "doc": _doc_url("left_hip_angle"),
+                            },
+                            "right_hip_angle": {
+                                "label": "Right Hip Angle",
+                                "value": _get_metric_value("right_hip_angle"),
+                                "unit": "°",
+                                "doc": _doc_url("right_hip_angle"),
+                            },
+                        },
+                    },
+                }
+
                 results["metrics"] = {
+                    "categories": categories,
                     "total_frames": int(summary.total_frames),
-                    "max_height": round(float(summary.max_height), 3),
-                    "avg_velocity": round(float(summary.avg_velocity), 4),
-                    "max_velocity": round(float(summary.max_velocity), 4),
-                    "avg_sway": round(float(summary.avg_sway), 4),
-                    "avg_jerk": round(float(summary.avg_jerk), 2),
-                    "avg_body_angle": round(float(summary.avg_body_angle), 1),
-                    "movement_economy": round(float(summary.avg_movement_economy), 3),
-                    "lock_off_count": int(summary.lock_off_count),
-                    "rest_count": int(summary.rest_count),
                 }
 
                 # Tracking quality

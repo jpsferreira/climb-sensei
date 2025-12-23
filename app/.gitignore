@@ -1,0 +1,10 @@
+# Uploaded videos (temporary)
+uploads/
+
+# Generated outputs
+outputs/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo

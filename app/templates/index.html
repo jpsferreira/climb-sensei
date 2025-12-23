@@ -294,53 +294,46 @@
         }
 
         // Metrics
-        if (results.metrics) {
-          const m = results.metrics;
+        if (results.metrics && results.metrics.categories) {
+          const categories = results.metrics.categories;
           document.getElementById("metrics").style.display = "block";
-          document.getElementById("metricsContent").innerHTML = `
-                    <div class="metric-grid">
-                        <div class="metric">
-                            <span class="label">Frames Analyzed:</span>
-                            <span class="value">${m.total_frames}</span>
-                        </div>
-                        <div class="metric">
-                            <span class="label">Max Height:</span>
-                            <span class="value">${m.max_height}</span>
-                        </div>
-                        <div class="metric">
-                            <span class="label">Avg Velocity:</span>
-                            <span class="value">${m.avg_velocity} u/s</span>
-                        </div>
-                        <div class="metric">
-                            <span class="label">Max Velocity:</span>
-                            <span class="value">${m.max_velocity} u/s</span>
-                        </div>
-                        <div class="metric">
-                            <span class="label">Lateral Sway:</span>
-                            <span class="value">${m.avg_sway}</span>
-                        </div>
-                        <div class="metric">
-                            <span class="label">Smoothness (Jerk):</span>
-                            <span class="value">${m.avg_jerk}</span>
-                        </div>
-                        <div class="metric">
-                            <span class="label">Body Angle:</span>
-                            <span class="value">${m.avg_body_angle}°</span>
-                        </div>
-                        <div class="metric">
-                            <span class="label">Movement Economy:</span>
-                            <span class="value">${m.movement_economy}</span>
-                        </div>
-                        <div class="metric">
-                            <span class="label">Lock-offs Detected:</span>
-                            <span class="value">${m.lock_off_count}</span>
-                        </div>
-                        <div class="metric">
-                            <span class="label">Rest Positions:</span>
-                            <span class="value">${m.rest_count}</span>
-                        </div>
-                    </div>
-                `;
+
+          let metricsHtml = "";
+
+          // Render each category
+          Object.entries(categories).forEach(([catKey, catData]) => {
+            metricsHtml += `
+              <div class="metric-category">
+                <h4 class="category-title">${catData.title}</h4>
+                <div class="metric-grid">
+            `;
+
+            Object.entries(catData.metrics).forEach(
+              ([metricKey, metricData]) => {
+                const displayValue = metricData.unit
+                  ? `${metricData.value}${metricData.unit}`
+                  : metricData.value;
+
+                const labelHtml = metricData.doc
+                  ? `<a href="${metricData.doc}" target="_blank" rel="noopener noreferrer" title="View documentation">${metricData.label}</a>`
+                  : metricData.label;
+
+                metricsHtml += `
+                <div class="metric">
+                  <span class="label">${labelHtml}</span>
+                  <span class="value">${displayValue}</span>
+                </div>
+              `;
+              },
+            );
+
+            metricsHtml += `
+                </div>
+              </div>
+            `;
+          });
+
+          document.getElementById("metricsContent").innerHTML = metricsHtml;
           document.getElementById("downloadBtn").style.display = "inline-block";
         }
 

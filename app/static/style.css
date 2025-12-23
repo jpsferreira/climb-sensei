@@ -255,6 +255,19 @@ h4 {
   margin-bottom: 1.5rem;
 }
 
+.metric-category {
+  margin-bottom: 2rem;
+}
+
+.category-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--primary);
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--border);
+}
+
 .metric-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -270,6 +283,17 @@ h4 {
 .metric .label {
   font-size: 0.875rem;
   color: var(--text-light);
+}
+
+.metric .label a {
+  color: var(--primary);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--primary);
+}
+
+.metric .label a:hover {
+  color: var(--primary-dark);
+  border-bottom-style: solid;
 }
 
 .metric .value {
