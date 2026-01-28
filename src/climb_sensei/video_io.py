@@ -77,7 +77,7 @@ class VideoWriter:
     """
 
     def __init__(
-        self, path: str, fps: int, width: int, height: int, fourcc: str = "mp4v"
+        self, path: str, fps: int, width: int, height: int, fourcc: str = "avc1"
     ) -> None:
         """Initialize the video writer.
 
@@ -86,7 +86,7 @@ class VideoWriter:
             fps: Frames per second for the output video.
             width: Width of output frames in pixels.
             height: Height of output frames in pixels.
-            fourcc: FourCC codec code (default: "mp4v").
+            fourcc: FourCC codec code (default: "avc1" for H.264, browser-compatible).
 
         Raises:
             ValueError: If the video writer cannot be initialized.

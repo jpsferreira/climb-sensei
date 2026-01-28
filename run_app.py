@@ -14,11 +14,10 @@ if __name__ == "__main__":
     print("\n" + "=" * 60)
     print("🧗 ClimbingSensei Web App")
     print("=" * 60)
-    print("\n📹 Two-Phase API Demo:")
+    print("\n📹 Video Analysis Platform:")
     print("  1. Upload a climbing video")
     print("  2. Select analysis options")
-    print("  3. Extract landmarks once (Phase 1)")
-    print("  4. Generate outputs in parallel (Phase 2)")
+    print("  3. Get metrics, quality reports, and annotated video")
     print("\n🚀 Starting server at http://localhost:8000")
     print("Press CTRL+C to stop\n")
 

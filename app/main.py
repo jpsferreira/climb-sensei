@@ -1,9 +1,9 @@
 """FastAPI web application for ClimbingSensei video analysis.
 
-This app demonstrates the two-phase API in action:
-1. Upload video with analysis options
-2. Extract landmarks once (Phase 1)
-3. Generate selected outputs in parallel (Phase 2)
+Modern service-oriented architecture:
+1. Independent services for video quality, tracking quality, climbing analysis
+2. Clean separation of concerns
+3. Composable, testable, production-ready
 """
 
 import sys
@@ -22,7 +22,13 @@ import uvicorn
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from climb_sensei import ClimbingSensei
+# Use new service-oriented APIs
+from climb_sensei.services import (
+    VideoQualityService,
+    TrackingQualityService,
+    ClimbingAnalysisService,
+)
+from climb_sensei.pose_engine import PoseEngine
 from climb_sensei.video_io import VideoReader, VideoWriter
 from climb_sensei.viz import draw_pose_landmarks
 from climb_sensei.config import CLIMBING_CONNECTIONS, CLIMBING_LANDMARKS
@@ -68,11 +74,12 @@ async def upload_video(
     run_quality: bool = Form(True),
     dashboard_position: str = Form("right"),
 ):
-    """Upload video and run selected analyses using two-phase API.
+    """Upload video and run selected analyses using service-oriented architecture.
 
-    This demonstrates the efficiency of the two-phase approach:
-    - Extract landmarks once (expensive)
-    - Generate multiple outputs from cached data (fast)
+    Uses independent services that can be composed as needed:
+    - VideoQualityService: Validates video format and quality
+    - TrackingQualityService: Assesses pose detection reliability
+    - ClimbingAnalysisService: Calculates climbing metrics
     """
     # Validate file type
     if not file.filename.lower().endswith((".mp4", ".avi", ".mov", ".mkv")):
@@ -88,369 +95,430 @@ async def upload_video(
     with open(upload_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
+    # Initialize services
+    video_quality_service = VideoQualityService()
+    tracking_quality_service = TrackingQualityService()
+    climbing_service = ClimbingAnalysisService()
+
+    pose_engine = None
+
     try:
-        # PHASE 1: Extract landmarks once (expensive MediaPipe pass)
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"Analysis ID: {analysis_id}")
         print(f"File: {file.filename}")
         print(
             f"Options: metrics={run_metrics}, video={run_video}, quality={run_quality}"
         )
-        print(f"{'='*60}\n")
+        print(f"{'=' * 60}\n")
 
-        with ClimbingSensei(str(upload_path), validate_quality=run_quality) as sensei:
-            print("Phase 1: Extracting landmarks...")
-            extracted = sensei.extract_landmarks(
-                verbose=True, validate_video_quality=run_quality
+        results = {
+            "analysis_id": analysis_id,
+            "filename": file.filename,
+        }
+
+        # PHASE 1: Video Quality Check (if requested)
+        video_quality_report = None
+        if run_quality:
+            print("Phase 1a: Checking video quality...")
+            video_quality_report = video_quality_service.analyze_sync(str(upload_path))
+
+            if not video_quality_report.is_valid:
+                error_msg = "Video quality validation failed:\n"
+                for issue in video_quality_report.issues:
+                    error_msg += f"  - {issue}\n"
+                raise ValueError(error_msg.rstrip())
+
+            vq = video_quality_report
+            results["video_quality"] = {
+                "is_valid": bool(vq.is_valid),
+                "resolution": f"{vq.width}x{vq.height}",
+                "resolution_quality": str(vq.resolution_quality),
+                "fps_quality": str(vq.fps_quality),
+                "duration": f"{float(vq.duration_seconds):.1f}s",
+                "issues": list(vq.issues),
+                "warnings": list(vq.warnings),
+            }
+            print(
+                f"✓ Video Quality: {vq.resolution_quality} resolution, {vq.fps_quality} FPS"
             )
 
-            results = {
-                "analysis_id": analysis_id,
-                "filename": file.filename,
-                "frames_processed": int(extracted["frame_count"]),
-                "fps": float(extracted["fps"]),
+            if vq.warnings:
+                print("⚠️  Warnings:")
+                for warning in vq.warnings:
+                    print(f"  - {warning}")
+
+        # PHASE 2: Extract landmarks once (expensive MediaPipe pass)
+        print("\nPhase 1b: Extracting landmarks...")
+
+        landmarks_history = []
+        pose_results_history = []
+        frame_count = 0
+        fps = 30.0
+
+        pose_engine = PoseEngine()
+
+        with VideoReader(str(upload_path)) as video:
+            fps = video.fps
+            results["fps"] = float(fps)
+
+            while True:
+                success, frame = video.read()
+                if not success:
+                    break
+
+                # Detect pose
+                pose_result = pose_engine.process(frame)
+
+                if pose_result and pose_result.pose_landmarks:
+                    # Extract landmarks
+                    landmarks = pose_engine.extract_landmarks(pose_result)
+                    landmarks_history.append(landmarks)
+                    pose_results_history.append(pose_result)
+                    frame_count += 1
+
+                    if frame_count % 100 == 0:
+                        print(f"  Extracted {frame_count} frames...")
+                else:
+                    # No pose detected
+                    landmarks_history.append(None)
+                    pose_results_history.append(None)
+
+        results["frames_processed"] = frame_count
+        print(
+            f"✓ Extraction complete! {len(landmarks_history)} frames total, {frame_count} with pose."
+        )
+
+        # PHASE 3: Tracking Quality Analysis (if requested)
+        tracking_quality_report = None
+        if run_quality:
+            print("\nPhase 2a: Analyzing tracking quality...")
+            tracking_quality_report = tracking_quality_service.analyze_from_landmarks(
+                landmarks_history, video_path=str(upload_path)
+            )
+
+            tq = tracking_quality_report
+            results["tracking_quality"] = {
+                "is_trackable": bool(tq.is_trackable),
+                "quality_level": str(tq.quality_level),
+                "detection_rate": float(tq.detection_rate),
+                "tracking_smoothness": round(float(tq.tracking_smoothness), 4),
+                "avg_confidence": round(float(tq.avg_landmark_confidence), 4),
+                "tracking_loss_events": int(tq.tracking_loss_events),
+                "warnings": list(tq.warnings),
             }
 
-            # PHASE 2: Generate requested outputs (can be parallelized!)
+            print(
+                f"✓ Tracking Quality: {tq.quality_level} ({tq.detection_rate:.1f}% detection)"
+            )
 
-            # 2a. Video Quality Report
-            if run_quality and extracted["video_quality"]:
-                vq = extracted["video_quality"]
-                results["video_quality"] = {
-                    "is_valid": bool(vq.is_valid),
-                    "resolution": f"{vq.width}x{vq.height}",
-                    "resolution_quality": str(vq.resolution_quality),
-                    "fps_quality": str(vq.fps_quality),
-                    "duration": f"{float(vq.duration_seconds):.1f}s",
-                    "issues": list(vq.issues),
-                    "warnings": list(vq.warnings),
-                }
+            if not tq.is_trackable:
                 print(
-                    f"\n✓ Video Quality: {vq.resolution_quality} resolution, {vq.fps_quality} FPS"
+                    "⚠️  Warning: Poor tracking quality detected - results may be unreliable"
                 )
+            elif tq.warnings:
+                print("⚠️  Warnings:")
+                for warning in tq.warnings:
+                    print(f"  - {warning}")
 
-            # 2b. Climbing Metrics Analysis
-            if run_metrics:
-                print("\nPhase 2a: Analyzing metrics from cached landmarks...")
-                analysis = sensei.analyze_from_landmarks(
-                    landmarks_sequence=extracted["landmarks"],
-                    fps=extracted["fps"],
-                    validate_tracking_quality=run_quality,
-                    verbose=True,
-                )
+        # PHASE 4: Climbing Metrics Analysis (if requested)
+        analysis = None
+        if run_metrics:
+            print("\nPhase 2b: Analyzing climbing metrics...")
+            analysis = climbing_service.analyze(
+                landmarks_history,
+                fps=fps,
+                video_path=str(upload_path),
+                video_quality=video_quality_report,
+                tracking_quality=tracking_quality_report,
+            )
 
-                # Store full analysis
-                analysis_cache[analysis_id] = analysis
+            # Store full analysis
+            analysis_cache[analysis_id] = analysis
 
-                # Add summary to results (convert numpy types to Python native types)
-                summary = analysis.summary
-                history = analysis.history
+            # Add summary to results
+            summary = analysis.summary
+            history = analysis.history
 
-                # Build documentation URLs
-                BASE_DOC_URL = "https://jpsferreira.github.io/climb-sensei/metrics/"
+            # Build documentation URLs
+            BASE_DOC_URL = "https://jpsferreira.github.io/climb-sensei/metrics/"
 
-                def _doc_url(metric_key: str) -> str:
-                    anchor = metric_key.replace("_", "-")
-                    return f"{BASE_DOC_URL}#{anchor}"
+            def _doc_url(metric_key: str) -> str:
+                anchor = metric_key.replace("_", "-")
+                return f"{BASE_DOC_URL}#{anchor}"
 
-                # Categorize metrics for better presentation
-                def _get_metric_value(key: str) -> float:
-                    """Get average value for a metric from history."""
-                    if key not in history:
-                        return 0.0
-                    vals = [
-                        float(v) for v in history[key] if isinstance(v, (int, float))
-                    ]
-                    if vals:
-                        return round(sum(vals) / len(vals), 4)
+            # Categorize metrics for better presentation
+            def _get_metric_value(key: str) -> float:
+                """Get average value for a metric from history."""
+                if key not in history:
                     return 0.0
+                vals = [float(v) for v in history[key] if isinstance(v, (int, float))]
+                if vals:
+                    return round(sum(vals) / len(vals), 4)
+                return 0.0
 
-                # Organized metric categories
-                categories = {
-                    "overview": {
-                        "title": "Overview",
-                        "metrics": {
-                            "total_frames": {
-                                "label": "Total Frames",
-                                "value": int(summary.total_frames),
-                                "unit": "",
-                            },
-                            "duration": {
-                                "label": "Duration",
-                                "value": round(
-                                    int(summary.total_frames) / float(extracted["fps"]),
-                                    1,
-                                ),
-                                "unit": "s",
-                            },
+            # Organized metric categories
+            categories = {
+                "overview": {
+                    "title": "Overview",
+                    "metrics": {
+                        "total_frames": {
+                            "label": "Total Frames",
+                            "value": int(summary.total_frames),
+                            "unit": "",
+                        },
+                        "duration": {
+                            "label": "Duration",
+                            "value": round(int(summary.total_frames) / float(fps), 1),
+                            "unit": "s",
                         },
                     },
-                    "movement": {
-                        "title": "Movement & Velocity",
-                        "metrics": {
-                            "vertical_progress": {
-                                "label": "Total Vertical Progress",
-                                "value": round(
-                                    float(summary.total_vertical_progress), 3
-                                ),
-                                "unit": "",
-                                "doc": _doc_url("vertical_progress"),
-                            },
-                            "max_height": {
-                                "label": "Maximum Height",
-                                "value": round(float(summary.max_height), 3),
-                                "unit": "",
-                                "doc": _doc_url("max_height"),
-                            },
-                            "avg_velocity": {
-                                "label": "Average Velocity",
-                                "value": round(float(summary.avg_velocity), 4),
-                                "unit": "u/s",
-                                "doc": _doc_url("com_velocity"),
-                            },
-                            "max_velocity": {
-                                "label": "Maximum Velocity",
-                                "value": round(float(summary.max_velocity), 4),
-                                "unit": "u/s",
-                                "doc": _doc_url("com_velocity"),
-                            },
-                            "total_distance": {
-                                "label": "Total Distance Traveled",
-                                "value": round(
-                                    float(summary.total_distance_traveled), 3
-                                ),
-                                "unit": "",
-                                "doc": _doc_url("total_distance_traveled"),
-                            },
+                },
+                "movement": {
+                    "title": "Movement & Velocity",
+                    "metrics": {
+                        "vertical_progress": {
+                            "label": "Total Vertical Progress",
+                            "value": round(float(summary.total_vertical_progress), 3),
+                            "unit": "",
+                            "doc": _doc_url("vertical_progress"),
+                        },
+                        "max_height": {
+                            "label": "Maximum Height",
+                            "value": round(float(summary.max_height), 3),
+                            "unit": "",
+                            "doc": _doc_url("max_height"),
+                        },
+                        "avg_velocity": {
+                            "label": "Average Velocity",
+                            "value": round(float(summary.avg_velocity), 4),
+                            "unit": "u/s",
+                            "doc": _doc_url("com_velocity"),
+                        },
+                        "max_velocity": {
+                            "label": "Maximum Velocity",
+                            "value": round(float(summary.max_velocity), 4),
+                            "unit": "u/s",
+                            "doc": _doc_url("com_velocity"),
+                        },
+                        "total_distance": {
+                            "label": "Total Distance Traveled",
+                            "value": round(float(summary.total_distance_traveled), 3),
+                            "unit": "",
+                            "doc": _doc_url("total_distance_traveled"),
                         },
                     },
-                    "stability": {
-                        "title": "Stability & Control",
-                        "metrics": {
-                            "avg_sway": {
-                                "label": "Average Lateral Sway",
-                                "value": round(float(summary.avg_sway), 4),
-                                "unit": "",
-                                "doc": _doc_url("com_sway"),
-                            },
-                            "max_sway": {
-                                "label": "Maximum Sway",
-                                "value": round(float(summary.max_sway), 4),
-                                "unit": "",
-                                "doc": _doc_url("com_sway"),
-                            },
-                            "avg_jerk": {
-                                "label": "Average Jerk (Smoothness)",
-                                "value": round(float(summary.avg_jerk), 2),
-                                "unit": "",
-                                "doc": _doc_url("com_jerk"),
-                            },
-                            "max_jerk": {
-                                "label": "Maximum Jerk",
-                                "value": round(float(summary.max_jerk), 2),
-                                "unit": "",
-                                "doc": _doc_url("com_jerk"),
-                            },
+                },
+                "stability": {
+                    "title": "Stability & Control",
+                    "metrics": {
+                        "avg_sway": {
+                            "label": "Average Lateral Sway",
+                            "value": round(float(summary.avg_sway), 4),
+                            "unit": "",
+                            "doc": _doc_url("com_sway"),
+                        },
+                        "max_sway": {
+                            "label": "Maximum Sway",
+                            "value": round(float(summary.max_sway), 4),
+                            "unit": "",
+                            "doc": _doc_url("com_sway"),
+                        },
+                        "avg_jerk": {
+                            "label": "Average Jerk (Smoothness)",
+                            "value": round(float(summary.avg_jerk), 2),
+                            "unit": "",
+                            "doc": _doc_url("com_jerk"),
+                        },
+                        "max_jerk": {
+                            "label": "Maximum Jerk",
+                            "value": round(float(summary.max_jerk), 2),
+                            "unit": "",
+                            "doc": _doc_url("com_jerk"),
                         },
                     },
-                    "positioning": {
-                        "title": "Body Positioning",
-                        "metrics": {
-                            "avg_body_angle": {
-                                "label": "Average Body Angle",
-                                "value": round(float(summary.avg_body_angle), 1),
-                                "unit": "°",
-                                "doc": _doc_url("body_angle"),
-                            },
-                            "avg_hand_span": {
-                                "label": "Average Hand Span",
-                                "value": round(float(summary.avg_hand_span), 3),
-                                "unit": "",
-                                "doc": _doc_url("hand_span"),
-                            },
-                            "avg_foot_span": {
-                                "label": "Average Foot Span",
-                                "value": round(float(summary.avg_foot_span), 3),
-                                "unit": "",
-                                "doc": _doc_url("foot_span"),
-                            },
+                },
+                "positioning": {
+                    "title": "Body Positioning",
+                    "metrics": {
+                        "avg_body_angle": {
+                            "label": "Average Body Angle",
+                            "value": round(float(summary.avg_body_angle), 1),
+                            "unit": "°",
+                            "doc": _doc_url("body_angle"),
+                        },
+                        "avg_hand_span": {
+                            "label": "Average Hand Span",
+                            "value": round(float(summary.avg_hand_span), 3),
+                            "unit": "",
+                            "doc": _doc_url("hand_span"),
+                        },
+                        "avg_foot_span": {
+                            "label": "Average Foot Span",
+                            "value": round(float(summary.avg_foot_span), 3),
+                            "unit": "",
+                            "doc": _doc_url("foot_span"),
                         },
                     },
-                    "efficiency": {
-                        "title": "Efficiency & Technique",
-                        "metrics": {
-                            "movement_economy": {
-                                "label": "Movement Economy",
-                                "value": round(float(summary.avg_movement_economy), 3),
-                                "unit": "",
-                                "doc": _doc_url("movement_economy"),
-                            },
-                            "lock_off_count": {
-                                "label": "Lock-offs Detected",
-                                "value": int(summary.lock_off_count),
-                                "unit": "",
-                                "doc": _doc_url("lock_off_count"),
-                            },
-                            "rest_count": {
-                                "label": "Rest Positions",
-                                "value": int(summary.rest_count),
-                                "unit": "",
-                                "doc": _doc_url("rest_count"),
-                            },
+                },
+                "efficiency": {
+                    "title": "Efficiency & Technique",
+                    "metrics": {
+                        "movement_economy": {
+                            "label": "Movement Economy",
+                            "value": round(float(summary.avg_movement_economy), 3),
+                            "unit": "",
+                            "doc": _doc_url("movement_economy"),
+                        },
+                        "lock_off_count": {
+                            "label": "Lock-offs Detected",
+                            "value": int(summary.lock_off_count),
+                            "unit": "",
+                            "doc": _doc_url("lock_off_count"),
+                        },
+                        "rest_count": {
+                            "label": "Rest Positions",
+                            "value": int(summary.rest_count),
+                            "unit": "",
+                            "doc": _doc_url("rest_count"),
                         },
                     },
-                    "biomechanics": {
-                        "title": "Joint Angles & Biomechanics",
-                        "metrics": {
-                            "left_elbow_angle": {
-                                "label": "Left Elbow Angle",
-                                "value": _get_metric_value("left_elbow_angle"),
-                                "unit": "°",
-                                "doc": _doc_url("left_elbow_angle"),
-                            },
-                            "right_elbow_angle": {
-                                "label": "Right Elbow Angle",
-                                "value": _get_metric_value("right_elbow_angle"),
-                                "unit": "°",
-                                "doc": _doc_url("right_elbow_angle"),
-                            },
-                            "left_shoulder_angle": {
-                                "label": "Left Shoulder Angle",
-                                "value": _get_metric_value("left_shoulder_angle"),
-                                "unit": "°",
-                                "doc": _doc_url("left_shoulder_angle"),
-                            },
-                            "right_shoulder_angle": {
-                                "label": "Right Shoulder Angle",
-                                "value": _get_metric_value("right_shoulder_angle"),
-                                "unit": "°",
-                                "doc": _doc_url("right_shoulder_angle"),
-                            },
-                            "left_knee_angle": {
-                                "label": "Left Knee Angle",
-                                "value": _get_metric_value("left_knee_angle"),
-                                "unit": "°",
-                                "doc": _doc_url("left_knee_angle"),
-                            },
-                            "right_knee_angle": {
-                                "label": "Right Knee Angle",
-                                "value": _get_metric_value("right_knee_angle"),
-                                "unit": "°",
-                                "doc": _doc_url("right_knee_angle"),
-                            },
-                            "left_hip_angle": {
-                                "label": "Left Hip Angle",
-                                "value": _get_metric_value("left_hip_angle"),
-                                "unit": "°",
-                                "doc": _doc_url("left_hip_angle"),
-                            },
-                            "right_hip_angle": {
-                                "label": "Right Hip Angle",
-                                "value": _get_metric_value("right_hip_angle"),
-                                "unit": "°",
-                                "doc": _doc_url("right_hip_angle"),
-                            },
+                },
+                "biomechanics": {
+                    "title": "Joint Angles & Biomechanics",
+                    "metrics": {
+                        "left_elbow_angle": {
+                            "label": "Left Elbow Angle",
+                            "value": _get_metric_value("left_elbow_angle"),
+                            "unit": "°",
+                            "doc": _doc_url("left_elbow_angle"),
+                        },
+                        "right_elbow_angle": {
+                            "label": "Right Elbow Angle",
+                            "value": _get_metric_value("right_elbow_angle"),
+                            "unit": "°",
+                            "doc": _doc_url("right_elbow_angle"),
+                        },
+                        "left_shoulder_angle": {
+                            "label": "Left Shoulder Angle",
+                            "value": _get_metric_value("left_shoulder_angle"),
+                            "unit": "°",
+                            "doc": _doc_url("left_shoulder_angle"),
+                        },
+                        "right_shoulder_angle": {
+                            "label": "Right Shoulder Angle",
+                            "value": _get_metric_value("right_shoulder_angle"),
+                            "unit": "°",
+                            "doc": _doc_url("right_shoulder_angle"),
+                        },
+                        "left_knee_angle": {
+                            "label": "Left Knee Angle",
+                            "value": _get_metric_value("left_knee_angle"),
+                            "unit": "°",
+                            "doc": _doc_url("left_knee_angle"),
+                        },
+                        "right_knee_angle": {
+                            "label": "Right Knee Angle",
+                            "value": _get_metric_value("right_knee_angle"),
+                            "unit": "°",
+                            "doc": _doc_url("right_knee_angle"),
+                        },
+                        "left_hip_angle": {
+                            "label": "Left Hip Angle",
+                            "value": _get_metric_value("left_hip_angle"),
+                            "unit": "°",
+                            "doc": _doc_url("left_hip_angle"),
+                        },
+                        "right_hip_angle": {
+                            "label": "Right Hip Angle",
+                            "value": _get_metric_value("right_hip_angle"),
+                            "unit": "°",
+                            "doc": _doc_url("right_hip_angle"),
                         },
                     },
-                }
+                },
+            }
 
-                results["metrics"] = {
-                    "categories": categories,
-                    "total_frames": int(summary.total_frames),
-                }
+            results["metrics"] = {
+                "categories": categories,
+                "total_frames": int(summary.total_frames),
+            }
 
-                # Tracking quality
-                if analysis.tracking_quality:
-                    tq = analysis.tracking_quality
-                    results["tracking_quality"] = {
-                        "is_trackable": bool(tq.is_trackable),
-                        "quality_level": str(tq.quality_level),
-                        "detection_rate": float(tq.detection_rate),
-                        "tracking_smoothness": round(float(tq.tracking_smoothness), 4),
-                        "avg_confidence": round(float(tq.avg_landmark_confidence), 4),
-                        "tracking_loss_events": int(tq.tracking_loss_events),
-                        "warnings": list(tq.warnings),
-                    }
-                    print(
-                        f"✓ Tracking Quality: {tq.quality_level} ({tq.detection_rate}% detection)"
-                    )
+            print(f"✓ Metrics calculated: {summary.total_frames} frames analyzed")
 
-                print(f"✓ Metrics calculated: {summary.total_frames} frames analyzed")
+        # PHASE 5: Generate Annotated Video (if requested)
+        if run_video:
+            print("\nPhase 3: Generating annotated video...")
+            output_video_path = OUTPUT_DIR / f"{analysis_id}_output.mp4"
 
-            # 2c. Generate Annotated Video
-            if run_video:
-                print("\nPhase 2b: Generating video from cached pose results...")
-                output_video_path = OUTPUT_DIR / f"{analysis_id}_output.mp4"
+            with VideoReader(str(upload_path)) as reader:
+                writer = None
+                frame_num = 0
 
-                with VideoReader(str(upload_path)) as reader:
-                    writer = None
-                    frame_num = 0
+                try:
+                    history = analysis.history if run_metrics and analysis else None
 
-                    try:
-                        history = analysis.history if run_metrics else None
+                    for pose_result in pose_results_history:
+                        success, frame = reader.read()
+                        if not success:
+                            break
 
-                        for pose_result in extracted["pose_results"]:
-                            success, frame = reader.read()
-                            if not success:
-                                break
+                        frame_num += 1
 
-                            frame_num += 1
+                        if pose_result is not None:
+                            # Draw pose using cached results (no re-processing!)
+                            annotated = draw_pose_landmarks(
+                                frame,
+                                pose_result,
+                                connections=CLIMBING_CONNECTIONS,
+                                landmarks_to_draw=CLIMBING_LANDMARKS,
+                            )
 
-                            if pose_result is not None:
-                                # Draw pose using cached results (no re-processing!)
-                                annotated = draw_pose_landmarks(
-                                    frame,
-                                    pose_result,
-                                    connections=CLIMBING_CONNECTIONS,
-                                    landmarks_to_draw=CLIMBING_LANDMARKS,
+                            # Add dashboard if metrics available
+                            if history:
+                                dashboard = create_metrics_dashboard(
+                                    history,
+                                    current_frame=frame_num - 1,
+                                    fps=fps,
                                 )
 
-                                # Add dashboard if metrics available
-                                if history:
-                                    dashboard = create_metrics_dashboard(
-                                        history,
-                                        current_frame=frame_num - 1,
-                                        fps=extracted["fps"],
-                                    )
+                                output_frame = compose_frame_with_dashboard(
+                                    annotated,
+                                    dashboard,
+                                    position=dashboard_position,
+                                )
+                            else:
+                                output_frame = annotated
 
-                                    output_frame = compose_frame_with_dashboard(
-                                        annotated,
-                                        dashboard,
-                                        position=dashboard_position,
-                                    )
-                                else:
-                                    output_frame = annotated
+                            # Initialize writer on first frame
+                            if writer is None:
+                                h, w = output_frame.shape[:2]
+                                writer = VideoWriter(
+                                    str(output_video_path),
+                                    fps=fps,
+                                    width=w,
+                                    height=h,
+                                )
+                                writer.__enter__()
 
-                                # Initialize writer on first frame
-                                if writer is None:
-                                    h, w = output_frame.shape[:2]
-                                    writer = VideoWriter(
-                                        str(output_video_path),
-                                        fps=extracted["fps"],
-                                        width=w,
-                                        height=h,
-                                    )
-                                    writer.__enter__()
+                            writer.write(output_frame)
 
-                                writer.write(output_frame)
+                        if frame_num % 100 == 0:
+                            print(f"  Processed {frame_num} frames...")
 
-                            if frame_num % 100 == 0:
-                                print(f"  Processed {frame_num} frames...")
+                    if writer:
+                        writer.__exit__(None, None, None)
 
-                        if writer:
-                            writer.__exit__(None, None, None)
+                    results["video_output"] = f"/outputs/{analysis_id}_output.mp4"
+                    print(f"✓ Video generated: {frame_num} frames")
 
-                        results["video_output"] = f"/outputs/{analysis_id}_output.mp4"
-                        print(f"✓ Video generated: {frame_num} frames")
+                except Exception as e:
+                    if writer:
+                        writer.__exit__(None, None, None)
+                    raise e
 
-                    except Exception as e:
-                        if writer:
-                            writer.__exit__(None, None, None)
-                        raise e
-
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print("Analysis complete!")
-        print(f"{'='*60}\n")
+        print(f"{'=' * 60}\n")
 
         return JSONResponse(content=results)
 
@@ -460,9 +528,16 @@ async def upload_video(
 
     except Exception as e:
         # Other errors
+        import traceback
+
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
 
     finally:
+        # Clean up resources
+        if pose_engine:
+            pose_engine.close()
+
         # Clean up uploaded file
         if upload_path.exists():
             upload_path.unlink()

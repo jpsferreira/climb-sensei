@@ -201,7 +201,7 @@ class TestTypedAnalyzerAPI:
         analyzer = ClimbingAnalyzer(window_size=30, fps=30)
         landmarks = self.create_test_landmarks()
 
-        # Old API should still work
+        # Dictionary API should still work
         metrics_dict = analyzer.analyze_frame(landmarks)
         assert isinstance(metrics_dict, dict)
         assert "hip_height" in metrics_dict

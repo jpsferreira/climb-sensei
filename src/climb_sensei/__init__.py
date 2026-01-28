@@ -3,10 +3,26 @@
 This package provides computer vision tools for analyzing climbing footage,
 extracting pose data, calculating biomechanical metrics, and visualizing results.
 
-Quick Start:
-    >>> from climb_sensei import ClimbingSensei
-    >>> sensei = ClimbingSensei("climbing_video.mp4")
-    >>> analysis = sensei.analyze()
+Service-Oriented Architecture:
+    >>> from climb_sensei.services import (
+    ...     VideoQualityService,
+    ...     TrackingQualityService,
+    ...     ClimbingAnalysisService,
+    ... )
+    >>> from climb_sensei.pose_engine import PoseEngine
+    >>>
+    >>> # Independent, composable services
+    >>> video_quality = VideoQualityService()
+    >>> tracking = TrackingQualityService()
+    >>> climbing = ClimbingAnalysisService()
+    >>>
+    >>> # Extract landmarks
+    >>> pose_engine = PoseEngine()
+    >>> # ... extract landmarks from video ...
+    >>>
+    >>> # Use services independently
+    >>> analysis = climbing.analyze(landmarks, fps=30.0)
+    >>> pose_engine.close()
 """
 
 # Core I/O
@@ -30,24 +46,31 @@ from climb_sensei.config import (
     MetricsConfig,
 )
 
-# Primary API (facade pattern - recommended)
-from climb_sensei.facade import ClimbingSensei
-
-# Core analysis
+# Core analysis (internal use by services)
 from climb_sensei.metrics import ClimbingAnalyzer
 
 # Repository patterns
 from climb_sensei.repository import JSONRepository, CSVRepository
 
 # Quality checking
-from climb_sensei.video_quality import (
-    VideoQualityReport,
-    check_video_quality,
+from climb_sensei.video_quality import VideoQualityReport
+from climb_sensei.tracking_quality import TrackingQualityReport
+
+# Service Layer (PRIMARY API)
+from climb_sensei.services import (
+    VideoQualityService,
+    TrackingQualityService,
+    ClimbingAnalysisService,
 )
-from climb_sensei.tracking_quality import (
-    TrackingQualityReport,
-    analyze_tracking_quality,
-    analyze_tracking_from_landmarks,
+
+# Domain Layer - Composable Calculators
+from climb_sensei.domain.calculators import (
+    MetricsCalculator,
+    StabilityCalculator,
+    ProgressCalculator,
+    EfficiencyCalculator,
+    TechniqueCalculator,
+    JointAngleCalculator,
 )
 
 # Data models
@@ -69,41 +92,46 @@ __version__ = "0.3.0"
 
 # Public API - organized by category
 __all__ = [
-    # === PRIMARY API (Recommended) ===
-    "ClimbingSensei",  # Main facade - easiest way to use climb-sensei
+    # === PRIMARY API (Service-Oriented) ===
+    "VideoQualityService",
+    "TrackingQualityService",
+    "ClimbingAnalysisService",
+    # === DOMAIN LAYER (Calculators) ===
+    "MetricsCalculator",
+    "StabilityCalculator",
+    "ProgressCalculator",
+    "EfficiencyCalculator",
+    "TechniqueCalculator",
+    "JointAngleCalculator",
     # === REPOSITORIES ===
-    "JSONRepository",  # Save/load analysis as JSON
-    "CSVRepository",  # Save/load analysis as CSV
+    "JSONRepository",
+    "CSVRepository",
     # === QUALITY CHECKING ===
-    "check_video_quality",  # Validate video before processing
-    "analyze_tracking_quality",  # Check pose tracking quality
-    "analyze_tracking_from_landmarks",  # Quality check from existing data
-    "VideoQualityReport",  # Video quality results
-    "TrackingQualityReport",  # Tracking quality results
-    # === CORE ANALYSIS ===
-    "ClimbingAnalyzer",  # Main metrics analyzer
-    "PoseEngine",  # Pose detection engine
+    "VideoQualityReport",
+    "TrackingQualityReport",
+    # === CORE COMPONENTS ===
+    "PoseEngine",
+    "VideoReader",
+    "VideoWriter",
+    "ClimbingAnalyzer",
     # === DATA MODELS ===
-    "Landmark",  # Single pose landmark
-    "FrameMetrics",  # Per-frame metrics
-    "ClimbingSummary",  # Aggregate summary
-    "ClimbingAnalysis",  # Complete analysis
-    # === VIDEO I/O ===
-    "VideoReader",  # Read video frames
-    "VideoWriter",  # Write video output
-    # === BIOMECHANICS ===
-    "calculate_joint_angle",  # Angle between 3 points
-    "calculate_reach_distance",  # Distance between landmarks
-    "calculate_limb_angles",  # All limb angles
-    "calculate_total_distance_traveled",  # Movement distance
+    "Landmark",
+    "FrameMetrics",
+    "ClimbingSummary",
+    "ClimbingAnalysis",
+    # === BIOMECHANICS UTILITIES ===
+    "calculate_joint_angle",
+    "calculate_reach_distance",
+    "calculate_limb_angles",
+    "calculate_total_distance_traveled",
     # === VISUALIZATION ===
-    "draw_pose_landmarks",  # Draw skeleton on frame
-    "create_metrics_dashboard",  # Create metrics charts
-    "overlay_metrics_on_frame",  # Overlay dashboard on video
+    "draw_pose_landmarks",
+    "create_metrics_dashboard",
+    "overlay_metrics_on_frame",
     # === CONFIGURATION ===
-    "CLIMBING_LANDMARKS",  # Landmark indices
-    "CLIMBING_CONNECTIONS",  # Skeleton connections
-    "get_landmark_name",  # Get landmark name by index
-    "LandmarkIndex",  # Landmark enum
-    "MetricsConfig",  # Configure metrics thresholds
+    "CLIMBING_LANDMARKS",
+    "CLIMBING_CONNECTIONS",
+    "get_landmark_name",
+    "LandmarkIndex",
+    "MetricsConfig",
 ]

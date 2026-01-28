@@ -202,22 +202,39 @@ tests/
 ├── test_video_io.py          # Video I/O
 ├── test_pose_engine.py       # Pose detection
 ├── test_viz.py               # Visualization
-└── test_patterns.py          # Design patterns
+└── test_service_architecture.py  # Service layer tests
 ```
 
 ## Design Patterns
 
-### Facade Pattern
+### Service-Oriented Architecture
 
-**Location**: `__init__.py`
+**Location**: `src/climb_sensei/services/`
 
-Simplifies the API by exposing only essential classes:
+Independent, composable services for different concerns:
 
 ```python
-from climb_sensei import PoseEngine, ClimbingAnalyzer
-# vs
-from climb_sensei.pose_engine import PoseEngine
-from climb_sensei.metrics import ClimbingAnalyzer
+from climb_sensei.services import (
+    VideoQualityService,
+    TrackingQualityService,
+    ClimbingAnalysisService,
+)
+```
+
+Each service has a single responsibility and can be used independently.
+
+### Plugin Pattern
+
+**Location**: `src/climb_sensei/domain/calculators/`
+
+Calculator plugins for extensible metrics:
+
+```python
+from climb_sensei.domain.calculators import (
+    StabilityCalculator,
+    ProgressCalculator,
+    EfficiencyCalculator,
+)
 ```
 
 ### Builder Pattern

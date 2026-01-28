@@ -14,8 +14,20 @@ A Python pose estimation tool for analyzing climbing footage. Extract vertical m
 - 📐 **Biomechanics**: Joint angles, reach distances, center of mass
 - 📹 **Video Processing**: Annotated videos with side-by-side dashboards
 - 🎨 **Visualization**: Pose landmarks and real-time metric graphs
-- ✅ **Video Quality Validation**: Pre-processing quality checks for backend APIs
+- ✅ **Quality Validation**: Video and tracking quality checks
+- 🔌 **Modular Services**: Production-ready REST API architecture
 - 🧪 **Tested**: Comprehensive test suite with high code coverage
+
+## Architecture
+
+**Service-Oriented Design** for production-ready climbing analysis:
+
+- 🏭 **Independent Services** - VideoQuality, TrackingQuality, ClimbingAnalysis
+- 🔌 **Pluggable Calculators** - Stability, Progress, Efficiency, Technique, JointAngles
+- 🧪 **Fully Tested** - 209 tests, high coverage
+- 📦 **Production Ready** - Async support, clean separation, easy to scale
+
+📖 **See [API_GUIDE.md](API_GUIDE.md) for detailed examples**
 
 ## Quick Start
 
@@ -64,98 +76,159 @@ python scripts/analyze_climb.py climbing_video.mp4 --json analysis.json
 
 ### Python API
 
-**Recommended: Use the ClimbingSensei facade (simple, automatic quality validation)**
+**Use the modern service-oriented architecture for all new code:**
 
 ```python
-from climb_sensei import ClimbingSensei
+from climb_sensei.services import (
+    VideoQualityService,
+    TrackingQualityService,
+    ClimbingAnalysisService,
+)
+from climb_sensei.pose_engine import PoseEngine
+from climb_sensei.video_io import VideoReader
 
-# Automatic quality validation and analysis
-with ClimbingSensei('climbing_video.mp4') as sensei:
-    analysis = sensei.analyze()
+# Initialize services (stateless, reusable)
+video_quality = VideoQualityService()
+tracking_quality = TrackingQualityService()
+climbing = ClimbingAnalysisService()
+
+# Validate video first (fast fail)
+quality_report = video_quality.analyze_sync("video.mp4")
+if not quality_report.is_valid:
+    print("Invalid video:", quality_report.issues)
+    exit(1)
+
+# Extract landmarks once
+landmarks = []
+pose_engine = PoseEngine()
+with VideoReader("video.mp4") as reader:
+    fps = reader.fps
+    while True:
+        success, frame = reader.read()
+        if not success:
+            break
+        result = pose_engine.process(frame)
+        if result and result.pose_landmarks:
+            landmarks.append(pose_engine.extract_landmarks(result))
+        else:
+            landmarks.append(None)
+pose_engine.close()
+
+# Use services independently (compose as needed)
+tracking_report = tracking_quality.analyze_from_landmarks(landmarks)
+analysis = climbing.analyze(landmarks, fps=fps)
 
 # Access results
-print(f"Max height: {analysis.summary.max_height:.2f}m")
-print(f"Video quality: {analysis.video_quality.resolution_quality}")
-print(f"Tracking quality: {analysis.tracking_quality.quality_level}")
-
-# Export to JSON
-import json
-with open('results.json', 'w') as f:
-    json.dump(analysis.to_dict(), f, indent=2)
+print(f"Max height: {analysis.summary.max_height:.2f}")
+print(f"Quality: {tracking_report.quality_level}")
 ```
 
-**Two-Phase API: For backend APIs and parallel processing**
+**Key advantages:**
 
-When you need to generate multiple outputs from one video (e.g., metrics + annotated video), use the two-phase approach to avoid re-processing:
+- ✅ Independent services (use only what you need)
+- ✅ Perfect for REST APIs and microservices
+- ✅ Async support for I/O operations
+- ✅ Easy to test and mock
+- ✅ Plugin-based calculator system
+- ✅ Production-ready architecture
+
+**See [API_GUIDE.md](API_GUIDE.md) for detailed examples.**
+
+**Two-Phase Pattern: For efficient video generation**
+
+When you need to generate multiple outputs from one video (metrics + annotated video), extract landmarks once:
 
 ```python
-from climb_sensei import ClimbingSensei
+from climb_sensei.services import ClimbingAnalysisService
+from climb_sensei.pose_engine import PoseEngine
+from climb_sensei.video_io import VideoReader
 
-with ClimbingSensei('climbing_video.mp4') as sensei:
-    # Phase 1: Extract landmarks once (expensive MediaPipe pass)
-    extracted = sensei.extract_landmarks()
+# Phase 1: Extract landmarks once (expensive)
+landmarks = []
+pose_results = []
+pose_engine = PoseEngine()
 
-    # Phase 2: Analyze from cached landmarks (fast, can run in parallel)
-    analysis = sensei.analyze_from_landmarks(
-        landmarks_sequence=extracted['landmarks'],
-        fps=extracted['fps']
-    )
+with VideoReader("video.mp4") as reader:
+    fps = reader.fps
+    while True:
+        success, frame = reader.read()
+        if not success:
+            break
+        result = pose_engine.process(frame)
+        pose_results.append(result)  # Save for video generation
+        if result and result.pose_landmarks:
+            landmarks.append(pose_engine.extract_landmarks(result))
+        else:
+            landmarks.append(None)
 
-    # Reuse pose_results for video generation (no re-processing!)
-    # See scripts/analyze_climb.py for complete example
-    for pose_result in extracted['pose_results']:
-        # Draw pose, create dashboard, compose video...
-        pass
+pose_engine.close()
 
-# Benefits:
-# - 50% faster when generating video output
-# - Enables parallel processing of metrics/video/quality
-# - Perfect for backend APIs with multiple output requirements
+# Phase 2: Use landmarks multiple times (fast, parallel!)
+service = ClimbingAnalysisService()
+analysis = service.analyze(landmarks, fps=fps)
+
+# Reuse pose_results for video generation (no re-processing!)
+# See scripts/analyze_climb.py for complete example
 ```
 
-**Advanced: Direct API access for custom workflows**
+**Benefits:**
+
+- 50% faster when generating video output
+- Enables parallel processing
+- Perfect for backend APIs with multiple outputs
+
+**Custom Workflows: Direct component access**
 
 ```python
-from climb_sensei import PoseEngine, VideoReader, ClimbingAnalyzer
+from climb_sensei import PoseEngine, VideoReader
+from climb_sensei.domain.calculators import StabilityCalculator, ProgressCalculator
 
-analyzer = ClimbingAnalyzer(window_size=30, fps=30)
+# Use only specific components you need
+stability_calc = StabilityCalculator(fps=30.0)
+progress_calc = ProgressCalculator(fps=30.0)
 
-with PoseEngine() as engine:
-    with VideoReader('climbing_video.mp4') as video:
-        for frame in video:
-            results = engine.process(frame)
-            if results:
-                landmarks = engine.extract_landmarks(results)
-                metrics = analyzer.analyze_frame(landmarks)
+pose_engine = PoseEngine()
+with VideoReader('climbing_video.mp4') as video:
+    for frame in video:
+        result = pose_engine.process(frame)
+        if result and result.pose_landmarks:
+            landmarks = pose_engine.extract_landmarks(result)
 
-                print(f"Velocity: {metrics['com_velocity']:.4f}")
-                print(f"Stability: {metrics['com_sway']:.4f}")
+            stability_metrics = stability_calc.calculate(landmarks)
+            progress_metrics = progress_calc.calculate(landmarks)
 
-summary = analyzer.get_summary()
-print(f"Total progress: {summary['total_vertical_progress']:.3f}")
+            print(f"Sway: {stability_metrics['com_sway']:.4f}")
+            print(f"Progress: {progress_metrics['vertical_progress']:.3f}")
+
+pose_engine.close()
 ```
 
-### Video Quality Validation
+.services import VideoQualityService
 
-```python
+service = VideoQualityService()
+
+# Validate before processing
+
+report = service.analyze_sync('video.mp4'
 from climb_sensei import check_video_quality
 
 # Validate video before processing
+
 report = check_video_quality('video.mp4', deep_check=True)
 
-if report.is_valid:
-    # Process with climb-sensei
-    pass
+if report.is_valid: # Process with climb-sensei
+pass
 else:
-    print("Quality issues:", report.issues)
-```
+print("Quality issues:", report.issues)
+
+````
 
 Or use the CLI:
 
 ```bash
 # Check video quality
 python scripts/check_video_quality.py video.mp4 --deep --json report.json
-```
+````
 
 ## Documentation
 
