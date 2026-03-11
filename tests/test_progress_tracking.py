@@ -62,7 +62,7 @@ def test_user(db_session):
     """Create a test user."""
     user = User(
         email="testuser@example.com",
-        password_hash=get_password_hash("testpass123"),
+        hashed_password=get_password_hash("testpass123"),
         full_name="Test User",
         is_active=True,
     )
@@ -75,7 +75,7 @@ def test_user(db_session):
 @pytest.fixture
 def test_user_token(test_user):
     """Generate JWT token for test user."""
-    return create_access_token(data={"sub": test_user.email})
+    return create_access_token(data={"sub": str(test_user.id)})
 
 
 @pytest.fixture
@@ -256,7 +256,7 @@ class TestProgressMetrics:
         # Create another user with metrics
         other_user = User(
             email="other@example.com",
-            password_hash=get_password_hash("pass123"),
+            hashed_password=get_password_hash("pass123"),
         )
         db_session.add(other_user)
         db_session.commit()
@@ -380,7 +380,7 @@ class TestAnalysisComparison:
         # Create another user
         other_user = User(
             email="other@example.com",
-            password_hash=get_password_hash("pass123"),
+            hashed_password=get_password_hash("pass123"),
         )
         db_session.add(other_user)
         db_session.commit()
@@ -576,7 +576,7 @@ class TestGoalManagement:
         """Should not allow accessing other users' goals."""
         other_user = User(
             email="other@example.com",
-            password_hash=get_password_hash("pass123"),
+            hashed_password=get_password_hash("pass123"),
         )
         db_session.add(other_user)
         db_session.commit()
@@ -766,7 +766,7 @@ class TestSessionManagement:
         """Should not allow accessing other users' sessions."""
         other_user = User(
             email="other@example.com",
-            password_hash=get_password_hash("pass123"),
+            hashed_password=get_password_hash("pass123"),
         )
         db_session.add(other_user)
         db_session.commit()

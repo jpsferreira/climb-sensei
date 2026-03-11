@@ -4,6 +4,7 @@ This module provides a wrapper around MediaPipe's pose detection
 functionality for extracting human pose landmarks from images.
 """
 
+import logging
 from typing import Optional, List, Dict, Any
 import urllib.request
 from pathlib import Path
@@ -13,6 +14,10 @@ from mediapipe.tasks.python import vision
 import numpy as np
 
 from .config import PoseConfig
+
+logger = logging.getLogger(__name__)
+
+_DEFAULT_POSE = PoseConfig()
 
 
 # Default MediaPipe pose model URL
@@ -33,12 +38,12 @@ def _get_model_path() -> str:
 
     # Download if not cached
     if not model_path.exists():
-        print(f"Downloading pose model to {model_path}...")
+        logger.info("Downloading pose model to %s...", model_path)
         try:
             urllib.request.urlretrieve(_MODEL_URL, model_path)
-            print("Model downloaded successfully.")
+            logger.info("Model downloaded successfully.")
         except Exception as e:
-            raise RuntimeError(f"Failed to download pose model: {e}")
+            raise RuntimeError(f"Failed to download pose model: {e}") from e
 
     return str(model_path)
 
@@ -60,8 +65,8 @@ class PoseEngine:
 
     def __init__(
         self,
-        min_detection_confidence: float = PoseConfig.DEFAULT_DETECTION_CONFIDENCE,
-        min_tracking_confidence: float = PoseConfig.DEFAULT_TRACKING_CONFIDENCE,
+        min_detection_confidence: float = _DEFAULT_POSE.min_detection_confidence,
+        min_tracking_confidence: float = _DEFAULT_POSE.min_tracking_confidence,
         model_path: Optional[str] = None,
     ) -> None:
         """Initialize the pose engine.
@@ -111,7 +116,7 @@ class PoseEngine:
         # Detect pose landmarks with timestamp for VIDEO mode temporal smoothing
         # Timestamps must increase monotonically for proper temporal filtering
         results = self.landmarker.detect_for_video(mp_image, self._frame_timestamp_ms)
-        self._frame_timestamp_ms += PoseConfig.TIMESTAMP_INCREMENT_MS  # ~30fps
+        self._frame_timestamp_ms += _DEFAULT_POSE.timestamp_increment_ms  # ~30fps
 
         # Store results for later use
         self._last_results = results if results.pose_landmarks else None

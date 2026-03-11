@@ -4,7 +4,7 @@ This module provides classes for reading from and writing to video files
 using OpenCV.
 """
 
-from typing import Optional, Tuple
+from typing import Iterator, Optional, Tuple
 import cv2
 import numpy as np
 
@@ -50,6 +50,27 @@ class VideoReader:
         """
         success, frame = self.cap.read()
         return success, frame if success else None
+
+    def __iter__(self) -> Iterator[np.ndarray]:
+        """Iterate over video frames.
+
+        Yields:
+            Each frame as a numpy array (BGR format).
+
+        Example:
+            >>> with VideoReader("video.mp4") as reader:
+            ...     for frame in reader:
+            ...         process(frame)
+        """
+        while True:
+            success, frame = self.cap.read()
+            if not success:
+                return
+            yield frame
+
+    def __len__(self) -> int:
+        """Return the total number of frames in the video."""
+        return self.frame_count
 
     def release(self) -> None:
         """Release the video capture resource."""

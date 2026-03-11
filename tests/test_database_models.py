@@ -43,7 +43,7 @@ class TestUserModel:
         """Should create a user with basic fields."""
         user = User(
             email="test@example.com",
-            password_hash="hashed_password_here",
+            hashed_password="hashed_password_here",
             full_name="Test User",
         )
         db_session.add(user)
@@ -58,8 +58,8 @@ class TestUserModel:
 
     def test_user_email_unique(self, db_session):
         """Should enforce unique email constraint."""
-        user1 = User(email="test@example.com", password_hash="hash1")
-        user2 = User(email="test@example.com", password_hash="hash2")
+        user1 = User(email="test@example.com", hashed_password="hash1")
+        user2 = User(email="test@example.com", hashed_password="hash2")
 
         db_session.add(user1)
         db_session.commit()
@@ -70,7 +70,7 @@ class TestUserModel:
 
     def test_user_relationships(self, db_session):
         """Should have videos and sessions relationships."""
-        user = User(email="test@example.com", password_hash="hash")
+        user = User(email="test@example.com", hashed_password="hash")
         db_session.add(user)
         db_session.commit()
 
@@ -88,7 +88,7 @@ class TestUserModel:
 
     def test_user_repr(self, db_session):
         """Should have a readable repr."""
-        user = User(email="test@example.com", password_hash="hash")
+        user = User(email="test@example.com", hashed_password="hash")
         db_session.add(user)
         db_session.commit()
 
@@ -100,7 +100,7 @@ class TestVideoModel:
 
     def test_create_video(self, db_session):
         """Should create a video with metadata."""
-        user = User(email="test@example.com", password_hash="hash")
+        user = User(email="test@example.com", hashed_password="hash")
         db_session.add(user)
         db_session.commit()
 
@@ -126,7 +126,7 @@ class TestVideoModel:
 
     def test_video_status_default(self, db_session):
         """Should default status to 'uploaded'."""
-        user = User(email="test@example.com", password_hash="hash")
+        user = User(email="test@example.com", hashed_password="hash")
         db_session.add(user)
         db_session.commit()
 
@@ -138,7 +138,7 @@ class TestVideoModel:
 
     def test_video_user_relationship(self, db_session):
         """Should link to user."""
-        user = User(email="test@example.com", password_hash="hash")
+        user = User(email="test@example.com", hashed_password="hash")
         db_session.add(user)
         db_session.commit()
 
@@ -151,7 +151,7 @@ class TestVideoModel:
 
     def test_video_cascade_delete(self, db_session):
         """Should cascade delete when user is deleted."""
-        user = User(email="test@example.com", password_hash="hash")
+        user = User(email="test@example.com", hashed_password="hash")
         db_session.add(user)
         db_session.commit()
 
@@ -173,7 +173,7 @@ class TestAnalysisModel:
 
     def test_create_analysis(self, db_session):
         """Should create an analysis with full data."""
-        user = User(email="test@example.com", password_hash="hash")
+        user = User(email="test@example.com", hashed_password="hash")
         db_session.add(user)
         db_session.commit()
 
@@ -201,7 +201,7 @@ class TestAnalysisModel:
 
     def test_analysis_configuration_defaults(self, db_session):
         """Should have default configuration values."""
-        user = User(email="test@example.com", password_hash="hash")
+        user = User(email="test@example.com", hashed_password="hash")
         db_session.add(user)
         db_session.flush()  # Flush to get user.id
 
@@ -220,7 +220,7 @@ class TestAnalysisModel:
 
     def test_analysis_video_relationship(self, db_session):
         """Should link to video."""
-        user = User(email="test@example.com", password_hash="hash")
+        user = User(email="test@example.com", hashed_password="hash")
         db_session.add(user)
         db_session.flush()  # Flush to get user.id
 
@@ -237,7 +237,7 @@ class TestAnalysisModel:
 
     def test_analysis_cascade_delete(self, db_session):
         """Should cascade delete when video is deleted."""
-        user = User(email="test@example.com", password_hash="hash")
+        user = User(email="test@example.com", hashed_password="hash")
         db_session.add(user)
         db_session.flush()  # Flush to get user.id
 
@@ -266,7 +266,7 @@ class TestClimbSessionModel:
 
     def test_create_session(self, db_session):
         """Should create a climbing session."""
-        user = User(email="test@example.com", password_hash="hash")
+        user = User(email="test@example.com", hashed_password="hash")
         db_session.add(user)
         db_session.commit()
 
@@ -288,7 +288,7 @@ class TestClimbSessionModel:
 
     def test_session_user_relationship(self, db_session):
         """Should link to user."""
-        user = User(email="test@example.com", password_hash="hash")
+        user = User(email="test@example.com", hashed_password="hash")
         db_session.add(user)
         db_session.commit()
 
@@ -305,7 +305,7 @@ class TestClimbSessionModel:
 
     def test_session_cascade_delete(self, db_session):
         """Should cascade delete when user is deleted."""
-        user = User(email="test@example.com", password_hash="hash")
+        user = User(email="test@example.com", hashed_password="hash")
         db_session.add(user)
         db_session.commit()
 
@@ -334,7 +334,7 @@ class TestDatabaseOperations:
 
     def test_query_user_videos(self, db_session):
         """Should query all videos for a user."""
-        user = User(email="test@example.com", password_hash="hash")
+        user = User(email="test@example.com", hashed_password="hash")
         db_session.add(user)
         db_session.commit()
 
@@ -352,7 +352,7 @@ class TestDatabaseOperations:
 
     def test_query_video_analyses(self, db_session):
         """Should query all analyses for a video."""
-        user = User(email="test@example.com", password_hash="hash")
+        user = User(email="test@example.com", hashed_password="hash")
         db_session.add(user)
         db_session.flush()  # Flush to get user.id
 
@@ -373,7 +373,7 @@ class TestDatabaseOperations:
     def test_update_user_data(self, db_session):
         """Should update user data."""
         user = User(
-            email="test@example.com", password_hash="hash", full_name="Old Name"
+            email="test@example.com", hashed_password="hash", full_name="Old Name"
         )
         db_session.add(user)
         db_session.commit()
@@ -388,7 +388,7 @@ class TestDatabaseOperations:
 
     def test_filter_videos_by_status(self, db_session):
         """Should filter videos by status."""
-        user = User(email="test@example.com", password_hash="hash")
+        user = User(email="test@example.com", hashed_password="hash")
         db_session.add(user)
         db_session.commit()
 

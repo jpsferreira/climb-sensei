@@ -79,7 +79,7 @@ def test_user(db_session):
     """Create a test user."""
     user = User(
         email="test@example.com",
-        password_hash=get_password_hash("testpassword123"),
+        hashed_password=get_password_hash("testpassword123"),
         full_name="Test User",
     )
     db_session.add(user)
@@ -284,7 +284,7 @@ class TestLoginEndpoint:
         """Should reject login for inactive user."""
         inactive_user = User(
             email="inactive@example.com",
-            password_hash=get_password_hash("password123"),
+            hashed_password=get_password_hash("password123"),
             is_active=False,
         )
         db_session.add(inactive_user)
@@ -380,7 +380,7 @@ class TestUpdateUserEndpoint:
         # Create another user
         another_user = User(
             email="another@example.com",
-            password_hash=get_password_hash("password123"),
+            hashed_password=get_password_hash("password123"),
         )
         db_session.add(another_user)
         db_session.commit()
@@ -410,7 +410,7 @@ class TestSuperuserEndpoints:
         # Create superuser
         superuser = User(
             email="admin@example.com",
-            password_hash=get_password_hash("adminpassword123"),
+            hashed_password=get_password_hash("adminpassword123"),
             is_superuser=True,
         )
         db_session.add(superuser)

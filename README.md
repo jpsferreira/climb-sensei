@@ -53,13 +53,23 @@ Then open `http://localhost:8000` and upload a climbing video!
 
 **Features:**
 
+- � **User Authentication** - Email/password or Google OAuth sign-in
 - 📤 Drag-and-drop video upload
 - ⚙️ Select which analyses to run (metrics, video, quality checks)
-- 📊 Interactive results display
-- 💾 Download full analysis as JSON
+- 📊 Interactive dashboard with charts
+- 🎯 Goals and progress tracking
+- 📈 Performance metrics over time
+- 💾 Session management
 - 🎥 View annotated videos in browser
 
 See [app/README.md](app/README.md) for details.
+
+**Authentication Options:**
+
+- Email/password registration (works immediately)
+- Google OAuth sign-in (requires [setup](docs/GOOGLE_OAUTH_SETUP.md))
+
+See [OAUTH_QUICK_START.md](docs/OAUTH_QUICK_START.md) to get started.
 
 ### Command Line
 

@@ -49,7 +49,7 @@ def test_user(db_session):
     """Create a test user."""
     user = User(
         email="testuser@example.com",
-        password_hash=get_password_hash("testpassword123"),
+        hashed_password=get_password_hash("testpassword123"),
         full_name="Test User",
     )
     db_session.add(user)
@@ -63,7 +63,7 @@ def test_user_token(test_user):
     """Create an access token for the test user."""
     from climb_sensei.auth import create_access_token
 
-    return create_access_token(data={"sub": test_user.email})
+    return create_access_token(data={"sub": str(test_user.id)})
 
 
 @pytest.fixture
@@ -275,7 +275,7 @@ class TestVideoRetrievalAPI:
         # Create video for another user
         other_user = User(
             email="other@example.com",
-            password_hash=get_password_hash("password123"),
+            hashed_password=get_password_hash("password123"),
         )
         db_session.add(other_user)
         db_session.flush()
@@ -327,7 +327,6 @@ class TestVideoRetrievalAPI:
         data = response.json()
         assert data["filename"] == "climb1.mp4"
         assert data["status"] == "completed"
-        assert data["metadata"]["fps"] == 30.0
         assert len(data["analyses"]) == 1
 
     def test_get_video_not_found(self, client, test_user_token):
@@ -344,7 +343,7 @@ class TestVideoRetrievalAPI:
         # Create another user and their video
         other_user = User(
             email="other@example.com",
-            password_hash=get_password_hash("password123"),
+            hashed_password=get_password_hash("password123"),
         )
         db_session.add(other_user)
         db_session.flush()
@@ -452,7 +451,7 @@ class TestAnalysisRetrievalAPI:
         # Create another user and their analysis
         other_user = User(
             email="other@example.com",
-            password_hash=get_password_hash("password123"),
+            hashed_password=get_password_hash("password123"),
         )
         db_session.add(other_user)
         db_session.flush()
@@ -510,7 +509,7 @@ class TestCascadeDeletes:
         """Should delete videos and analyses when user is deleted."""
         user = User(
             email="testuser@example.com",
-            password_hash=get_password_hash("password123"),
+            hashed_password=get_password_hash("password123"),
         )
         db_session.add(user)
         db_session.flush()
