@@ -73,7 +73,7 @@ class TestClimbingAnalysisService:
     def test_default_calculators(self):
         """Service should have default calculators."""
         service = ClimbingAnalysisService()
-        assert len(service.calculators) == 5  # 5 default calculators
+        assert len(service.calculators) == 6  # 6 default calculators
 
     def test_custom_calculators(self):
         """Service should accept custom calculators."""

@@ -10,7 +10,8 @@ import numpy as np
 
 from .config import (
     FULL_POSE_CONNECTIONS,
-    VisualizationConfig,
+    VIZ,
+    COLORS,
     FACE_LANDMARKS,
     TORSO_LANDMARKS,
     LEFT_ARM_LANDMARKS,
@@ -27,18 +28,18 @@ _POSE_CONNECTIONS = FULL_POSE_CONNECTIONS
 def _get_landmark_color(idx: int) -> Tuple[int, int, int]:
     """Get color for a landmark based on body part."""
     if idx in FACE_LANDMARKS:
-        return VisualizationConfig.COLORS["face"]
+        return COLORS["face"]
     elif idx in TORSO_LANDMARKS:
-        return VisualizationConfig.COLORS["torso"]
+        return COLORS["torso"]
     elif idx in LEFT_ARM_LANDMARKS:
-        return VisualizationConfig.COLORS["left_arm"]
+        return COLORS["left_arm"]
     elif idx in RIGHT_ARM_LANDMARKS:
-        return VisualizationConfig.COLORS["right_arm"]
+        return COLORS["right_arm"]
     elif idx in LEFT_LEG_LANDMARKS:
-        return VisualizationConfig.COLORS["left_leg"]
+        return COLORS["left_leg"]
     elif idx in RIGHT_LEG_LANDMARKS:
-        return VisualizationConfig.COLORS["right_leg"]
-    return VisualizationConfig.COLORS["default"]
+        return COLORS["right_leg"]
+    return COLORS["default"]
 
 
 def draw_pose_landmarks(
@@ -46,8 +47,8 @@ def draw_pose_landmarks(
     results: Any,
     landmark_color: Optional[Tuple[int, int, int]] = None,
     connection_color: Optional[Tuple[int, int, int]] = None,
-    thickness: int = VisualizationConfig.DEFAULT_LINE_THICKNESS,
-    circle_radius: int = VisualizationConfig.DEFAULT_CIRCLE_RADIUS,
+    thickness: int = VIZ.line_thickness,
+    circle_radius: int = VIZ.circle_radius,
     connections: Optional[FrozenSet[Tuple[int, int]]] = None,
     landmarks_to_draw: Optional[FrozenSet[int]] = None,
     use_color_coding: bool = True,
@@ -98,7 +99,7 @@ def draw_pose_landmarks(
 
     # Default connection color
     if connection_color is None:
-        connection_color = VisualizationConfig.COLORS["connection"]
+        connection_color = COLORS["connection"]
 
     # Extract landmarks from results
     pose_landmarks = results.pose_landmarks[0]
@@ -141,8 +142,8 @@ def draw_pose_landmarks(
                 annotated_image,
                 point,
                 circle_radius,
-                VisualizationConfig.COLORS["connection"],
-                VisualizationConfig.LANDMARK_BORDER_THICKNESS,
+                COLORS["connection"],
+                VIZ.landmark_border_thickness,
             )
 
     return annotated_image
@@ -153,8 +154,8 @@ def draw_angle_annotation(
     point: Tuple[int, int],
     angle: float,
     color: Tuple[int, int, int] = (255, 255, 0),
-    font_scale: float = VisualizationConfig.DEFAULT_FONT_SCALE,
-    thickness: int = VisualizationConfig.DEFAULT_FONT_THICKNESS,
+    font_scale: float = VIZ.font_scale,
+    thickness: int = VIZ.font_thickness,
 ) -> np.ndarray:
     """Draw angle value annotation at a specific point.
 
@@ -179,7 +180,7 @@ def draw_angle_annotation(
     text_size = cv2.getTextSize(text, font, font_scale, thickness)[0]
 
     # Draw background rectangle
-    padding = VisualizationConfig.ANGLE_ANNOTATION_PADDING
+    padding = VIZ.angle_annotation_padding
     cv2.rectangle(
         annotated_image,
         (point[0] - padding, point[1] - text_size[1] - padding),
@@ -202,7 +203,7 @@ def draw_distance_line(
     point_b: Tuple[int, int],
     distance: Optional[float] = None,
     color: Tuple[int, int, int] = (0, 255, 255),
-    thickness: int = VisualizationConfig.DEFAULT_LINE_THICKNESS,
+    thickness: int = VIZ.line_thickness,
 ) -> np.ndarray:
     """Draw a line between two points with optional distance label.
 
@@ -245,9 +246,9 @@ def draw_metrics_overlay(
     image: np.ndarray,
     current_metrics: Optional[dict] = None,
     cumulative_metrics: Optional[dict] = None,
-    font_scale: float = VisualizationConfig.DEFAULT_FONT_SCALE,
-    thickness: int = VisualizationConfig.DEFAULT_FONT_THICKNESS,
-    bg_alpha: float = VisualizationConfig.METRICS_OVERLAY_BG_ALPHA,
+    font_scale: float = VIZ.font_scale,
+    thickness: int = VIZ.font_thickness,
+    bg_alpha: float = VIZ.metrics_overlay_bg_alpha,
 ) -> np.ndarray:
     """Draw climbing metrics overlay on image.
 
@@ -266,8 +267,8 @@ def draw_metrics_overlay(
     h, w = image.shape[:2]
 
     font = cv2.FONT_HERSHEY_SIMPLEX
-    line_height = int(VisualizationConfig.METRICS_LINE_HEIGHT * font_scale)
-    padding = VisualizationConfig.METRICS_OVERLAY_PADDING
+    line_height = int(VIZ.metrics_line_height * font_scale)
+    padding = VIZ.metrics_overlay_padding
 
     # Prepare text lines
     lines = []

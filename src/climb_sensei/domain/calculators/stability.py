@@ -7,11 +7,11 @@ Calculates:
 - Movement jerk (smoothness)
 """
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from collections import deque
 import numpy as np
 
-from .base import BaseCalculator
+from .base import BaseCalculator, FrameContext
 from ...config import LandmarkIndex
 from ...biomechanics import calculate_center_of_mass
 
@@ -43,11 +43,16 @@ class StabilityCalculator(BaseCalculator):
         super().__init__(window_size, fps)
         self._com_positions = deque(maxlen=window_size)
 
-    def calculate(self, landmarks: List[Dict[str, float]]) -> Dict[str, Any]:
+    def calculate(
+        self,
+        landmarks: List[Dict[str, float]],
+        context: Optional[FrameContext] = None,
+    ) -> Dict[str, Any]:
         """Calculate stability metrics for one frame.
 
         Args:
             landmarks: List of landmark dictionaries
+            context: Optional pre-computed frame context
 
         Returns:
             Dictionary with com_x, com_y, com_velocity, com_sway, jerk
@@ -57,27 +62,29 @@ class StabilityCalculator(BaseCalculator):
 
         self.total_frames += 1
 
-        # Calculate center of mass using core body points
-        core_points = [
-            (
-                landmarks[LandmarkIndex.LEFT_SHOULDER]["x"],
-                landmarks[LandmarkIndex.LEFT_SHOULDER]["y"],
-            ),
-            (
-                landmarks[LandmarkIndex.RIGHT_SHOULDER]["x"],
-                landmarks[LandmarkIndex.RIGHT_SHOULDER]["y"],
-            ),
-            (
-                landmarks[LandmarkIndex.LEFT_HIP]["x"],
-                landmarks[LandmarkIndex.LEFT_HIP]["y"],
-            ),
-            (
-                landmarks[LandmarkIndex.RIGHT_HIP]["x"],
-                landmarks[LandmarkIndex.RIGHT_HIP]["y"],
-            ),
-        ]
-        weights = np.ones(len(core_points))
-        com = calculate_center_of_mass(core_points, weights)
+        # Use pre-computed COM from context, or calculate if not available
+        if context is not None:
+            com = context.com
+        else:
+            core_points = [
+                (
+                    landmarks[LandmarkIndex.LEFT_SHOULDER]["x"],
+                    landmarks[LandmarkIndex.LEFT_SHOULDER]["y"],
+                ),
+                (
+                    landmarks[LandmarkIndex.RIGHT_SHOULDER]["x"],
+                    landmarks[LandmarkIndex.RIGHT_SHOULDER]["y"],
+                ),
+                (
+                    landmarks[LandmarkIndex.LEFT_HIP]["x"],
+                    landmarks[LandmarkIndex.LEFT_HIP]["y"],
+                ),
+                (
+                    landmarks[LandmarkIndex.RIGHT_HIP]["x"],
+                    landmarks[LandmarkIndex.RIGHT_HIP]["y"],
+                ),
+            ]
+            com = calculate_center_of_mass(core_points)
 
         # Update temporal buffer
         self._com_positions.append(com)

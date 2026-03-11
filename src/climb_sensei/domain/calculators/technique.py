@@ -8,10 +8,10 @@ Calculates:
 - Foot span (distance between feet)
 """
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import numpy as np
 
-from .base import BaseCalculator
+from .base import BaseCalculator, FrameContext
 from ...config import LandmarkIndex
 from ...biomechanics import calculate_reach_distance
 
@@ -55,11 +55,16 @@ class TechniqueCalculator(BaseCalculator):
         self._total_lock_offs = 0
         self._total_rest_positions = 0
 
-    def calculate(self, landmarks: List[Dict[str, float]]) -> Dict[str, Any]:
+    def calculate(
+        self,
+        landmarks: List[Dict[str, float]],
+        context: Optional[FrameContext] = None,
+    ) -> Dict[str, Any]:
         """Calculate technique metrics for one frame.
 
         Args:
             landmarks: List of landmark dictionaries
+            context: Optional pre-computed frame context with joint angles
 
         Returns:
             Dictionary with technique metrics
@@ -81,8 +86,8 @@ class TechniqueCalculator(BaseCalculator):
         metrics["hand_span"] = hand_span
         metrics["foot_span"] = foot_span
 
-        # Detect lock-offs
-        left_lock, right_lock, is_lock_off = self._detect_lock_off(landmarks)
+        # Detect lock-offs using pre-computed angles if available
+        left_lock, right_lock, is_lock_off = self._detect_lock_off(landmarks, context)
         metrics["is_lock_off"] = is_lock_off
         metrics["left_lock_off"] = left_lock
         metrics["right_lock_off"] = right_lock
@@ -90,8 +95,8 @@ class TechniqueCalculator(BaseCalculator):
         if is_lock_off:
             self._total_lock_offs += 1
 
-        # Detect rest positions
-        is_rest = self._detect_rest_position(landmarks)
+        # Detect rest positions using pre-computed angles if available
+        is_rest = self._detect_rest_position(landmarks, context)
         metrics["is_rest_position"] = is_rest
 
         if is_rest:
@@ -181,47 +186,21 @@ class TechniqueCalculator(BaseCalculator):
 
         return float(calculate_reach_distance(left_ankle, right_ankle))
 
-    def _detect_lock_off(self, landmarks: List[Dict[str, float]]) -> tuple:
+    def _detect_lock_off(
+        self,
+        landmarks: List[Dict[str, float]],
+        context: Optional[FrameContext] = None,
+    ) -> tuple:
         """Detect lock-off position (one arm bent, supporting weight).
 
         Args:
             landmarks: List of landmark dictionaries
+            context: Optional pre-computed frame context with joint angles
 
         Returns:
             Tuple of (left_lock_off, right_lock_off, is_lock_off)
         """
-        from ...biomechanics import calculate_joint_angle
-
-        # Calculate elbow angles
-        left_elbow_angle = calculate_joint_angle(
-            (
-                landmarks[LandmarkIndex.LEFT_SHOULDER]["x"],
-                landmarks[LandmarkIndex.LEFT_SHOULDER]["y"],
-            ),
-            (
-                landmarks[LandmarkIndex.LEFT_ELBOW]["x"],
-                landmarks[LandmarkIndex.LEFT_ELBOW]["y"],
-            ),
-            (
-                landmarks[LandmarkIndex.LEFT_WRIST]["x"],
-                landmarks[LandmarkIndex.LEFT_WRIST]["y"],
-            ),
-        )
-
-        right_elbow_angle = calculate_joint_angle(
-            (
-                landmarks[LandmarkIndex.RIGHT_SHOULDER]["x"],
-                landmarks[LandmarkIndex.RIGHT_SHOULDER]["y"],
-            ),
-            (
-                landmarks[LandmarkIndex.RIGHT_ELBOW]["x"],
-                landmarks[LandmarkIndex.RIGHT_ELBOW]["y"],
-            ),
-            (
-                landmarks[LandmarkIndex.RIGHT_WRIST]["x"],
-                landmarks[LandmarkIndex.RIGHT_WRIST]["y"],
-            ),
-        )
+        left_elbow_angle, right_elbow_angle = self._get_elbow_angles(landmarks, context)
 
         # Lock-off = elbow bent at < 90 degrees
         left_lock = left_elbow_angle < self.lock_off_threshold
@@ -232,18 +211,50 @@ class TechniqueCalculator(BaseCalculator):
 
         return left_lock, right_lock, is_lock_off
 
-    def _detect_rest_position(self, landmarks: List[Dict[str, float]]) -> bool:
+    def _detect_rest_position(
+        self,
+        landmarks: List[Dict[str, float]],
+        context: Optional[FrameContext] = None,
+    ) -> bool:
         """Detect rest position (straight arms, minimal effort).
 
         Args:
             landmarks: List of landmark dictionaries
+            context: Optional pre-computed frame context with joint angles
 
         Returns:
             True if in rest position
         """
+        left_elbow_angle, right_elbow_angle = self._get_elbow_angles(landmarks, context)
+
+        # Rest position = both arms relatively straight
+        return (
+            left_elbow_angle > self.rest_threshold
+            and right_elbow_angle > self.rest_threshold
+        )
+
+    def _get_elbow_angles(
+        self,
+        landmarks: List[Dict[str, float]],
+        context: Optional[FrameContext] = None,
+    ) -> tuple:
+        """Get elbow angles from context or compute them.
+
+        Args:
+            landmarks: List of landmark dictionaries
+            context: Optional pre-computed frame context
+
+        Returns:
+            Tuple of (left_elbow_angle, right_elbow_angle)
+        """
+        if context is not None:
+            return (
+                context.joint_angles["left_elbow"],
+                context.joint_angles["right_elbow"],
+            )
+
         from ...biomechanics import calculate_joint_angle
 
-        # Calculate elbow angles
         left_elbow_angle = calculate_joint_angle(
             (
                 landmarks[LandmarkIndex.LEFT_SHOULDER]["x"],
@@ -274,13 +285,7 @@ class TechniqueCalculator(BaseCalculator):
             ),
         )
 
-        # Rest position = both arms relatively straight
-        both_arms_straight = (
-            left_elbow_angle > self.rest_threshold
-            and right_elbow_angle > self.rest_threshold
-        )
-
-        return both_arms_straight
+        return left_elbow_angle, right_elbow_angle
 
     def get_summary(self) -> Dict[str, Any]:
         """Get summary statistics for technique metrics.

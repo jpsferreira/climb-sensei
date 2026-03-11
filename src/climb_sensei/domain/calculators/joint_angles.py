@@ -7,10 +7,10 @@ Calculates angles for all major joints:
 - Hips (left, right)
 """
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import numpy as np
 
-from .base import BaseCalculator
+from .base import BaseCalculator, FrameContext
 from ...config import LandmarkIndex
 from ...biomechanics import calculate_joint_angle
 
@@ -39,11 +39,16 @@ class JointAngleCalculator(BaseCalculator):
         """
         super().__init__(window_size, fps)
 
-    def calculate(self, landmarks: List[Dict[str, float]]) -> Dict[str, Any]:
+    def calculate(
+        self,
+        landmarks: List[Dict[str, float]],
+        context: Optional[FrameContext] = None,
+    ) -> Dict[str, Any]:
         """Calculate joint angles for one frame.
 
         Args:
             landmarks: List of landmark dictionaries
+            context: Optional pre-computed frame context with joint angles
 
         Returns:
             Dictionary with all joint angles in degrees
@@ -53,25 +58,23 @@ class JointAngleCalculator(BaseCalculator):
 
         self.total_frames += 1
 
-        metrics = {}
-
-        # Elbow angles
-        metrics["left_elbow"] = self._calculate_elbow_angle(landmarks, left=True)
-        metrics["right_elbow"] = self._calculate_elbow_angle(landmarks, left=False)
-
-        # Shoulder angles
-        metrics["left_shoulder"] = self._calculate_shoulder_angle(landmarks, left=True)
-        metrics["right_shoulder"] = self._calculate_shoulder_angle(
-            landmarks, left=False
-        )
-
-        # Knee angles
-        metrics["left_knee"] = self._calculate_knee_angle(landmarks, left=True)
-        metrics["right_knee"] = self._calculate_knee_angle(landmarks, left=False)
-
-        # Hip angles
-        metrics["left_hip"] = self._calculate_hip_angle(landmarks, left=True)
-        metrics["right_hip"] = self._calculate_hip_angle(landmarks, left=False)
+        # Use pre-computed joint angles from context if available
+        if context is not None:
+            metrics = dict(context.joint_angles)
+        else:
+            metrics = {}
+            metrics["left_elbow"] = self._calculate_elbow_angle(landmarks, left=True)
+            metrics["right_elbow"] = self._calculate_elbow_angle(landmarks, left=False)
+            metrics["left_shoulder"] = self._calculate_shoulder_angle(
+                landmarks, left=True
+            )
+            metrics["right_shoulder"] = self._calculate_shoulder_angle(
+                landmarks, left=False
+            )
+            metrics["left_knee"] = self._calculate_knee_angle(landmarks, left=True)
+            metrics["right_knee"] = self._calculate_knee_angle(landmarks, left=False)
+            metrics["left_hip"] = self._calculate_hip_angle(landmarks, left=True)
+            metrics["right_hip"] = self._calculate_hip_angle(landmarks, left=False)
 
         # Track history
         for key, value in metrics.items():

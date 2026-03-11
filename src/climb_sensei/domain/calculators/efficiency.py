@@ -10,7 +10,7 @@ from typing import List, Dict, Any, Optional
 from collections import deque
 import numpy as np
 
-from .base import BaseCalculator
+from .base import BaseCalculator, FrameContext
 from ...config import LandmarkIndex
 
 
@@ -42,11 +42,16 @@ class EfficiencyCalculator(BaseCalculator):
         self._total_distance = 0.0
         self._initial_hip_height: Optional[float] = None
 
-    def calculate(self, landmarks: List[Dict[str, float]]) -> Dict[str, Any]:
+    def calculate(
+        self,
+        landmarks: List[Dict[str, float]],
+        context: Optional[FrameContext] = None,
+    ) -> Dict[str, Any]:
         """Calculate efficiency metrics for one frame.
 
         Args:
             landmarks: List of landmark dictionaries
+            context: Optional pre-computed frame context
 
         Returns:
             Dictionary with movement_economy, total_distance
@@ -56,34 +61,35 @@ class EfficiencyCalculator(BaseCalculator):
 
         self.total_frames += 1
 
-        # Calculate center of mass for distance tracking
-        core_points = [
-            (
-                landmarks[LandmarkIndex.LEFT_SHOULDER]["x"],
-                landmarks[LandmarkIndex.LEFT_SHOULDER]["y"],
-            ),
-            (
-                landmarks[LandmarkIndex.RIGHT_SHOULDER]["x"],
-                landmarks[LandmarkIndex.RIGHT_SHOULDER]["y"],
-            ),
-            (
-                landmarks[LandmarkIndex.LEFT_HIP]["x"],
-                landmarks[LandmarkIndex.LEFT_HIP]["y"],
-            ),
-            (
-                landmarks[LandmarkIndex.RIGHT_HIP]["x"],
-                landmarks[LandmarkIndex.RIGHT_HIP]["y"],
-            ),
-        ]
-        from ...biomechanics import calculate_center_of_mass
+        # Use pre-computed values from context, or calculate if not available
+        if context is not None:
+            com = context.com
+            hip_height = context.hip_height
+        else:
+            from ...biomechanics import calculate_center_of_mass
 
-        weights = np.ones(len(core_points))
-        com = calculate_center_of_mass(core_points, weights)
-
-        # Track hip height for vertical progress
-        left_hip_y = landmarks[LandmarkIndex.LEFT_HIP]["y"]
-        right_hip_y = landmarks[LandmarkIndex.RIGHT_HIP]["y"]
-        hip_height = (left_hip_y + right_hip_y) / 2.0
+            core_points = [
+                (
+                    landmarks[LandmarkIndex.LEFT_SHOULDER]["x"],
+                    landmarks[LandmarkIndex.LEFT_SHOULDER]["y"],
+                ),
+                (
+                    landmarks[LandmarkIndex.RIGHT_SHOULDER]["x"],
+                    landmarks[LandmarkIndex.RIGHT_SHOULDER]["y"],
+                ),
+                (
+                    landmarks[LandmarkIndex.LEFT_HIP]["x"],
+                    landmarks[LandmarkIndex.LEFT_HIP]["y"],
+                ),
+                (
+                    landmarks[LandmarkIndex.RIGHT_HIP]["x"],
+                    landmarks[LandmarkIndex.RIGHT_HIP]["y"],
+                ),
+            ]
+            com = calculate_center_of_mass(core_points)
+            left_hip_y = landmarks[LandmarkIndex.LEFT_HIP]["y"]
+            right_hip_y = landmarks[LandmarkIndex.RIGHT_HIP]["y"]
+            hip_height = (left_hip_y + right_hip_y) / 2.0
 
         if self._initial_hip_height is None:
             self._initial_hip_height = hip_height

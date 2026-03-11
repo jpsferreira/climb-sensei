@@ -3,13 +3,11 @@
 import pytest
 
 from climb_sensei import (
-    ClimbingAnalyzer,
     Landmark,
     FrameMetrics,
     ClimbingSummary,
     ClimbingAnalysis,
 )
-from climb_sensei.protocols import MetricsAnalyzer
 
 
 class TestLandmarkModel:
@@ -142,97 +140,6 @@ class TestFrameMetrics:
         assert d["hip_height"] == 0.5
         assert d["com_velocity"] == 0.01
         assert not d["is_lock_off"]
-
-
-class TestTypedAnalyzerAPI:
-    """Test typed API methods on ClimbingAnalyzer."""
-
-    def create_test_landmarks(self):
-        """Create test landmarks."""
-        landmarks = []
-        for i in range(33):
-            landmarks.append(
-                {
-                    "x": 0.5 + (i * 0.01),
-                    "y": 0.5 - (i * 0.01),
-                    "z": 0.0,
-                    "visibility": 0.9,
-                }
-            )
-        return landmarks
-
-    def test_analyze_frame_typed(self):
-        """Test analyze_frame_typed returns FrameMetrics."""
-        analyzer = ClimbingAnalyzer(window_size=30, fps=30)
-        landmarks = self.create_test_landmarks()
-
-        metrics = analyzer.analyze_frame_typed(landmarks)
-
-        assert isinstance(metrics, FrameMetrics)
-        assert isinstance(metrics.hip_height, float)
-        assert isinstance(metrics.is_lock_off, bool)
-
-        # Test immutability
-        with pytest.raises(AttributeError):
-            metrics.hip_height = 0.9  # type: ignore
-
-    def test_get_summary_typed(self):
-        """Test get_summary_typed returns ClimbingSummary."""
-        analyzer = ClimbingAnalyzer(window_size=30, fps=30)
-        landmarks = self.create_test_landmarks()
-
-        # Analyze a few frames
-        for _ in range(5):
-            analyzer.analyze_frame(landmarks)
-
-        summary = analyzer.get_summary_typed()
-
-        assert isinstance(summary, ClimbingSummary)
-        assert isinstance(summary.total_frames, int)
-        assert isinstance(summary.avg_velocity, float)
-        assert summary.total_frames == 5
-
-        # Test immutability
-        with pytest.raises(AttributeError):
-            summary.total_frames = 10  # type: ignore
-
-    def test_backward_compatibility(self):
-        """Test that old dict API still works."""
-        analyzer = ClimbingAnalyzer(window_size=30, fps=30)
-        landmarks = self.create_test_landmarks()
-
-        # Dictionary API should still work
-        metrics_dict = analyzer.analyze_frame(landmarks)
-        assert isinstance(metrics_dict, dict)
-        assert "hip_height" in metrics_dict
-
-        summary_dict = analyzer.get_summary()
-        assert isinstance(summary_dict, dict)
-        assert "total_frames" in summary_dict
-
-    def test_dict_and_typed_equivalent(self):
-        """Test that dict and typed APIs return same values."""
-        analyzer = ClimbingAnalyzer(window_size=30, fps=30)
-        landmarks = self.create_test_landmarks()
-
-        # Get both versions
-        metrics_dict = analyzer.analyze_frame(landmarks)
-        analyzer.reset()
-        metrics_typed = analyzer.analyze_frame_typed(landmarks)
-
-        # Values should be the same
-        assert metrics_dict["hip_height"] == metrics_typed.hip_height
-        assert metrics_dict["com_velocity"] == metrics_typed.com_velocity
-        assert metrics_dict["is_lock_off"] == metrics_typed.is_lock_off
-
-
-class TestProtocolConformance:
-    """Test that classes conform to protocols."""
-
-    def test_climbing_analyzer_conforms_to_protocol(self):
-        """Test ClimbingAnalyzer conforms to MetricsAnalyzer protocol."""
-        analyzer = ClimbingAnalyzer()
-        assert isinstance(analyzer, MetricsAnalyzer)
 
 
 class TestClimbingAnalysis:

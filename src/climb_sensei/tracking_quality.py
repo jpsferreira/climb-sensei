@@ -14,6 +14,8 @@ import numpy as np
 from climb_sensei.pose_engine import PoseEngine
 from climb_sensei.video_io import VideoReader
 
+from .types import QualityLevel
+
 
 @dataclass
 class TrackingQualityReport:
@@ -432,7 +434,7 @@ class TrackingQualityAnalyzer:
             and avg_visibility >= 85
             and smoothness >= 0.8
         ):
-            return "excellent"
+            return QualityLevel.EXCELLENT
 
         # Good: All metrics meet or exceed thresholds
         if (
@@ -441,7 +443,7 @@ class TrackingQualityAnalyzer:
             and avg_visibility >= self.min_visibility
             and smoothness >= self.min_smoothness
         ):
-            return "good"
+            return QualityLevel.GOOD
 
         # Acceptable: Meets minimum thresholds even if some warnings
         if (
@@ -449,10 +451,10 @@ class TrackingQualityAnalyzer:
             and avg_confidence >= self.min_avg_confidence
             and avg_visibility >= self.min_visibility
         ):
-            return "acceptable"
+            return QualityLevel.ACCEPTABLE
 
         # Poor: Does not meet minimum requirements
-        return "poor"
+        return QualityLevel.POOR
 
 
 def analyze_tracking_quality(

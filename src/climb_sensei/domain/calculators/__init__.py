@@ -8,18 +8,21 @@ This enables:
 - Composability: Combine calculators as needed
 """
 
-from .base import MetricsCalculator
-from .stability import StabilityCalculator
-from .progress import ProgressCalculator
+from .base import FrameContext, MetricsCalculator
 from .efficiency import EfficiencyCalculator
-from .technique import TechniqueCalculator
+from .fatigue import FatigueCalculator
 from .joint_angles import JointAngleCalculator
+from .progress import ProgressCalculator
+from .stability import StabilityCalculator
+from .technique import TechniqueCalculator
 
 __all__ = [
+    "FrameContext",
     "MetricsCalculator",
     "StabilityCalculator",
     "ProgressCalculator",
     "EfficiencyCalculator",
     "TechniqueCalculator",
     "JointAngleCalculator",
+    "FatigueCalculator",
 ]

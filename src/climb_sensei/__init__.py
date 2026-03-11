@@ -46,9 +46,6 @@ from climb_sensei.config import (
     MetricsConfig,
 )
 
-# Core analysis (internal use by services)
-from climb_sensei.metrics import ClimbingAnalyzer
-
 # Repository patterns
 from climb_sensei.repository import JSONRepository, CSVRepository
 
@@ -65,12 +62,14 @@ from climb_sensei.services import (
 
 # Domain Layer - Composable Calculators
 from climb_sensei.domain.calculators import (
+    FrameContext,
     MetricsCalculator,
     StabilityCalculator,
     ProgressCalculator,
     EfficiencyCalculator,
     TechniqueCalculator,
     JointAngleCalculator,
+    FatigueCalculator,
 )
 
 # Data models
@@ -97,12 +96,14 @@ __all__ = [
     "TrackingQualityService",
     "ClimbingAnalysisService",
     # === DOMAIN LAYER (Calculators) ===
+    "FrameContext",
     "MetricsCalculator",
     "StabilityCalculator",
     "ProgressCalculator",
     "EfficiencyCalculator",
     "TechniqueCalculator",
     "JointAngleCalculator",
+    "FatigueCalculator",
     # === REPOSITORIES ===
     "JSONRepository",
     "CSVRepository",
@@ -113,7 +114,6 @@ __all__ = [
     "PoseEngine",
     "VideoReader",
     "VideoWriter",
-    "ClimbingAnalyzer",
     # === DATA MODELS ===
     "Landmark",
     "FrameMetrics",

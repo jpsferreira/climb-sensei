@@ -1,9 +1,29 @@
 """Base protocol for metrics calculators.
 
-This module defines the interface that all metrics calculators must implement.
+This module defines the interface that all metrics calculators must implement,
+and the FrameContext dataclass for sharing pre-computed values across calculators.
 """
 
-from typing import Protocol, List, Dict, Any
+from dataclasses import dataclass
+from typing import Protocol, List, Dict, Any, Optional, Tuple
+
+
+@dataclass(frozen=True)
+class FrameContext:
+    """Pre-computed per-frame values shared across calculators.
+
+    Built once per frame by the analysis service to avoid redundant
+    computation of COM, hip height, and joint angles across calculators.
+    """
+
+    com: Tuple[float, float]
+    """Center of mass (x, y) from shoulder/hip midpoints."""
+
+    hip_height: float
+    """Average of left and right hip y-coordinates."""
+
+    joint_angles: Dict[str, float]
+    """Pre-computed joint angles (left_elbow, right_elbow, etc.)."""
 
 
 class MetricsCalculator(Protocol):
@@ -23,11 +43,13 @@ class MetricsCalculator(Protocol):
     def calculate(
         self,
         landmarks: List[Dict[str, float]],
+        context: Optional[FrameContext] = None,
     ) -> Dict[str, Any]:
         """Calculate metrics for a single frame.
 
         Args:
             landmarks: List of landmark dictionaries with x, y, z, visibility
+            context: Optional pre-computed frame context for shared values
 
         Returns:
             Dictionary of metric_name -> value for this frame

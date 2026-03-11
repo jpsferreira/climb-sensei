@@ -8,7 +8,9 @@ This module defines application-wide configuration including:
 """
 
 from dataclasses import dataclass
-from typing import FrozenSet, Tuple, Dict
+from enum import IntEnum
+from types import MappingProxyType
+from typing import FrozenSet, Tuple
 
 
 # ==============================================================================
@@ -33,7 +35,7 @@ from typing import FrozenSet, Tuple, Dict
 # 31, 32: Foot indices (left, right)
 
 
-class LandmarkIndex:
+class LandmarkIndex(IntEnum):
     """MediaPipe Pose landmark indices.
 
     Centralized definition of landmark indices for consistency across modules.
@@ -237,11 +239,6 @@ class PoseConfig:
     min_tracking_confidence: float = 0.5
     timestamp_increment_ms: int = 33  # ~30fps
 
-    # Keep class constants for backward compatibility
-    DEFAULT_DETECTION_CONFIDENCE: float = 0.5
-    DEFAULT_TRACKING_CONFIDENCE: float = 0.5
-    TIMESTAMP_INCREMENT_MS: int = 33
-
     def __post_init__(self) -> None:
         """Validate configuration values."""
         if not 0.0 <= self.min_detection_confidence <= 1.0:
@@ -271,22 +268,10 @@ class MetricsConfig:
     fatigue_window_size: int = 90
     com_body_weight: float = 1.0
 
-    # Keep class constants for backward compatibility
-    LOCK_OFF_THRESHOLD_DEGREES: float = 90
-    LOCK_OFF_VELOCITY_THRESHOLD: float = 0.002
-    REST_VELOCITY_THRESHOLD: float = 0.01
-    REST_BODY_ANGLE_THRESHOLD: float = 15
-    EFFICIENT_ECONOMY_RATIO: float = 0.8
-    FATIGUE_WINDOW_SIZE: int = 90
-    COM_BODY_WEIGHT: float = 1.0
 
-
-# Keep VisualizationConfig as regular class (has mutable defaults)
-class VisualizationConfig:
-    """Visualization styling configuration."""
-
-    # Body part colors (BGR format for OpenCV)
-    COLORS: Dict[str, Tuple[int, int, int]] = {
+# Immutable color mapping for visualization (module-level constant)
+COLORS: MappingProxyType[str, Tuple[int, int, int]] = MappingProxyType(
+    {
         "face": (255, 255, 255),  # White
         "torso": (0, 255, 255),  # Yellow
         "left_arm": (0, 255, 0),  # Green
@@ -296,49 +281,58 @@ class VisualizationConfig:
         "default": (200, 200, 200),  # Gray
         "connection": (255, 255, 255),  # White
     }
+)
+
+
+@dataclass(frozen=True)
+class VisualizationConfig:
+    """Visualization styling configuration (immutable)."""
 
     # Drawing dimensions
-    DEFAULT_LINE_THICKNESS = 3
-    DEFAULT_CIRCLE_RADIUS = 7
-    LANDMARK_BORDER_THICKNESS = 2
+    line_thickness: int = 3
+    circle_radius: int = 7
+    landmark_border_thickness: int = 2
 
     # Text styling
-    DEFAULT_FONT_SCALE = 3.0
-    DEFAULT_FONT_THICKNESS = 2
+    font_scale: float = 3.0
+    font_thickness: int = 2
 
     # Metrics overlay layout
-    METRICS_OVERLAY_PADDING = 15
-    METRICS_LINE_HEIGHT = 50
-    METRICS_OVERLAY_BG_ALPHA = 0.7
+    metrics_overlay_padding: int = 15
+    metrics_line_height: int = 50
+    metrics_overlay_bg_alpha: float = 0.7
 
     # Angle annotation
-    ANGLE_ANNOTATION_PADDING = 5
+    angle_annotation_padding: int = 5
 
     # Plot settings for metrics dashboard
-    PLOT_WIDTH = 500
-    PLOT_HEIGHT = 150
-    PLOT_BACKGROUND_COLOR = (40, 40, 40)  # BGR
-    PLOT_MARGIN_LEFT = 70
-    PLOT_MARGIN_RIGHT = 15
-    PLOT_MARGIN_TOP = 40
-    PLOT_MARGIN_BOTTOM = 25
+    plot_width: int = 500
+    plot_height: int = 150
+    plot_background_color: Tuple[int, int, int] = (40, 40, 40)
+    plot_margin_left: int = 70
+    plot_margin_right: int = 15
+    plot_margin_top: int = 40
+    plot_margin_bottom: int = 25
 
     # Plot text styling
-    PLOT_TITLE_FONT_SCALE = 0.8
-    PLOT_TITLE_THICKNESS = 2
-    PLOT_TITLE_COLOR = (200, 200, 200)  # BGR
-    PLOT_LABEL_FONT_SCALE = 0.5
-    PLOT_LABEL_THICKNESS = 2
-    PLOT_LABEL_COLOR = (150, 150, 150)  # BGR
+    plot_title_font_scale: float = 0.8
+    plot_title_thickness: int = 2
+    plot_title_color: Tuple[int, int, int] = (200, 200, 200)
+    plot_label_font_scale: float = 0.5
+    plot_label_thickness: int = 2
+    plot_label_color: Tuple[int, int, int] = (150, 150, 150)
 
     # Plot elements
-    PLOT_GRID_COLOR = (60, 60, 60)  # BGR
-    PLOT_LINE_THICKNESS = 2
-    PLOT_CURRENT_MARKER_INNER_COLOR = (255, 255, 255)  # BGR - white
-    PLOT_CURRENT_MARKER_INNER_RADIUS = 4
-    PLOT_CURRENT_MARKER_OUTER_RADIUS = 6
-    PLOT_CURRENT_MARKER_OUTER_THICKNESS = 2
-    PLOT_CURRENT_LINE_COLOR = (100, 100, 100)  # BGR - gray vertical line
+    plot_grid_color: Tuple[int, int, int] = (60, 60, 60)
+    plot_line_thickness: int = 2
+    plot_current_marker_inner_color: Tuple[int, int, int] = (255, 255, 255)
+    plot_current_marker_inner_radius: int = 4
+    plot_current_marker_outer_radius: int = 6
+    plot_current_marker_outer_thickness: int = 2
+    plot_current_line_color: Tuple[int, int, int] = (100, 100, 100)
+
+
+VIZ = VisualizationConfig()
 
 
 # ==============================================================================
@@ -355,39 +349,7 @@ def get_landmark_name(index: int) -> str:
     Returns:
         Human-readable landmark name.
     """
-    landmark_names = {
-        0: "nose",
-        1: "left_eye_inner",
-        2: "left_eye",
-        3: "left_eye_outer",
-        4: "right_eye_inner",
-        5: "right_eye",
-        6: "right_eye_outer",
-        7: "left_ear",
-        8: "right_ear",
-        9: "mouth_left",
-        10: "mouth_right",
-        11: "left_shoulder",
-        12: "right_shoulder",
-        13: "left_elbow",
-        14: "right_elbow",
-        15: "left_wrist",
-        16: "right_wrist",
-        17: "left_pinky",
-        18: "right_pinky",
-        19: "left_index",
-        20: "right_index",
-        21: "left_thumb",
-        22: "right_thumb",
-        23: "left_hip",
-        24: "right_hip",
-        25: "left_knee",
-        26: "right_knee",
-        27: "left_ankle",
-        28: "right_ankle",
-        29: "left_heel",
-        30: "right_heel",
-        31: "left_foot_index",
-        32: "right_foot_index",
-    }
-    return landmark_names.get(index, f"unknown_{index}")
+    try:
+        return LandmarkIndex(index).name.lower()
+    except ValueError:
+        return f"unknown_{index}"

@@ -9,7 +9,7 @@ Calculates:
 from typing import List, Dict, Any, Optional
 import numpy as np
 
-from .base import BaseCalculator
+from .base import BaseCalculator, FrameContext
 from ...config import LandmarkIndex
 
 
@@ -39,11 +39,16 @@ class ProgressCalculator(BaseCalculator):
         self._max_height: float = 0.0
         self._min_height: float = 1.0
 
-    def calculate(self, landmarks: List[Dict[str, float]]) -> Dict[str, Any]:
+    def calculate(
+        self,
+        landmarks: List[Dict[str, float]],
+        context: Optional[FrameContext] = None,
+    ) -> Dict[str, Any]:
         """Calculate progress metrics for one frame.
 
         Args:
             landmarks: List of landmark dictionaries
+            context: Optional pre-computed frame context
 
         Returns:
             Dictionary with hip_height, vertical_progress
@@ -53,10 +58,13 @@ class ProgressCalculator(BaseCalculator):
 
         self.total_frames += 1
 
-        # Calculate hip height (average of left and right hip y-coordinates)
-        left_hip_y = landmarks[LandmarkIndex.LEFT_HIP]["y"]
-        right_hip_y = landmarks[LandmarkIndex.RIGHT_HIP]["y"]
-        hip_height = (left_hip_y + right_hip_y) / 2.0
+        # Use pre-computed hip height from context, or calculate if not available
+        if context is not None:
+            hip_height = context.hip_height
+        else:
+            left_hip_y = landmarks[LandmarkIndex.LEFT_HIP]["y"]
+            right_hip_y = landmarks[LandmarkIndex.RIGHT_HIP]["y"]
+            hip_height = (left_hip_y + right_hip_y) / 2.0
 
         # Store initial height for progress tracking
         if self._initial_hip_height is None:

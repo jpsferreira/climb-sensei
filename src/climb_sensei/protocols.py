@@ -7,8 +7,6 @@ while maintaining type safety and enabling dependency injection.
 from typing import Protocol, runtime_checkable, List, Dict, Any
 import numpy as np
 
-from .models import FrameMetrics, ClimbingSummary
-
 
 @runtime_checkable
 class PoseDetector(Protocol):
@@ -42,48 +40,6 @@ class PoseDetector(Protocol):
 
     def close(self) -> None:
         """Release resources and cleanup."""
-        ...
-
-
-@runtime_checkable
-class MetricsAnalyzer(Protocol):
-    """Protocol for climbing metrics analyzers.
-
-    Different implementations can focus on different aspects:
-    - Basic metrics (velocity, sway)
-    - Advanced biomechanics (forces, energy)
-    - Technique-specific (route reading, footwork)
-    """
-
-    def analyze_frame(self, landmarks: List[Dict[str, float]]) -> FrameMetrics:
-        """Analyze a single frame and return metrics.
-
-        Args:
-            landmarks: List of landmark dictionaries
-
-        Returns:
-            Immutable metrics for this frame
-        """
-        ...
-
-    def get_summary(self) -> ClimbingSummary:
-        """Get aggregated summary statistics.
-
-        Returns:
-            Immutable summary of all analyzed frames
-        """
-        ...
-
-    def get_history(self) -> Dict[str, List]:
-        """Get time-series history of all metrics.
-
-        Returns:
-            Dictionary mapping metric names to value lists
-        """
-        ...
-
-    def reset(self) -> None:
-        """Reset analyzer state for new analysis."""
         ...
 
 
