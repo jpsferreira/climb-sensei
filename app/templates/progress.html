@@ -1,0 +1,275 @@
+{% extends "base.html" %} {% block title %}Progress - ClimbSensei{% endblock %}
+{% block content %}
+<h1>Progress Tracking</h1>
+
+<div class="card" style="margin-bottom: 2rem">
+  <div class="form-group">
+    <label for="metricSelect">Select Metric</label>
+    <select id="metricSelect" onchange="loadMetricProgress()">
+      <option value="">-- Select Metric --</option>
+      <option value="avg_velocity">Average Velocity</option>
+      <option value="max_velocity">Max Velocity</option>
+      <option value="avg_acceleration">Average Acceleration</option>
+      <option value="max_acceleration">Max Acceleration</option>
+      <option value="movement_efficiency">Movement Efficiency</option>
+      <option value="avg_stability">Average Stability</option>
+      <option value="lock_off_count">Lock-off Count</option>
+      <option value="lock_off_duration_avg">Avg Lock-off Duration</option>
+      <option value="max_reach">Max Reach</option>
+      <option value="hip_shoulder_separation_avg">
+        Avg Hip-Shoulder Separation
+      </option>
+      <option value="max_height">Max Height</option>
+      <option value="total_distance">Total Distance</option>
+      <option value="vertical_distance">Vertical Distance</option>
+      <option value="lateral_distance">Lateral Distance</option>
+    </select>
+  </div>
+
+  <div class="form-group">
+    <label for="daysFilter">Time Period</label>
+    <select id="daysFilter" onchange="loadMetricProgress()">
+      <option value="">All Time</option>
+      <option value="7">Last 7 Days</option>
+      <option value="30" selected>Last 30 Days</option>
+      <option value="90">Last 90 Days</option>
+      <option value="180">Last 6 Months</option>
+      <option value="365">Last Year</option>
+    </select>
+  </div>
+</div>
+
+<div id="chart-section" class="card hidden">
+  <h2 id="chartTitle">Metric Progress</h2>
+
+  <div id="stats-grid" class="grid" style="margin-bottom: 2rem">
+    <div class="stat-card">
+      <h3 id="avgValue">--</h3>
+      <p>Average</p>
+    </div>
+    <div class="stat-card">
+      <h3 id="minValue">--</h3>
+      <p>Min</p>
+    </div>
+    <div class="stat-card">
+      <h3 id="maxValue">--</h3>
+      <p>Max</p>
+    </div>
+    <div class="stat-card">
+      <h3 id="countValue">--</h3>
+      <p>Data Points</p>
+    </div>
+  </div>
+
+  <div style="position: relative; height: 400px">
+    <canvas id="progressChart"></canvas>
+  </div>
+</div>
+
+<div id="no-data" class="card hidden">
+  <p style="color: #666; text-align: center">
+    No data available for the selected metric and time period.
+    <br /><br />
+    <a href="/" class="btn">Upload a video</a> to start tracking your progress!
+  </p>
+</div>
+
+<div class="card" style="margin-top: 2rem">
+  <h2>All Metrics Overview</h2>
+  <div id="all-metrics">
+    <p style="color: #666; text-align: center">Loading...</p>
+  </div>
+</div>
+{% endblock %} {% block extra_js %}
+<script>
+  // Require authentication
+  if (!authToken) {
+    window.location.href = "/login";
+  }
+
+  let currentChart = null;
+
+  async function loadMetricProgress() {
+    const metric = document.getElementById("metricSelect").value;
+    if (!metric) {
+      document.getElementById("chart-section").classList.add("hidden");
+      document.getElementById("no-data").classList.add("hidden");
+      return;
+    }
+
+    const days = document.getElementById("daysFilter").value;
+    const url = days
+      ? `${API_BASE}/progress/${metric}?days=${days}`
+      : `${API_BASE}/progress/${metric}`;
+
+    try {
+      const response = await apiRequest(url);
+      const data = await response.json();
+
+      if (data.data_points.length === 0) {
+        document.getElementById("chart-section").classList.add("hidden");
+        document.getElementById("no-data").classList.remove("hidden");
+        return;
+      }
+
+      document.getElementById("chart-section").classList.remove("hidden");
+      document.getElementById("no-data").classList.add("hidden");
+
+      displayChart(data);
+    } catch (error) {
+      console.error("Failed to load progress:", error);
+      showAlert("Failed to load progress data", "error");
+    }
+  }
+
+  function displayChart(data) {
+    // Update title
+    document.getElementById("chartTitle").textContent = formatMetricName(
+      data.metric_name,
+    );
+
+    // Update stats
+    document.getElementById("avgValue").textContent = data.avg_value.toFixed(3);
+    document.getElementById("minValue").textContent = data.min_value.toFixed(3);
+    document.getElementById("maxValue").textContent = data.max_value.toFixed(3);
+    document.getElementById("countValue").textContent = data.data_points.length;
+
+    // Prepare chart data
+    const labels = data.data_points.map((p) =>
+      new Date(p.recorded_at).toLocaleDateString(),
+    );
+    const values = data.data_points.map((p) => p.value);
+
+    // Destroy existing chart
+    if (currentChart) {
+      currentChart.destroy();
+    }
+
+    // Create new chart
+    const ctx = document.getElementById("progressChart").getContext("2d");
+    currentChart = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: formatMetricName(data.metric_name),
+            data: values,
+            borderColor: "#667eea",
+            backgroundColor: "rgba(102, 126, 234, 0.1)",
+            tension: 0.3,
+            fill: true,
+            pointRadius: 5,
+            pointHoverRadius: 7,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: false,
+          },
+          tooltip: {
+            callbacks: {
+              label: function (context) {
+                return `${context.parsed.y.toFixed(3)}`;
+              },
+            },
+          },
+        },
+        scales: {
+          y: {
+            beginAtZero: false,
+            ticks: {
+              callback: function (value) {
+                return value.toFixed(2);
+              },
+            },
+          },
+          x: {
+            ticks: {
+              maxRotation: 45,
+              minRotation: 45,
+            },
+          },
+        },
+      },
+    });
+  }
+
+  async function loadAllMetrics() {
+    try {
+      const response = await apiRequest(`${API_BASE}/progress`);
+      const data = await response.json();
+
+      const container = document.getElementById("all-metrics");
+
+      if (Object.keys(data).length === 0) {
+        container.innerHTML =
+          '<p style="color: #666; text-align: center;">No metrics available yet.</p>';
+        return;
+      }
+
+      container.innerHTML = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Metric</th>
+                            <th>Average</th>
+                            <th>Min</th>
+                            <th>Max</th>
+                            <th>Trend</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${Object.entries(data)
+                          .map(([metric, stats]) => {
+                            const trend =
+                              stats.data_points.length >= 2
+                                ? calculateTrend(stats.data_points)
+                                : 0;
+
+                            return `
+                                <tr>
+                                    <td><strong>${formatMetricName(metric)}</strong></td>
+                                    <td>${stats.avg_value.toFixed(3)}</td>
+                                    <td>${stats.min_value.toFixed(3)}</td>
+                                    <td>${stats.max_value.toFixed(3)}</td>
+                                    <td>
+                                        ${trend > 0 ? "📈" : trend < 0 ? "📉" : "➡️"}
+                                        ${Math.abs(trend).toFixed(1)}%
+                                    </td>
+                                </tr>
+                            `;
+                          })
+                          .join("")}
+                    </tbody>
+                </table>
+            `;
+    } catch (error) {
+      console.error("Failed to load all metrics:", error);
+    }
+  }
+
+  function calculateTrend(dataPoints) {
+    if (dataPoints.length < 2) return 0;
+
+    const firstValue = dataPoints[0].value;
+    const lastValue = dataPoints[dataPoints.length - 1].value;
+
+    return ((lastValue - firstValue) / firstValue) * 100;
+  }
+
+  function formatMetricName(name) {
+    return name
+      .split("_")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+  }
+
+  // Load all metrics on page load
+  loadAllMetrics();
+</script>
+{% endblock %}

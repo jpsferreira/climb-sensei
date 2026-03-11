@@ -1,0 +1,353 @@
+{% extends "base.html" %} {% block title %}ClimbSensei - Upload & Analyze{%
+endblock %} {% block content %}
+<div id="auth-required-message" class="alert alert-info hidden">
+  Please <a href="/login">login</a> or <a href="/register">register</a> to
+  upload and analyze videos.
+</div>
+
+<div id="upload-section" class="card hidden">
+  <h2>🎥 Upload & Analyze Your Climb</h2>
+  <p style="color: #666; margin-bottom: 2rem">
+    Upload a climbing video to get detailed biomechanical analysis, performance
+    metrics, and quality assessments.
+  </p>
+
+  <form id="uploadForm" enctype="multipart/form-data">
+    <div class="form-group">
+      <label for="file">Video File *</label>
+      <div class="file-input-wrapper">
+        <input type="file" id="file" name="file" accept="video/*" required />
+        <label for="file" class="file-label">
+          <span id="fileName">Choose a climbing video...</span>
+        </label>
+      </div>
+      <small style="color: #666">Supported formats: MP4, MOV, AVI, MKV</small>
+    </div>
+
+    <div class="form-group">
+      <label for="session_id">Link to Session (Optional)</label>
+      <select id="session_id" name="session_id">
+        <option value="">-- No Session --</option>
+      </select>
+    </div>
+
+    <div class="checkbox-group">
+      <label>
+        <input type="checkbox" id="run_metrics" name="run_metrics" checked />
+        <span>📊 Run Metrics Analysis</span>
+      </label>
+      <label>
+        <input type="checkbox" id="run_video" name="run_video" />
+        <span>🎥 Generate Annotated Video</span>
+      </label>
+      <label>
+        <input type="checkbox" id="run_quality" name="run_quality" checked />
+        <span>✅ Check Video Quality</span>
+      </label>
+    </div>
+
+    <div class="form-group">
+      <label for="dashboard_position">Dashboard Position</label>
+      <select id="dashboard_position" name="dashboard_position">
+        <option value="right" selected>Right</option>
+        <option value="bottom">Bottom</option>
+      </select>
+    </div>
+
+    <button type="submit" class="btn">📊 Analyze Video</button>
+  </form>
+</div>
+
+<div id="uploadProgress" class="card hidden">
+  <h3>Processing...</h3>
+  <div class="progress-bar">
+    <div class="progress-fill" id="progressFill" style="width: 0%">0%</div>
+  </div>
+  <p id="progressText" style="margin-top: 1rem; color: #666">
+    Uploading video...
+  </p>
+</div>
+
+<div id="results" class="card hidden">
+  <h2>Analysis Results</h2>
+
+  <div id="videoQuality" class="hidden" style="margin-bottom: 2rem">
+    <h3>📹 Video Quality</h3>
+    <div id="videoQualityContent"></div>
+  </div>
+
+  <div id="trackingQuality" class="hidden" style="margin-bottom: 2rem">
+    <h3>🎯 Tracking Quality</h3>
+    <div id="trackingQualityContent"></div>
+  </div>
+
+  <div id="metrics" class="hidden" style="margin-bottom: 2rem">
+    <h3>📊 Performance Metrics</h3>
+    <div id="metricsContent"></div>
+  </div>
+
+  <div id="videoOutput" class="hidden" style="margin-bottom: 2rem">
+    <h3>🎥 Annotated Video</h3>
+    <video
+      id="outputVideo"
+      controls
+      style="max-width: 100%; border-radius: 8px"
+    ></video>
+  </div>
+
+  <div style="text-align: center; margin-top: 2rem">
+    <a href="/dashboard" class="btn">View in Dashboard</a>
+    <button onclick="location.reload()" class="btn btn-secondary">
+      Analyze Another Video
+    </button>
+  </div>
+</div>
+
+<div class="card">
+  <h2>✨ Features</h2>
+  <div class="grid">
+    <div>
+      <h3 style="color: #667eea">📈 Performance Metrics</h3>
+      <p>Track velocity, movement efficiency, lock-offs, and 20+ metrics</p>
+    </div>
+    <div>
+      <h3 style="color: #667eea">🎯 Progress Tracking</h3>
+      <p>Monitor your improvement over time with detailed analytics</p>
+    </div>
+    <div>
+      <h3 style="color: #667eea">📹 Video Quality</h3>
+      <p>Automatic quality checks for optimal analysis results</p>
+    </div>
+    <div>
+      <h3 style="color: #667eea">🏆 Goals & Sessions</h3>
+      <p>Set training goals and organize your climbs into sessions</p>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block extra_js %}
+<script>
+  let currentAnalysisId = null;
+
+  // File input handling
+  document.getElementById("file").addEventListener("change", function (e) {
+    const fileName = e.target.files[0]?.name || "Choose a climbing video...";
+    document.getElementById("fileName").textContent = fileName;
+  });
+
+  // Load user sessions for dropdown
+  async function loadSessions() {
+    if (!authToken) return;
+
+    try {
+      const response = await apiRequest(`${API_BASE}/sessions`);
+      if (response.ok) {
+        const sessions = await response.json();
+        const select = document.getElementById("session_id");
+        sessions.forEach((session) => {
+          const option = document.createElement("option");
+          option.value = session.id;
+          option.textContent = `${session.name} - ${new Date(session.date).toLocaleDateString()}`;
+          select.appendChild(option);
+        });
+      }
+    } catch (error) {
+      console.error("Failed to load sessions:", error);
+    }
+  }
+
+  // Handle form submission
+  document
+    .getElementById("uploadForm")
+    .addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const form = e.target;
+      const formData = new FormData(form);
+
+      const uploadSection = document.getElementById("upload-section");
+      const uploadProgress = document.getElementById("uploadProgress");
+      const results = document.getElementById("results");
+      const progressFill = document.getElementById("progressFill");
+      const progressText = document.getElementById("progressText");
+
+      uploadSection.classList.add("hidden");
+      uploadProgress.classList.remove("hidden");
+      results.classList.add("hidden");
+
+      try {
+        // Simulate progress
+        let progress = 0;
+        const progressInterval = setInterval(() => {
+          progress = Math.min(progress + 10, 90);
+          progressFill.style.width = `${progress}%`;
+          progressFill.textContent = `${progress}%`;
+
+          if (progress < 30) {
+            progressText.textContent = "Uploading video...";
+          } else if (progress < 60) {
+            progressText.textContent = "Processing frames...";
+          } else {
+            progressText.textContent = "Analyzing movement...";
+          }
+        }, 500);
+
+        const response = await fetch("/upload", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+          },
+          body: formData,
+        });
+
+        clearInterval(progressInterval);
+        progressFill.style.width = "100%";
+        progressFill.textContent = "100%";
+        progressText.textContent = "Complete!";
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.detail || "Upload failed");
+        }
+
+        const data = await response.json();
+        currentAnalysisId = data.analysis_id;
+
+        // Show results
+        uploadProgress.classList.add("hidden");
+        results.classList.remove("hidden");
+        displayResults(data);
+        showAlert("Analysis complete!", "success");
+      } catch (error) {
+        clearInterval(progressInterval);
+        uploadProgress.classList.add("hidden");
+        uploadSection.classList.remove("hidden");
+        showAlert("Upload failed: " + error.message, "error");
+      }
+    });
+
+  function displayResults(data) {
+    // Video Quality
+    if (data.video_quality) {
+      const vq = data.video_quality;
+      document.getElementById("videoQuality").classList.remove("hidden");
+      document.getElementById("videoQualityContent").innerHTML = `
+                <div class="grid">
+                    <div>
+                        <strong>Status:</strong>
+                        <span class="badge badge-${vq.is_valid ? "success" : "error"}">
+                            ${vq.is_valid ? "✓ Valid" : "✗ Invalid"}
+                        </span>
+                    </div>
+                    <div><strong>Resolution:</strong> ${vq.resolution} (${vq.resolution_quality})</div>
+                    <div><strong>FPS Quality:</strong> ${vq.fps_quality}</div>
+                    <div><strong>Duration:</strong> ${vq.duration}</div>
+                </div>
+                ${
+                  vq.warnings && vq.warnings.length > 0
+                    ? `
+                    <div class="alert alert-warning" style="margin-top: 1rem;">
+                        <strong>⚠️ Warnings:</strong>
+                        <ul style="margin: 0.5rem 0 0 1.5rem;">
+                            ${vq.warnings.map((w) => `<li>${w}</li>`).join("")}
+                        </ul>
+                    </div>
+                `
+                    : ""
+                }
+            `;
+    }
+
+    // Tracking Quality
+    if (data.tracking_quality) {
+      const tq = data.tracking_quality;
+      document.getElementById("trackingQuality").classList.remove("hidden");
+      document.getElementById("trackingQualityContent").innerHTML = `
+                <div class="grid">
+                    <div>
+                        <strong>Quality Level:</strong>
+                        <span class="badge badge-${tq.quality_level.toLowerCase() === "excellent" ? "success" : tq.quality_level.toLowerCase() === "poor" ? "error" : "warning"}">
+                            ${tq.quality_level}
+                        </span>
+                    </div>
+                    <div><strong>Detection Rate:</strong> ${tq.detection_rate}%</div>
+                    <div><strong>Tracking Smoothness:</strong> ${tq.tracking_smoothness.toFixed(4)}</div>
+                    <div><strong>Avg Confidence:</strong> ${tq.avg_confidence.toFixed(4)}</div>
+                    <div><strong>Loss Events:</strong> ${tq.tracking_loss_events}</div>
+                    <div>
+                        <strong>Trackable:</strong>
+                        <span class="badge badge-${tq.is_trackable ? "success" : "error"}">
+                            ${tq.is_trackable ? "Yes" : "No"}
+                        </span>
+                    </div>
+                </div>
+                ${
+                  tq.warnings && tq.warnings.length > 0
+                    ? `
+                    <div class="alert alert-warning" style="margin-top: 1rem;">
+                        <strong>⚠️ Warnings:</strong>
+                        <ul style="margin: 0.5rem 0 0 1.5rem;">
+                            ${tq.warnings.map((w) => `<li>${w}</li>`).join("")}
+                        </ul>
+                    </div>
+                `
+                    : ""
+                }
+            `;
+    }
+
+    // Metrics
+    if (data.metrics && data.metrics.categories) {
+      const categories = data.metrics.categories;
+      document.getElementById("metrics").classList.remove("hidden");
+
+      let html = "";
+      Object.entries(categories).forEach(([catKey, catData]) => {
+        html += `
+                    <div style="margin-bottom: 2rem;">
+                        <h4 style="color: #667eea; margin-bottom: 1rem;">${catData.title}</h4>
+                        <div class="grid">
+                `;
+
+        Object.entries(catData.metrics).forEach(([metricKey, metricData]) => {
+          const displayValue = metricData.unit
+            ? `${metricData.value}${metricData.unit}`
+            : metricData.value;
+          html += `
+                        <div>
+                            <strong>${metricData.label}:</strong> ${displayValue}
+                        </div>
+                    `;
+        });
+
+        html += `
+                        </div>
+                    </div>
+                `;
+      });
+
+      document.getElementById("metricsContent").innerHTML = html;
+    }
+
+    // Video Output
+    if (data.video_output) {
+      document.getElementById("videoOutput").classList.remove("hidden");
+      document.getElementById("outputVideo").src = data.video_output;
+    }
+  }
+
+  // Check auth and show/hide form
+  document.addEventListener("DOMContentLoaded", async () => {
+    const authMessage = document.getElementById("auth-required-message");
+    const uploadSection = document.getElementById("upload-section");
+
+    if (authToken) {
+      authMessage.classList.add("hidden");
+      uploadSection.classList.remove("hidden");
+      await loadSessions();
+    } else {
+      authMessage.classList.remove("hidden");
+      uploadSection.classList.add("hidden");
+    }
+  });
+</script>
+{% endblock %}

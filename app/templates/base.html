@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{% block title %}ClimbSensei{% endblock %}</title>
+
+    <!-- Chart.js for visualizations -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Oxygen, Ubuntu, Cantarell, sans-serif;
+        line-height: 1.6;
+        color: #333;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+      }
+
+      .navbar {
+        background: rgba(255, 255, 255, 0.95);
+        padding: 1rem 2rem;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .navbar-brand {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #667eea;
+        text-decoration: none;
+      }
+
+      .navbar-menu {
+        display: flex;
+        gap: 2rem;
+        align-items: center;
+      }
+
+      .navbar-menu a {
+        color: #555;
+        text-decoration: none;
+        padding: 0.5rem 1rem;
+        border-radius: 5px;
+        transition: all 0.3s;
+      }
+
+      .navbar-menu a:hover {
+        background: #667eea;
+        color: white;
+      }
+
+      .navbar-menu .btn {
+        background: #667eea;
+        color: white;
+        border: none;
+        padding: 0.5rem 1.5rem;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 1rem;
+      }
+
+      .navbar-menu .btn:hover {
+        background: #5568d3;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 2rem auto;
+        padding: 0 2rem;
+      }
+
+      .card {
+        background: white;
+        border-radius: 10px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+
+      .card h2 {
+        color: #667eea;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #eee;
+      }
+
+      .form-group {
+        margin-bottom: 1.5rem;
+      }
+
+      .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+        color: #555;
+      }
+
+      .form-group input,
+      .form-group select,
+      .form-group textarea {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        font-size: 1rem;
+      }
+
+      .form-group input:focus,
+      .form-group select:focus,
+      .form-group textarea:focus {
+        outline: none;
+        border-color: #667eea;
+      }
+
+      .btn {
+        background: #667eea;
+        color: white;
+        border: none;
+        padding: 0.75rem 2rem;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 1rem;
+        transition: all 0.3s;
+      }
+
+      .btn:hover {
+        background: #5568d3;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      }
+
+      .btn-secondary {
+        background: #6c757d;
+      }
+
+      .btn-secondary:hover {
+        background: #5a6268;
+      }
+
+      .btn-danger {
+        background: #dc3545;
+      }
+
+      .btn-danger:hover {
+        background: #c82333;
+      }
+
+      .alert {
+        padding: 1rem;
+        border-radius: 5px;
+        margin-bottom: 1rem;
+      }
+
+      .alert-success {
+        background: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+      }
+
+      .alert-error {
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+      }
+
+      .alert-info {
+        background: #d1ecf1;
+        color: #0c5460;
+        border: 1px solid #bee5eb;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.5rem;
+      }
+
+      .stat-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1.5rem;
+        border-radius: 10px;
+        text-align: center;
+      }
+
+      .stat-card h3 {
+        font-size: 2.5rem;
+        margin-bottom: 0.5rem;
+      }
+
+      .stat-card p {
+        opacity: 0.9;
+      }
+
+      .hidden {
+        display: none !important;
+      }
+
+      .loading {
+        text-align: center;
+        padding: 2rem;
+        color: #666;
+      }
+
+      .table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      .table th,
+      .table td {
+        padding: 0.75rem;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+      }
+
+      .table th {
+        background: #f8f9fa;
+        font-weight: 600;
+        color: #555;
+      }
+
+      .table tr:hover {
+        background: #f8f9fa;
+      }
+
+      .badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 12px;
+        font-size: 0.85rem;
+        font-weight: 500;
+      }
+
+      .badge-success {
+        background: #28a745;
+        color: white;
+      }
+
+      .badge-warning {
+        background: #ffc107;
+        color: #333;
+      }
+
+      .badge-info {
+        background: #17a2b8;
+        color: white;
+      }
+
+      .progress-bar {
+        height: 20px;
+        background: #e9ecef;
+        border-radius: 10px;
+        overflow: hidden;
+        margin: 0.5rem 0;
+      }
+
+      .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        transition: width 0.3s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 0.85rem;
+        font-weight: 500;
+      }
+
+      @media (max-width: 768px) {
+        .navbar {
+          flex-direction: column;
+          gap: 1rem;
+        }
+
+        .navbar-menu {
+          flex-direction: column;
+          width: 100%;
+        }
+
+        .container {
+          padding: 0 1rem;
+        }
+      }
+    </style>
+    {% block extra_css %}{% endblock %}
+  </head>
+  <body>
+    <nav class="navbar">
+      <a href="/" class="navbar-brand">🧗 ClimbSensei</a>
+      <div class="navbar-menu" id="navbar-menu">
+        <span id="auth-menu">
+          <!-- Auth links will be inserted here by JavaScript -->
+        </span>
+      </div>
+    </nav>
+
+    <div class="container">
+      <div id="alert-container"></div>
+      {% block content %}{% endblock %}
+    </div>
+
+    <script>
+      // Global auth state
+      let authToken = localStorage.getItem("authToken");
+      let currentUser = null;
+
+      // API base URL
+      const API_BASE = "/api";
+
+      // Show alert message
+      function showAlert(message, type = "info") {
+        const alertContainer = document.getElementById("alert-container");
+        const alert = document.createElement("div");
+        alert.className = `alert alert-${type}`;
+        alert.textContent = message;
+        alertContainer.appendChild(alert);
+        setTimeout(() => alert.remove(), 5000);
+      }
+
+      // API request with auth
+      async function apiRequest(url, options = {}) {
+        const headers = {
+          "Content-Type": "application/json",
+          ...options.headers,
+        };
+
+        if (authToken) {
+          headers["Authorization"] = `Bearer ${authToken}`;
+          console.log(
+            "Making request to:",
+            url,
+            "with token:",
+            authToken.substring(0, 20) + "...",
+          );
+        }
+
+        const response = await fetch(url, {
+          ...options,
+          headers,
+        });
+
+        if (response.status === 401) {
+          console.error("401 Unauthorized at", url);
+          console.error("Response:", await response.clone().text());
+          logout();
+          throw new Error("Unauthorized");
+        }
+
+        return response;
+      }
+
+      // Login
+      async function login(email, password) {
+        const formData = new FormData();
+        formData.append("username", email);
+        formData.append("password", password);
+
+        const response = await fetch(`${API_BASE}/auth/jwt/login`, {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          return false;
+        }
+
+        const data = await response.json();
+        authToken = data.access_token;
+        localStorage.setItem("authToken", authToken);
+        await loadCurrentUser();
+        updateAuthMenu();
+        return true;
+      }
+
+      // Logout
+      function logout() {
+        authToken = null;
+        currentUser = null;
+        localStorage.removeItem("authToken");
+        updateAuthMenu();
+        window.location.href = "/";
+      }
+
+      // Load current user
+      async function loadCurrentUser() {
+        if (!authToken) return null;
+
+        try {
+          const response = await apiRequest(`${API_BASE}/auth/me`);
+          if (response.ok) {
+            currentUser = await response.json();
+            return currentUser;
+          } else {
+            console.error("Failed to load user, status:", response.status);
+            const errorText = await response.text();
+            console.error("Error response:", errorText);
+          }
+        } catch (error) {
+          console.error("Failed to load user:", error);
+        }
+        return null;
+      }
+
+      // Update auth menu
+      function updateAuthMenu() {
+        const authMenu = document.getElementById("auth-menu");
+
+        if (authToken && currentUser) {
+          authMenu.innerHTML = `
+                    <a href="/dashboard">Dashboard</a>
+                    <a href="/sessions">Sessions</a>
+                    <a href="/goals">Goals</a>
+                    <a href="/progress">Progress</a>
+                    <span style="color: #667eea;">👤 ${currentUser.email}</span>
+                    <button class="btn" onclick="logout()">Logout</button>
+                `;
+        } else {
+          authMenu.innerHTML = `
+                    <a href="/">Home</a>
+                    <a href="/login">Login</a>
+                    <a href="/register">Register</a>
+                `;
+        }
+      }
+
+      // Initialize on page load
+      document.addEventListener("DOMContentLoaded", async () => {
+        if (authToken) {
+          await loadCurrentUser();
+        }
+        updateAuthMenu();
+      });
+    </script>
+    {% block extra_js %}{% endblock %}
+  </body>
+</html>
