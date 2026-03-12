@@ -1098,7 +1098,7 @@
             margin-bottom: 16px;
             cursor: pointer;
           "
-          onclick="window.location.href='/upload'"
+          onclick="navigateToAnalysis()"
         >
           <div style="display: flex; align-items: center; gap: 12px">
             <div
@@ -1129,7 +1129,7 @@
                 style="font-size: 0.72rem; color: var(--text-muted)"
                 id="analysis-banner-sub"
               >
-                Tap to view progress
+                This may take a moment
               </div>
             </div>
             <div id="analysis-banner-done" style="display: none">
@@ -1227,6 +1227,18 @@
           JSON.stringify({ videoId, routeId, startedAt: Date.now() }),
         );
         checkPendingAnalysis();
+      }
+
+      function navigateToAnalysis() {
+        const raw = localStorage.getItem("pendingAnalysis");
+        if (raw) {
+          const pending = JSON.parse(raw);
+          if (pending.routeId) {
+            window.location.href = `/routes/${pending.routeId}`;
+            return;
+          }
+        }
+        window.location.href = "/";
       }
 
       function checkPendingAnalysis() {
