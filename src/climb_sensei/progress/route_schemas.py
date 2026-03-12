@@ -82,5 +82,6 @@ class AttemptDetailResponse(AttemptResponse):
     video_quality: Optional[dict] = None
     tracking_quality: Optional[dict] = None
     output_video_path: Optional[str] = None
+    original_video_url: Optional[str] = None
     prev_attempt_id: Optional[int] = None
     deltas: Optional[dict] = None

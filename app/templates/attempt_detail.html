@@ -410,10 +410,11 @@ endblock %} {% block extra_css %}
 
   function renderVideo(attempt) {
     const wrapper = document.getElementById('video-wrapper');
-    if (attempt.has_video && attempt.output_video_path) {
+    const videoSrc = attempt.output_video_path || attempt.original_video_url;
+    if (videoSrc) {
       wrapper.innerHTML = `
         <video controls playsinline preload="metadata">
-          <source src="${attempt.output_video_path}" type="video/mp4">
+          <source src="${videoSrc}" type="video/mp4">
           Your browser does not support the video tag.
         </video>
       `;

@@ -565,6 +565,7 @@ def persist_results(
         },
         video_quality=results.get("video_quality") if run_quality else None,
         tracking_quality=results.get("tracking_quality") if run_quality else None,
+        output_video_path=results.get("video_output") if run_video else None,
         run_metrics=run_metrics,
         run_video=run_video,
         run_quality=run_quality,

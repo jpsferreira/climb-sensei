@@ -8,6 +8,8 @@ Provides:
 - GET /api/routes/{route_id}/progress/{metric} — metric trend for a route
 """
 
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
@@ -187,6 +189,11 @@ async def get_attempt(
         video_quality=analysis.video_quality if analysis else None,
         tracking_quality=analysis.tracking_quality if analysis else None,
         output_video_path=analysis.output_video_path if analysis else None,
+        original_video_url=(
+            f"/uploads/{Path(attempt.video.file_path).name}"
+            if attempt.video and attempt.video.file_path
+            else None
+        ),
         prev_attempt_id=prev_attempt_id,
         deltas=deltas,
     )

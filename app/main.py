@@ -18,7 +18,7 @@ from climb_sensei.progress.attempt_routes import router as attempt_router
 
 from app.routers.api import router as api_router
 from app.routers.pages import router as pages_router
-from app.services.upload import OUTPUT_DIR
+from app.services.upload import OUTPUT_DIR, UPLOAD_DIR
 
 BASE_DIR = Path(__file__).parent
 
@@ -57,6 +57,11 @@ def create_app() -> FastAPI:
         "/outputs",
         StaticFiles(directory=str(OUTPUT_DIR)),
         name="outputs",
+    )
+    application.mount(
+        "/uploads",
+        StaticFiles(directory=str(UPLOAD_DIR)),
+        name="uploads",
     )
 
     return application
