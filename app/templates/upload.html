@@ -1,161 +1,741 @@
 {% extends "base.html" %} {% block title %}ClimbSensei - Upload & Analyze{%
-endblock %} {% block content %}
-<div id="auth-required-message" class="alert alert-info hidden">
-  Please <a href="/login">login</a> or <a href="/register">register</a> to
-  upload and analyze videos.
-</div>
+endblock %} {% block extra_css %}
+<style>
+  .spinner {
+    width: 36px;
+    height: 36px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto;
+  }
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
 
-<div id="upload-section" class="card hidden">
-  <h2>🎥 Upload & Analyze Your Climb</h2>
-  <p style="color: #666; margin-bottom: 2rem">
-    Upload a climbing video to get detailed biomechanical analysis, performance
-    metrics, and quality assessments.
+  .metric-category {
+    margin-bottom: 1.5rem;
+  }
+  .metric-category:last-child {
+    margin-bottom: 0;
+  }
+  .metric-category h4 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--accent);
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .metric-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.4rem 0;
+    font-size: 0.88rem;
+  }
+  .metric-item .label {
+    color: var(--text-secondary);
+  }
+  .metric-item .value {
+    font-family: var(--font-display);
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  /* Grade badges (matching routes page) */
+  .grade-badge {
+    font-size: 0.7rem;
+    font-weight: 800;
+    padding: 6px 8px;
+    border-radius: 6px;
+    min-width: 36px;
+    text-align: center;
+    font-family: var(--font-display);
+  }
+  .grade-green {
+    background: var(--success);
+    color: #000;
+  }
+  .grade-amber {
+    background: var(--accent);
+    color: #000;
+  }
+  .grade-orange {
+    background: #f97316;
+    color: #000;
+  }
+  .grade-red {
+    background: var(--error);
+    color: #fff;
+  }
+  .grade-gray {
+    background: var(--bg-deep);
+    color: var(--text-muted);
+  }
+
+  /* Selected route card */
+  .route-card-selected {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--bg-base);
+    border: 1px solid var(--accent-dim);
+    border-radius: var(--radius);
+    padding: 0.75rem 1rem;
+  }
+  .route-card-info {
+    flex: 1;
+    min-width: 0;
+  }
+  .route-card-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .route-card-meta {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+  .route-card-change {
+    font-size: 0.78rem;
+    color: var(--teal);
+    text-decoration: none;
+    flex-shrink: 0;
+  }
+  .route-card-change:hover {
+    text-decoration: underline;
+  }
+
+  /* Analysis option chips */
+  .option-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+  }
+  .option-chip {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 0.9rem;
+    background: var(--bg-base);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    cursor: pointer;
+    font-size: 0.82rem;
+    font-family: var(--font-display);
+    font-weight: 500;
+    color: var(--text-secondary);
+    transition: all 0.2s;
+    user-select: none;
+  }
+  .option-chip:hover {
+    border-color: var(--border-light);
+    background: var(--bg-hover);
+  }
+  .option-chip input[type="checkbox"] {
+    display: none;
+  }
+  .option-chip.chip-on {
+    border-color: var(--accent-dim);
+    background: var(--accent-glow);
+    color: var(--accent-bright);
+  }
+
+  .section-label {
+    display: block;
+    font-weight: 500;
+    color: var(--text-secondary);
+    font-size: 0.88rem;
+    font-family: var(--font-display);
+    margin-bottom: 0.5rem;
+  }
+
+  .session-today {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--bg-base);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.6rem 0.85rem;
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+    width: 100%;
+  }
+  .session-today .today-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--success);
+    flex-shrink: 0;
+  }
+</style>
+{% endblock %} {% block content %}
+<!-- Auth gate -->
+<div
+  id="auth-required-message"
+  class="hidden"
+  style="text-align: center; padding: 4rem 2rem"
+>
+  <div
+    style="
+      width: 56px;
+      height: 56px;
+      background: var(--accent-glow);
+      border: 1px solid var(--accent-dim);
+      border-radius: var(--radius-lg);
+      display: grid;
+      place-items: center;
+      margin: 0 auto 1.25rem;
+      font-size: 1.5rem;
+    "
+  >
+    &#9650;
+  </div>
+  <h2
+    style="
+      font-family: var(--font-display);
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+    "
+  >
+    Sign in to analyze
+  </h2>
+  <p style="color: var(--text-muted); margin-bottom: 1.5rem">
+    <a
+      href="/login"
+      style="color: var(--accent); text-decoration: none; font-weight: 500"
+      >Login</a
+    >
+    or
+    <a
+      href="/register"
+      style="color: var(--accent); text-decoration: none; font-weight: 500"
+      >Register</a
+    >
+    to upload and analyze climbing videos.
   </p>
-
-  <form id="uploadForm" enctype="multipart/form-data">
-    <div class="form-group">
-      <label for="file">Video File *</label>
-      <div class="file-input-wrapper">
-        <input type="file" id="file" name="file" accept="video/*" required />
-        <label for="file" class="file-label">
-          <span id="fileName">Choose a climbing video...</span>
-        </label>
-      </div>
-      <small style="color: #666">Supported formats: MP4, MOV, AVI, MKV</small>
-    </div>
-
-    <div class="form-group">
-      <label for="session_id">Link to Session (Optional)</label>
-      <select id="session_id" name="session_id">
-        <option value="">-- No Session --</option>
-      </select>
-    </div>
-
-    <div class="checkbox-group">
-      <label>
-        <input type="checkbox" id="run_metrics" name="run_metrics" checked />
-        <span>📊 Run Metrics Analysis</span>
-      </label>
-      <label>
-        <input type="checkbox" id="run_video" name="run_video" />
-        <span>🎥 Generate Annotated Video</span>
-      </label>
-      <label>
-        <input type="checkbox" id="run_quality" name="run_quality" checked />
-        <span>✅ Check Video Quality</span>
-      </label>
-    </div>
-
-    <div class="form-group">
-      <label for="dashboard_position">Dashboard Position</label>
-      <select id="dashboard_position" name="dashboard_position">
-        <option value="right" selected>Right</option>
-        <option value="bottom">Bottom</option>
-      </select>
-    </div>
-
-    <button type="submit" class="btn">📊 Analyze Video</button>
-  </form>
 </div>
 
-<div id="uploadProgress" class="card hidden">
-  <h3>Processing...</h3>
-  <div class="progress-bar">
+<!-- Upload form -->
+<div id="upload-section" class="hidden">
+  <div class="page-header fade-up">
+    <h1>Analyze Attempt</h1>
+    <p>Upload a climbing video for detailed biomechanical analysis.</p>
+  </div>
+
+  <div class="card fade-up fade-up-delay-1">
+    <form id="uploadForm" enctype="multipart/form-data">
+      <!-- Route selection -->
+      <div class="form-group">
+        <label class="section-label">Route</label>
+
+        <!-- Prefilled route card (shown when ?route_id=X) -->
+        <div id="route-prefilled" class="hidden">
+          <div class="route-card-selected">
+            <div id="route-prefilled-badge" class="grade-badge grade-gray">
+              —
+            </div>
+            <div class="route-card-info">
+              <div class="route-card-name" id="route-prefilled-name">
+                Loading…
+              </div>
+              <div class="route-card-meta" id="route-prefilled-meta"></div>
+            </div>
+            <a id="route-change-link" href="/upload" class="route-card-change"
+              >Change</a
+            >
+          </div>
+          <input type="hidden" id="route_id_hidden" name="route_id" />
+        </div>
+
+        <!-- Route dropdown (shown when no ?route_id) -->
+        <div id="route-dropdown-group">
+          <select id="route_id" name="route_id">
+            <option value="">No route selected</option>
+          </select>
+          <small>
+            Don't see your route?
+            <a href="#" id="open-create-route" style="color: var(--accent)"
+              >Create a new one</a
+            >
+          </small>
+        </div>
+      </div>
+
+      <!-- Video picker -->
+      <div class="form-group">
+        <label for="file">Video file</label>
+        <div class="file-input-wrapper">
+          <input type="file" id="file" name="file" accept="video/*" required />
+          <label for="file" class="file-label">
+            <svg
+              width="20"
+              height="20"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+            >
+              <path
+                d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"
+              />
+            </svg>
+            <span id="fileName">Choose a climbing video…</span>
+          </label>
+        </div>
+        <small>Supported: MP4, MOV, AVI, MKV</small>
+      </div>
+
+      <!-- Session -->
+      <div class="form-group">
+        <label class="section-label">Session</label>
+        <div id="session-today-pill" class="session-today">
+          <span class="today-dot"></span>
+          <span id="session-today-label">Today — auto-create</span>
+        </div>
+        <div
+          id="session-dropdown-group"
+          class="hidden"
+          style="margin-top: 0.5rem"
+        >
+          <select id="session_id" name="session_id">
+            <option value="">Today (auto-create)</option>
+          </select>
+        </div>
+        <small>
+          <a href="#" id="toggle-session-picker" style="color: var(--teal)"
+            >Choose a different session</a
+          >
+        </small>
+      </div>
+
+      <!-- Analysis options -->
+      <div style="margin-bottom: 1.25rem">
+        <span class="section-label">Analysis options</span>
+        <div class="option-chips">
+          <label class="option-chip chip-on" id="chip-metrics">
+            <input
+              type="checkbox"
+              id="run_metrics"
+              name="run_metrics"
+              checked
+            />
+            <svg
+              width="13"
+              height="13"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+            >
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+            </svg>
+            Metrics
+          </label>
+          <label class="option-chip" id="chip-video">
+            <input type="checkbox" id="run_video" name="run_video" />
+            <svg
+              width="13"
+              height="13"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+            >
+              <polygon points="23 7 16 12 23 17 23 7" />
+              <rect x="1" y="5" width="15" height="14" rx="2" />
+            </svg>
+            Annotated Video
+          </label>
+          <label class="option-chip chip-on" id="chip-quality">
+            <input
+              type="checkbox"
+              id="run_quality"
+              name="run_quality"
+              checked
+            />
+            <svg
+              width="13"
+              height="13"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+            >
+              <path d="M9 11l3 3L22 4" />
+              <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+            </svg>
+            Quality Check
+          </label>
+        </div>
+      </div>
+
+      <button type="submit" class="btn" style="width: 100%">
+        <svg
+          width="18"
+          height="18"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+        >
+          <path
+            d="M9 19V6l12-3v13M9 19c0 1.1-1.3 2-3 2s-3-.9-3-2 1.3-2 3-2 3 .9 3 2zm12-3c0 1.1-1.3 2-3 2s-3-.9-3-2 1.3-2 3-2 3 .9 3 2zM9 10l12-3"
+          />
+        </svg>
+        Analyze Attempt
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- Progress -->
+<div
+  id="uploadProgress"
+  class="card hidden"
+  style="text-align: center; padding: 3rem 2rem"
+>
+  <div style="margin-bottom: 1.25rem"><div class="spinner"></div></div>
+  <h3
+    style="
+      font-family: var(--font-display);
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+    "
+  >
+    Processing your climb
+  </h3>
+  <div
+    class="progress-bar progress-bar-lg"
+    style="max-width: 400px; margin: 0 auto"
+  >
     <div class="progress-fill" id="progressFill" style="width: 0%">0%</div>
   </div>
-  <p id="progressText" style="margin-top: 1rem; color: #666">
-    Uploading video...
+  <p
+    id="progressText"
+    style="margin-top: 0.75rem; color: var(--text-muted); font-size: 0.88rem"
+  >
+    Uploading video…
   </p>
 </div>
 
-<div id="results" class="card hidden">
-  <h2>Analysis Results</h2>
+<!-- Results -->
+<div id="results" class="hidden">
+  <div class="page-header fade-up">
+    <h1>Analysis Results</h1>
+  </div>
 
-  <div id="videoQuality" class="hidden" style="margin-bottom: 2rem">
-    <h3>📹 Video Quality</h3>
+  <div
+    id="routeResultBanner"
+    class="hidden card fade-up"
+    style="
+      background: var(--accent-glow);
+      border-color: var(--accent-dim);
+      text-align: center;
+      padding: 1.25rem;
+    "
+  >
+    <p
+      style="
+        font-family: var(--font-display);
+        font-size: 0.9rem;
+        color: var(--accent-bright);
+        margin-bottom: 0.75rem;
+      "
+    >
+      Attempt saved to route
+    </p>
+    <a id="routeResultLink" href="#" class="btn btn-outline btn-sm"
+      >View Route Detail</a
+    >
+  </div>
+
+  <div id="videoQuality" class="card hidden fade-up fade-up-delay-1">
+    <h2>Video Quality</h2>
     <div id="videoQualityContent"></div>
   </div>
 
-  <div id="trackingQuality" class="hidden" style="margin-bottom: 2rem">
-    <h3>🎯 Tracking Quality</h3>
+  <div id="trackingQuality" class="card hidden fade-up fade-up-delay-2">
+    <h2>Tracking Quality</h2>
     <div id="trackingQualityContent"></div>
   </div>
 
-  <div id="metrics" class="hidden" style="margin-bottom: 2rem">
-    <h3>📊 Performance Metrics</h3>
+  <div id="metrics" class="card hidden fade-up fade-up-delay-3">
+    <h2>Performance Metrics</h2>
     <div id="metricsContent"></div>
   </div>
 
-  <div id="videoOutput" class="hidden" style="margin-bottom: 2rem">
-    <h3>🎥 Annotated Video</h3>
+  <div id="videoOutput" class="card hidden fade-up fade-up-delay-4">
+    <h2>Annotated Video</h2>
     <video
       id="outputVideo"
       controls
-      style="max-width: 100%; border-radius: 8px"
+      style="
+        max-width: 100%;
+        border-radius: var(--radius);
+        background: var(--bg-deep);
+      "
     ></video>
   </div>
 
-  <div style="text-align: center; margin-top: 2rem">
-    <a href="/dashboard" class="btn">View in Dashboard</a>
-    <button onclick="location.reload()" class="btn btn-secondary">
-      Analyze Another Video
+  <div class="flex gap-2 justify-between" style="margin-top: 1rem">
+    <a href="/dashboard" class="btn btn-secondary">View Dashboard</a>
+    <button onclick="location.reload()" class="btn btn-outline">
+      Analyze Another
     </button>
   </div>
 </div>
 
-<div class="card">
-  <h2>✨ Features</h2>
-  <div class="grid">
-    <div>
-      <h3 style="color: #667eea">📈 Performance Metrics</h3>
-      <p>Track velocity, movement efficiency, lock-offs, and 20+ metrics</p>
-    </div>
-    <div>
-      <h3 style="color: #667eea">🎯 Progress Tracking</h3>
-      <p>Monitor your improvement over time with detailed analytics</p>
-    </div>
-    <div>
-      <h3 style="color: #667eea">📹 Video Quality</h3>
-      <p>Automatic quality checks for optimal analysis results</p>
-    </div>
-    <div>
-      <h3 style="color: #667eea">🏆 Goals & Sessions</h3>
-      <p>Set training goals and organize your climbs into sessions</p>
-    </div>
+<!-- Create Route Modal -->
+<div class="modal hidden" id="create-route-modal">
+  <div class="modal-content">
+    <h2>Create Route</h2>
+    <form id="create-route-form" onsubmit="handleCreateRoute(event)">
+      <div class="form-group">
+        <label for="modal-route-name">Name</label>
+        <input
+          type="text"
+          id="modal-route-name"
+          name="name"
+          placeholder="e.g. The Nose"
+          required
+        />
+      </div>
+      <div class="form-group">
+        <label for="modal-route-grade">Grade</label>
+        <input
+          type="text"
+          id="modal-route-grade"
+          name="grade"
+          placeholder="e.g. V4 or 6b+"
+          required
+        />
+      </div>
+      <div class="form-group">
+        <label for="modal-route-grade-system">Grade System</label>
+        <select id="modal-route-grade-system" name="grade_system">
+          <option value="v_scale">V Scale (Bouldering)</option>
+          <option value="font">Font (Bouldering)</option>
+          <option value="yds">YDS (Rope)</option>
+          <option value="french">French (Rope)</option>
+          <option value="uiaa">UIAA</option>
+          <option value="ewbank">Ewbank</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="modal-route-type">Type</label>
+        <select id="modal-route-type" name="type">
+          <option value="boulder">Boulder</option>
+          <option value="sport">Sport</option>
+          <option value="trad">Trad</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="modal-route-location">Location (optional)</label>
+        <input
+          type="text"
+          id="modal-route-location"
+          name="location"
+          placeholder="e.g. Fontainebleau"
+        />
+      </div>
+      <div class="modal-actions">
+        <button
+          type="button"
+          class="btn btn-secondary"
+          onclick="closeCreateRouteModal()"
+        >
+          Cancel
+        </button>
+        <button type="submit" class="btn">Create</button>
+      </div>
+    </form>
   </div>
 </div>
 {% endblock %} {% block extra_js %}
 <script>
+  // ─── State ────────────────────────────────────────────────────────────────
   let currentAnalysisId = null;
+  let prefilledRouteId = null;
+  let submittedRouteId = null;
 
-  // File input handling
+  // ─── Grade color (matches routes.html) ───────────────────────────────────
+  function gradeColor(grade) {
+    if (!grade) return "gray";
+    const num = parseInt(grade.replace(/[^0-9]/g, ""));
+    if (isNaN(num)) return "gray";
+    if (num <= 3) return "green";
+    if (num <= 6) return "amber";
+    if (num <= 9) return "orange";
+    return "red";
+  }
+
+  // ─── File picker ──────────────────────────────────────────────────────────
   document.getElementById("file").addEventListener("change", function (e) {
-    const fileName = e.target.files[0]?.name || "Choose a climbing video...";
-    document.getElementById("fileName").textContent = fileName;
+    const name = e.target.files[0]?.name || "Choose a climbing video…";
+    document.getElementById("fileName").textContent = name;
   });
 
-  // Load user sessions for dropdown
-  async function loadSessions() {
-    if (!authToken) return;
+  // ─── Option chip toggles ──────────────────────────────────────────────────
+  document.querySelectorAll(".option-chip").forEach((chip) => {
+    chip.addEventListener("click", () => {
+      const cb = chip.querySelector("input[type='checkbox']");
+      cb.checked = !cb.checked;
+      chip.classList.toggle("chip-on", cb.checked);
+    });
+  });
 
-    try {
-      const response = await apiRequest(`${API_BASE}/sessions`);
-      if (response.ok) {
-        const sessions = await response.json();
-        const select = document.getElementById("session_id");
-        sessions.forEach((session) => {
-          const option = document.createElement("option");
-          option.value = session.id;
-          option.textContent = `${session.name} - ${new Date(session.date).toLocaleDateString()}`;
-          select.appendChild(option);
-        });
+  // ─── Session picker toggle ────────────────────────────────────────────────
+  document
+    .getElementById("toggle-session-picker")
+    .addEventListener("click", (e) => {
+      e.preventDefault();
+      const pill = document.getElementById("session-today-pill");
+      const dropdown = document.getElementById("session-dropdown-group");
+      const link = e.target;
+      const isShowing = !dropdown.classList.contains("hidden");
+      if (isShowing) {
+        dropdown.classList.add("hidden");
+        pill.style.display = "";
+        link.textContent = "Choose a different session";
+      } else {
+        dropdown.classList.remove("hidden");
+        pill.style.display = "none";
+        link.textContent = "Use today (auto-create)";
       }
-    } catch (error) {
-      console.error("Failed to load sessions:", error);
+    });
+
+  // ─── Route prefill ────────────────────────────────────────────────────────
+  function applyPrefilledRoute(route) {
+    const color = gradeColor(route.grade);
+    const badge = document.getElementById("route-prefilled-badge");
+    badge.textContent = route.grade || "—";
+    badge.className = `grade-badge grade-${color}`;
+    document.getElementById("route-prefilled-name").textContent = route.name;
+    document.getElementById("route-prefilled-meta").textContent = [
+      route.location,
+      route.type,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    document.getElementById("route_id_hidden").value = route.id;
+
+    const changeUrl = new URL(window.location.href);
+    changeUrl.searchParams.delete("route_id");
+    document.getElementById("route-change-link").href = changeUrl.toString();
+
+    document.getElementById("route-prefilled").classList.remove("hidden");
+    document.getElementById("route-dropdown-group").classList.add("hidden");
+  }
+
+  async function loadRouteDropdown() {
+    try {
+      const resp = await apiRequest(`${API_BASE}/routes`);
+      if (!resp.ok) return;
+      const routes = await resp.json();
+      const select = document.getElementById("route_id");
+      routes.forEach((r) => {
+        const opt = document.createElement("option");
+        opt.value = r.id;
+        opt.textContent = `${r.grade} — ${r.name}`;
+        select.appendChild(opt);
+      });
+    } catch (err) {
+      console.error("Failed to load routes:", err);
     }
   }
 
-  // Poll for analysis completion
+  // ─── Sessions ─────────────────────────────────────────────────────────────
+  async function loadSessions() {
+    try {
+      const resp = await apiRequest(`${API_BASE}/sessions`);
+      if (!resp.ok) return;
+      const sessions = await resp.json();
+      const select = document.getElementById("session_id");
+      const todayStr = new Date().toLocaleDateString(undefined, {
+        weekday: "long",
+        month: "short",
+        day: "numeric",
+      });
+      document.getElementById("session-today-label").textContent =
+        `Today, ${todayStr} — auto-create`;
+      sessions.forEach((s) => {
+        const opt = document.createElement("option");
+        opt.value = s.id;
+        opt.textContent = `${s.name} — ${new Date(s.date).toLocaleDateString()}`;
+        select.appendChild(opt);
+      });
+    } catch (err) {
+      console.error("Failed to load sessions:", err);
+    }
+  }
+
+  // ─── Create route modal ───────────────────────────────────────────────────
+  function openCreateRouteModal() {
+    document.getElementById("create-route-modal").classList.remove("hidden");
+  }
+  function closeCreateRouteModal() {
+    document.getElementById("create-route-modal").classList.add("hidden");
+  }
+  document
+    .getElementById("create-route-modal")
+    .addEventListener("click", (e) => {
+      if (e.target === e.currentTarget) closeCreateRouteModal();
+    });
+  document
+    .getElementById("open-create-route")
+    .addEventListener("click", (e) => {
+      e.preventDefault();
+      openCreateRouteModal();
+    });
+
+  async function handleCreateRoute(e) {
+    e.preventDefault();
+    const form = e.target;
+    const data = {
+      name: form.name.value,
+      grade: form.grade.value,
+      grade_system: form.grade_system.value,
+      type: form.type.value,
+      location: form.location.value || null,
+    };
+    try {
+      const resp = await apiRequest(`${API_BASE}/routes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (resp.ok) {
+        const created = await resp.json();
+        showAlert("Route created!", "success");
+        closeCreateRouteModal();
+        form.reset();
+        const select = document.getElementById("route_id");
+        const opt = document.createElement("option");
+        opt.value = created.id;
+        opt.textContent = `${created.grade} — ${created.name}`;
+        select.appendChild(opt);
+        select.value = created.id;
+      } else {
+        const err = await resp.json();
+        showAlert(err.detail || "Failed to create route", "error");
+      }
+    } catch (err) {
+      showAlert("Failed to create route", "error");
+    }
+  }
+
+  // ─── Polling ──────────────────────────────────────────────────────────────
   async function pollStatus(videoId) {
     const progressFill = document.getElementById("progressFill");
     const progressText = document.getElementById("progressText");
@@ -174,7 +754,6 @@ endblock %} {% block content %}
           headers: { Authorization: `Bearer ${authToken}` },
         });
         if (!resp.ok) throw new Error("Failed to check status");
-
         const status = await resp.json();
 
         if (status.status === "completed" && status.analysis_id) {
@@ -183,7 +762,6 @@ endblock %} {% block content %}
           progressFill.textContent = "100%";
           progressText.textContent = "Complete!";
 
-          // Fetch full analysis results
           const analysisResp = await fetch(`/analysis/${status.analysis_id}`, {
             headers: { Authorization: `Bearer ${authToken}` },
           });
@@ -193,6 +771,16 @@ endblock %} {% block content %}
             uploadProgress.classList.add("hidden");
             document.getElementById("results").classList.remove("hidden");
             displayResults(data);
+
+            if (submittedRouteId) {
+              const banner = document.getElementById("routeResultBanner");
+              const link = document.getElementById("routeResultLink");
+              const attemptId = data.attempt_id || status.attempt_id || null;
+              link.href = attemptId
+                ? `/routes/${submittedRouteId}/attempts/${attemptId}`
+                : `/routes/${submittedRouteId}`;
+              banner.classList.remove("hidden");
+            }
           }
           showAlert("Analysis complete!", "success");
           return;
@@ -206,7 +794,6 @@ endblock %} {% block content %}
           return;
         }
 
-        // Still processing — poll again in 2 seconds
         setTimeout(poll, 2000);
       } catch (err) {
         clearInterval(animInterval);
@@ -216,18 +803,28 @@ endblock %} {% block content %}
       }
     };
 
-    // Start polling after a short delay
     setTimeout(poll, 2000);
   }
 
-  // Handle form submission
+  // ─── Form submit ──────────────────────────────────────────────────────────
   document
     .getElementById("uploadForm")
     .addEventListener("submit", async (e) => {
       e.preventDefault();
-
       const form = e.target;
       const formData = new FormData(form);
+
+      // Resolve route_id: hidden input (prefilled) wins over dropdown
+      const routeIdHidden = document.getElementById("route_id_hidden").value;
+      const routeIdSelect = document.getElementById("route_id").value;
+      const resolvedRouteId =
+        prefilledRouteId || routeIdHidden || routeIdSelect || null;
+      if (resolvedRouteId) {
+        formData.set("route_id", resolvedRouteId);
+      } else {
+        formData.delete("route_id");
+      }
+      submittedRouteId = resolvedRouteId;
 
       const uploadSection = document.getElementById("upload-section");
       const uploadProgress = document.getElementById("uploadProgress");
@@ -241,14 +838,12 @@ endblock %} {% block content %}
 
       progressFill.style.width = "10%";
       progressFill.textContent = "10%";
-      progressText.textContent = "Uploading video...";
+      progressText.textContent = "Uploading video…";
 
       try {
         const response = await fetch("/upload", {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${authToken}`,
-          },
+          headers: { Authorization: `Bearer ${authToken}` },
           body: formData,
         });
 
@@ -258,12 +853,9 @@ endblock %} {% block content %}
         }
 
         const data = await response.json();
-
-        // Upload accepted — now poll for completion
         progressFill.style.width = "30%";
         progressFill.textContent = "30%";
-        progressText.textContent = "Processing...";
-
+        progressText.textContent = "Processing…";
         pollStatus(data.video_id);
       } catch (error) {
         uploadProgress.classList.add("hidden");
@@ -272,129 +864,97 @@ endblock %} {% block content %}
       }
     });
 
+  // ─── Display results ──────────────────────────────────────────────────────
   function displayResults(data) {
-    // Video Quality
     if (data.video_quality) {
       const vq = data.video_quality;
       document.getElementById("videoQuality").classList.remove("hidden");
       document.getElementById("videoQualityContent").innerHTML = `
-                <div class="grid">
-                    <div>
-                        <strong>Status:</strong>
-                        <span class="badge badge-${vq.is_valid ? "success" : "error"}">
-                            ${vq.is_valid ? "✓ Valid" : "✗ Invalid"}
-                        </span>
-                    </div>
-                    <div><strong>Resolution:</strong> ${vq.resolution} (${vq.resolution_quality})</div>
-                    <div><strong>FPS Quality:</strong> ${vq.fps_quality}</div>
-                    <div><strong>Duration:</strong> ${vq.duration}</div>
-                </div>
-                ${
-                  vq.warnings && vq.warnings.length > 0
-                    ? `
-                    <div class="alert alert-warning" style="margin-top: 1rem;">
-                        <strong>⚠️ Warnings:</strong>
-                        <ul style="margin: 0.5rem 0 0 1.5rem;">
-                            ${vq.warnings.map((w) => `<li>${w}</li>`).join("")}
-                        </ul>
-                    </div>
-                `
-                    : ""
-                }
-            `;
+        <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
+          <div class="metric-item" style="flex-direction: column;"><span class="label">Status</span><span class="badge badge-${vq.is_valid ? "success" : "error"}" style="margin-top: 0.25rem; width: fit-content;">${vq.is_valid ? "Valid" : "Invalid"}</span></div>
+          <div class="metric-item" style="flex-direction: column;"><span class="label">Resolution</span><span class="value">${vq.resolution}</span></div>
+          <div class="metric-item" style="flex-direction: column;"><span class="label">FPS Quality</span><span class="value">${vq.fps_quality}</span></div>
+          <div class="metric-item" style="flex-direction: column;"><span class="label">Duration</span><span class="value">${vq.duration}</span></div>
+        </div>
+        ${vq.warnings && vq.warnings.length > 0 ? `<div class="alert alert-warning" style="margin-top: 1rem;">${vq.warnings.map((w) => `<div style="font-size: 0.85rem;">&#x26A0; ${w}</div>`).join("")}</div>` : ""}
+      `;
     }
 
-    // Tracking Quality
     if (data.tracking_quality) {
       const tq = data.tracking_quality;
       document.getElementById("trackingQuality").classList.remove("hidden");
       document.getElementById("trackingQualityContent").innerHTML = `
-                <div class="grid">
-                    <div>
-                        <strong>Quality Level:</strong>
-                        <span class="badge badge-${tq.quality_level.toLowerCase() === "excellent" ? "success" : tq.quality_level.toLowerCase() === "poor" ? "error" : "warning"}">
-                            ${tq.quality_level}
-                        </span>
-                    </div>
-                    <div><strong>Detection Rate:</strong> ${tq.detection_rate}%</div>
-                    <div><strong>Tracking Smoothness:</strong> ${tq.tracking_smoothness.toFixed(4)}</div>
-                    <div><strong>Avg Confidence:</strong> ${tq.avg_confidence.toFixed(4)}</div>
-                    <div><strong>Loss Events:</strong> ${tq.tracking_loss_events}</div>
-                    <div>
-                        <strong>Trackable:</strong>
-                        <span class="badge badge-${tq.is_trackable ? "success" : "error"}">
-                            ${tq.is_trackable ? "Yes" : "No"}
-                        </span>
-                    </div>
-                </div>
-                ${
-                  tq.warnings && tq.warnings.length > 0
-                    ? `
-                    <div class="alert alert-warning" style="margin-top: 1rem;">
-                        <strong>⚠️ Warnings:</strong>
-                        <ul style="margin: 0.5rem 0 0 1.5rem;">
-                            ${tq.warnings.map((w) => `<li>${w}</li>`).join("")}
-                        </ul>
-                    </div>
-                `
-                    : ""
-                }
-            `;
+        <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));">
+          <div class="metric-item" style="flex-direction: column;"><span class="label">Quality</span><span class="badge badge-${tq.quality_level.toLowerCase() === "excellent" ? "success" : tq.quality_level.toLowerCase() === "poor" ? "error" : "warning"}" style="margin-top: 0.25rem; width: fit-content;">${tq.quality_level}</span></div>
+          <div class="metric-item" style="flex-direction: column;"><span class="label">Detection Rate</span><span class="value">${tq.detection_rate}%</span></div>
+          <div class="metric-item" style="flex-direction: column;"><span class="label">Smoothness</span><span class="value">${tq.tracking_smoothness.toFixed(4)}</span></div>
+          <div class="metric-item" style="flex-direction: column;"><span class="label">Avg Confidence</span><span class="value">${tq.avg_confidence.toFixed(4)}</span></div>
+          <div class="metric-item" style="flex-direction: column;"><span class="label">Loss Events</span><span class="value">${tq.tracking_loss_events}</span></div>
+          <div class="metric-item" style="flex-direction: column;"><span class="label">Trackable</span><span class="badge badge-${tq.is_trackable ? "success" : "error"}" style="margin-top: 0.25rem; width: fit-content;">${tq.is_trackable ? "Yes" : "No"}</span></div>
+        </div>
+        ${tq.warnings && tq.warnings.length > 0 ? `<div class="alert alert-warning" style="margin-top: 1rem;">${tq.warnings.map((w) => `<div style="font-size: 0.85rem;">&#x26A0; ${w}</div>`).join("")}</div>` : ""}
+      `;
     }
 
-    // Metrics
     if (data.metrics && data.metrics.categories) {
       const categories = data.metrics.categories;
       document.getElementById("metrics").classList.remove("hidden");
-
       let html = "";
       Object.entries(categories).forEach(([catKey, catData]) => {
-        html += `
-                    <div style="margin-bottom: 2rem;">
-                        <h4 style="color: #667eea; margin-bottom: 1rem;">${catData.title}</h4>
-                        <div class="grid">
-                `;
-
+        html += `<div class="metric-category"><h4>${catData.title}</h4><div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.25rem 2rem;">`;
         Object.entries(catData.metrics).forEach(([metricKey, metricData]) => {
           const displayValue = metricData.unit
             ? `${metricData.value}${metricData.unit}`
             : metricData.value;
-          html += `
-                        <div>
-                            <strong>${metricData.label}:</strong> ${displayValue}
-                        </div>
-                    `;
+          html += `<div class="metric-item"><span class="label">${metricData.label}</span><span class="value">${displayValue}</span></div>`;
         });
-
-        html += `
-                        </div>
-                    </div>
-                `;
+        html += `</div></div>`;
       });
-
       document.getElementById("metricsContent").innerHTML = html;
     }
 
-    // Video Output
     if (data.video_output) {
       document.getElementById("videoOutput").classList.remove("hidden");
       document.getElementById("outputVideo").src = data.video_output;
     }
   }
 
-  // Check auth and show/hide form
+  // ─── Init ─────────────────────────────────────────────────────────────────
   document.addEventListener("DOMContentLoaded", async () => {
     const authMessage = document.getElementById("auth-required-message");
     const uploadSection = document.getElementById("upload-section");
 
-    if (authToken) {
-      authMessage.classList.add("hidden");
-      uploadSection.classList.remove("hidden");
-      await loadSessions();
-    } else {
+    if (!authToken) {
       authMessage.classList.remove("hidden");
       uploadSection.classList.add("hidden");
+      return;
     }
+
+    authMessage.classList.add("hidden");
+    uploadSection.classList.remove("hidden");
+
+    const params = new URLSearchParams(window.location.search);
+    prefilledRouteId = params.get("route_id");
+
+    if (prefilledRouteId) {
+      try {
+        const resp = await apiRequest(`${API_BASE}/routes/${prefilledRouteId}`);
+        if (resp.ok) {
+          applyPrefilledRoute(await resp.json());
+        } else {
+          prefilledRouteId = null;
+          await loadRouteDropdown();
+        }
+      } catch (err) {
+        console.error("Failed to fetch prefilled route:", err);
+        prefilledRouteId = null;
+        await loadRouteDropdown();
+      }
+    } else {
+      await loadRouteDropdown();
+    }
+
+    await loadSessions();
   });
 </script>
 {% endblock %}
