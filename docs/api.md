@@ -2,9 +2,9 @@
 
 Complete API documentation for all public classes and functions.
 
-## ClimbingAnalyzer
+## ClimbingAnalysis
 
-::: climb_sensei.metrics.ClimbingAnalyzer
+::: climb_sensei.metrics.ClimbingAnalysis
 options:
 show_source: true
 heading_level: 3
