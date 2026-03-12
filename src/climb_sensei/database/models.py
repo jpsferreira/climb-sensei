@@ -68,6 +68,9 @@ class User(SQLAlchemyBaseUserTable[int], Base):
     goals: Mapped[list["Goal"]] = relationship(
         "Goal", back_populates="user", cascade="all, delete-orphan"
     )
+    routes: Mapped[list["Route"]] = relationship(
+        "Route", back_populates="user", cascade="all, delete-orphan"
+    )
 
     def __repr__(self) -> str:
         return f"<User(id={self.id}, email='{self.email}')>"
@@ -109,6 +112,59 @@ class Video(Base):
         return (
             f"<Video(id={self.id}, filename='{self.filename}', status='{self.status}')>"
         )
+
+
+class Route(Base):
+    """Climbing route model."""
+
+    __tablename__ = "routes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    grade = Column(String(20), nullable=False)
+    grade_system = Column(String(20), nullable=False)  # hueco, font, yds, french
+    type = Column(String(20), nullable=False)  # boulder, sport, trad
+    location = Column(String(255))
+    status = Column(
+        String(20), default="projecting", nullable=False
+    )  # projecting, sent
+    created_at = Column(DateTime, default=utcnow, nullable=False)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow, nullable=False)
+
+    # Relationships
+    user = relationship("User", back_populates="routes")
+    attempts = relationship(
+        "Attempt", back_populates="route", cascade="all, delete-orphan"
+    )
+    goals = relationship("Goal", back_populates="route")
+
+    def __repr__(self) -> str:
+        return f"<Route(id={self.id}, name='{self.name}', grade='{self.grade}', status='{self.status}')>"
+
+
+class Attempt(Base):
+    """Climbing attempt model."""
+
+    __tablename__ = "attempts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    route_id = Column(Integer, ForeignKey("routes.id"), nullable=False, index=True)
+    video_id = Column(Integer, ForeignKey("videos.id"), nullable=False, index=True)
+    session_id = Column(Integer, ForeignKey("climb_sessions.id"), index=True)
+    analysis_id = Column(Integer, ForeignKey("analyses.id"), index=True)
+    notes = Column(Text)
+    date = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=utcnow, nullable=False)
+
+    # Relationships
+    route = relationship("Route", back_populates="attempts")
+    video = relationship("Video")
+    session = relationship("ClimbSession", back_populates="attempts")
+    analysis = relationship("Analysis")
+
+    def __repr__(self) -> str:
+        return f"<Attempt(id={self.id}, route_id={self.route_id}, date={self.date})>"
 
 
 class Analysis(Base):
@@ -175,7 +231,7 @@ class ClimbSession(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    name = Column(String(255), nullable=False)
+    name = Column(String(255), nullable=True)
     date = Column(DateTime, nullable=False)
     location = Column(String(255))
     notes = Column(Text)
@@ -189,6 +245,7 @@ class ClimbSession(Base):
     # Relationships
     user = relationship("User", back_populates="sessions")
     analyses = relationship("Analysis", back_populates="session")
+    attempts = relationship("Attempt", back_populates="session")
 
     def __repr__(self) -> str:
         return f"<ClimbSession(id={self.id}, name='{self.name}', date={self.date})>"
@@ -228,6 +285,9 @@ class Goal(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    route_id = Column(
+        Integer, ForeignKey("routes.id"), index=True
+    )  # nullable for migration
     metric_name = Column(String(100), nullable=False)
     target_value = Column(Float, nullable=False)
     current_value = Column(Float)
@@ -240,6 +300,7 @@ class Goal(Base):
 
     # Relationships
     user = relationship("User", back_populates="goals")
+    route = relationship("Route", back_populates="goals")
 
     def __repr__(self) -> str:
         return f"<Goal(id={self.id}, metric='{self.metric_name}', target={self.target_value}, achieved={self.achieved})>"
