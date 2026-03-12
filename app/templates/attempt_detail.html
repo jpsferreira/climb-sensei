@@ -431,13 +431,13 @@ endblock %} {% block extra_css %}
   // ── History plot definitions (key in history dict → display config) ──
   const PLOT_DEFS = [
     { key: 'movement_economy',  label: 'Movement Economy',  color: '#10b981' },
-    { key: 'velocities',        label: 'Movement Speed',    color: '#22c55e' },
-    { key: 'hip_heights',       label: 'Vertical Progress', color: '#0ee5e5', invert: true },
-    { key: 'sways',             label: 'Lateral Sway',      color: '#f59e0b' },
-    { key: 'body_angles',       label: 'Body Angle',        color: '#818cf8' },
-    { key: 'jerks',             label: 'Smoothness (Jerk)', color: '#e879f9' },
-    { key: 'lock_offs',         label: 'Lock-offs',         color: '#fb923c' },
-    { key: 'hand_spans',        label: 'Hand Span',         color: '#38bdf8' },
+    { key: 'com_velocity',      label: 'Movement Speed',    color: '#22c55e' },
+    { key: 'hip_height',        label: 'Vertical Progress', color: '#0ee5e5', invert: true },
+    { key: 'com_sway',          label: 'Lateral Sway',      color: '#f59e0b' },
+    { key: 'body_angle',        label: 'Body Angle',        color: '#818cf8' },
+    { key: 'jerk',              label: 'Smoothness (Jerk)', color: '#e879f9' },
+    { key: 'is_lock_off',       label: 'Lock-offs',         color: '#fb923c' },
+    { key: 'hand_span',         label: 'Hand Span',         color: '#38bdf8' },
   ];
 
   // Single-plot state
