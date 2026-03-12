@@ -185,7 +185,7 @@ class TestUploadEndpoint:
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
 
-        assert response.status_code in [200, 400, 500]
+        assert response.status_code in [200, 202, 400, 500]
         if response.status_code == 400:
             assert "invalid file type" not in response.json()["detail"].lower()
 
@@ -204,7 +204,7 @@ class TestUploadEndpoint:
             data=data,
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
-        assert response.status_code in [200, 400, 500]
+        assert response.status_code in [200, 202, 400, 500]
         if response.status_code == 400:
             assert "invalid file type" not in response.json()["detail"].lower()
 
@@ -223,7 +223,7 @@ class TestUploadEndpoint:
             data=data,
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
-        assert response.status_code in [200, 400, 500]
+        assert response.status_code in [200, 202, 400, 500]
         if response.status_code == 400:
             assert "invalid file type" not in response.json()["detail"].lower()
 
@@ -242,7 +242,7 @@ class TestUploadEndpoint:
             data=data,
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
-        assert response.status_code in [200, 400, 500]
+        assert response.status_code in [200, 202, 400, 500]
         if response.status_code == 400:
             assert "invalid file type" not in response.json()["detail"].lower()
 
@@ -262,7 +262,7 @@ class TestUploadEndpoint:
             data=data,
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
-        assert response.status_code in [200, 400, 500]
+        assert response.status_code in [200, 202, 400, 500]
 
 
 class TestAnalysisEndpoint:
@@ -396,6 +396,82 @@ class TestDBAPIEndpoints:
         data = response.json()
         assert data["id"] == sample_analysis.id
         assert data["summary"]["total_frames"] == 100
+
+
+class TestVideoStatusEndpoint:
+    """Tests for the video status polling endpoint."""
+
+    def test_status_requires_auth(self, client):
+        """Should require authentication."""
+        response = client.get("/api/videos/1/status")
+        assert response.status_code == 401
+
+    def test_status_not_found(self, client, test_user_token):
+        """Should return 404 for non-existent video."""
+        response = client.get(
+            "/api/videos/99999/status",
+            headers={"Authorization": f"Bearer {test_user_token}"},
+        )
+        assert response.status_code == 404
+
+    def test_status_returns_processing(
+        self, client, test_user_token, test_user, db_session
+    ):
+        """Should return processing status for in-progress video."""
+        video = Video(
+            user_id=test_user.id,
+            filename="test.mp4",
+            file_path="/tmp/test.mp4",
+            status="processing",
+        )
+        db_session.add(video)
+        db_session.commit()
+
+        response = client.get(
+            f"/api/videos/{video.id}/status",
+            headers={"Authorization": f"Bearer {test_user_token}"},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "processing"
+        assert "analysis_id" not in data
+
+    def test_status_returns_completed_with_analysis_id(
+        self, client, test_user_token, sample_analysis
+    ):
+        """Should return completed status with analysis_id."""
+        response = client.get(
+            f"/api/videos/{sample_analysis.video_id}/status",
+            headers={"Authorization": f"Bearer {test_user_token}"},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "completed"
+        assert data["analysis_id"] == sample_analysis.id
+
+    def test_status_denies_other_user(self, client, test_user_token, db_session):
+        """Should not show another user's video status."""
+        other_user = User(
+            email="other@example.com",
+            hashed_password=get_password_hash("password123"),
+        )
+        db_session.add(other_user)
+        db_session.flush()
+
+        video = Video(
+            user_id=other_user.id,
+            filename="other.mp4",
+            file_path="/tmp/other.mp4",
+            status="processing",
+        )
+        db_session.add(video)
+        db_session.commit()
+
+        response = client.get(
+            f"/api/videos/{video.id}/status",
+            headers={"Authorization": f"Bearer {test_user_token}"},
+        )
+        assert response.status_code == 404
 
 
 class TestErrorHandling:

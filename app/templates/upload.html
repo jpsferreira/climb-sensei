@@ -155,6 +155,71 @@ endblock %} {% block content %}
     }
   }
 
+  // Poll for analysis completion
+  async function pollStatus(videoId) {
+    const progressFill = document.getElementById("progressFill");
+    const progressText = document.getElementById("progressText");
+    const uploadProgress = document.getElementById("uploadProgress");
+    const uploadSection = document.getElementById("upload-section");
+
+    let dots = 0;
+    const animInterval = setInterval(() => {
+      dots = (dots + 1) % 4;
+      progressText.textContent = "Analyzing movement" + ".".repeat(dots);
+    }, 500);
+
+    const poll = async () => {
+      try {
+        const resp = await fetch(`/api/videos/${videoId}/status`, {
+          headers: { Authorization: `Bearer ${authToken}` },
+        });
+        if (!resp.ok) throw new Error("Failed to check status");
+
+        const status = await resp.json();
+
+        if (status.status === "completed" && status.analysis_id) {
+          clearInterval(animInterval);
+          progressFill.style.width = "100%";
+          progressFill.textContent = "100%";
+          progressText.textContent = "Complete!";
+
+          // Fetch full analysis results
+          const analysisResp = await fetch(`/analysis/${status.analysis_id}`, {
+            headers: { Authorization: `Bearer ${authToken}` },
+          });
+          if (analysisResp.ok) {
+            const data = await analysisResp.json();
+            currentAnalysisId = status.analysis_id;
+            uploadProgress.classList.add("hidden");
+            document.getElementById("results").classList.remove("hidden");
+            displayResults(data);
+          }
+          showAlert("Analysis complete!", "success");
+          return;
+        }
+
+        if (status.status === "failed") {
+          clearInterval(animInterval);
+          uploadProgress.classList.add("hidden");
+          uploadSection.classList.remove("hidden");
+          showAlert("Analysis failed. Please try again.", "error");
+          return;
+        }
+
+        // Still processing — poll again in 2 seconds
+        setTimeout(poll, 2000);
+      } catch (err) {
+        clearInterval(animInterval);
+        uploadProgress.classList.add("hidden");
+        uploadSection.classList.remove("hidden");
+        showAlert("Error checking status: " + err.message, "error");
+      }
+    };
+
+    // Start polling after a short delay
+    setTimeout(poll, 2000);
+  }
+
   // Handle form submission
   document
     .getElementById("uploadForm")
@@ -174,23 +239,11 @@ endblock %} {% block content %}
       uploadProgress.classList.remove("hidden");
       results.classList.add("hidden");
 
+      progressFill.style.width = "10%";
+      progressFill.textContent = "10%";
+      progressText.textContent = "Uploading video...";
+
       try {
-        // Simulate progress
-        let progress = 0;
-        const progressInterval = setInterval(() => {
-          progress = Math.min(progress + 10, 90);
-          progressFill.style.width = `${progress}%`;
-          progressFill.textContent = `${progress}%`;
-
-          if (progress < 30) {
-            progressText.textContent = "Uploading video...";
-          } else if (progress < 60) {
-            progressText.textContent = "Processing frames...";
-          } else {
-            progressText.textContent = "Analyzing movement...";
-          }
-        }, 500);
-
         const response = await fetch("/upload", {
           method: "POST",
           headers: {
@@ -199,26 +252,20 @@ endblock %} {% block content %}
           body: formData,
         });
 
-        clearInterval(progressInterval);
-        progressFill.style.width = "100%";
-        progressFill.textContent = "100%";
-        progressText.textContent = "Complete!";
-
         if (!response.ok) {
           const error = await response.json();
           throw new Error(error.detail || "Upload failed");
         }
 
         const data = await response.json();
-        currentAnalysisId = data.analysis_id;
 
-        // Show results
-        uploadProgress.classList.add("hidden");
-        results.classList.remove("hidden");
-        displayResults(data);
-        showAlert("Analysis complete!", "success");
+        // Upload accepted — now poll for completion
+        progressFill.style.width = "30%";
+        progressFill.textContent = "30%";
+        progressText.textContent = "Processing...";
+
+        pollStatus(data.video_id);
       } catch (error) {
-        clearInterval(progressInterval);
         uploadProgress.classList.add("hidden");
         uploadSection.classList.remove("hidden");
         showAlert("Upload failed: " + error.message, "error");

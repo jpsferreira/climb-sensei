@@ -2,6 +2,7 @@
 
 import json
 import logging
+import threading
 import uuid
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -10,7 +11,7 @@ from sqlalchemy.orm import Session
 from starlette.requests import Request
 
 from climb_sensei.auth import get_current_active_user
-from climb_sensei.database.config import get_db
+from climb_sensei.database.config import SessionLocal, get_db
 from climb_sensei.database.models import Analysis, User, Video
 from climb_sensei.types import VideoStatus
 
@@ -32,42 +33,30 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.post("/upload")
-async def upload_video(
-    request: Request,
-    file: UploadFile = File(...),
-    run_metrics: bool = Form(True),
-    run_video: bool = Form(False),
-    run_quality: bool = Form(True),
-    dashboard_position: str = Form("right"),
-    session_id: int = Form(None),
-    current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db),
+def _run_analysis_pipeline(
+    video_id: int,
+    upload_path,
+    analysis_id: str,
+    filename: str,
+    user_id: int,
+    run_metrics: bool,
+    run_video: bool,
+    run_quality: bool,
+    dashboard_position: str,
+    session_id,
 ):
-    """Upload video and run selected analyses.
+    """Run the full analysis pipeline in a background thread.
 
-    Uses independent services composed as needed:
-    - VideoQualityService: Validates video format and quality
-    - TrackingQualityService: Assesses pose detection reliability
-    - ClimbingAnalysisService: Calculates climbing metrics
+    Uses its own DB session since the request session is already closed.
     """
-    if not file.filename.lower().endswith((".mp4", ".avi", ".mov", ".mkv")):
-        raise HTTPException(
-            status_code=400, detail="Invalid file type. Please upload a video file."
-        )
-
-    analysis_id = str(uuid.uuid4())
-    upload_path = save_upload(file, analysis_id)
-
-    video_record = create_video_record(
-        db,
-        user_id=current_user.id,
-        filename=file.filename,
-        upload_path=upload_path,
-    )
-
+    db = SessionLocal()
     try:
-        results = {"analysis_id": analysis_id, "filename": file.filename}
+        video_record = db.query(Video).filter(Video.id == video_id).first()
+        if not video_record:
+            logger.error("Video record %d not found in background task", video_id)
+            return
+
+        results = {"analysis_id": analysis_id, "filename": filename}
 
         # Phase 1: Video quality check
         video_quality_report = None
@@ -115,7 +104,7 @@ async def upload_video(
             )
 
         # Persist to database
-        analysis_record_id = persist_results(
+        persist_results(
             db=db,
             video_record=video_record,
             analysis=analysis,
@@ -125,30 +114,126 @@ async def upload_video(
             run_quality=run_quality,
             dashboard_position=dashboard_position,
             session_id=session_id,
-            user_id=current_user.id,
+            user_id=user_id,
         )
 
-        results["video_id"] = video_record.id
-        results["analysis_db_id"] = analysis_record_id
+        logger.info("Background analysis complete for video %d", video_id)
 
-        return JSONResponse(content=results)
-
-    except ValueError as e:
+    except Exception:
+        logger.exception("Background analysis failed for video %d", video_id)
         db.rollback()
-        video_record.status = VideoStatus.FAILED
-        db.commit()
-        raise HTTPException(status_code=400, detail=str(e))
-
-    except Exception as e:
-        logger.exception("Analysis failed for %s", file.filename)
-        db.rollback()
-        video_record.status = VideoStatus.FAILED
-        db.commit()
-        raise HTTPException(status_code=500, detail=f"Analysis failed: {e}")
+        video_record = db.query(Video).filter(Video.id == video_id).first()
+        if video_record:
+            video_record.status = VideoStatus.FAILED
+            db.commit()
 
     finally:
         if upload_path.exists():
             upload_path.unlink()
+        db.close()
+
+
+@router.post("/upload")
+async def upload_video(
+    request: Request,
+    file: UploadFile = File(...),
+    run_metrics: bool = Form(True),
+    run_video: bool = Form(False),
+    run_quality: bool = Form(True),
+    dashboard_position: str = Form("right"),
+    session_id: int = Form(None),
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Upload video and start background analysis.
+
+    Returns immediately with the video ID. The client should poll
+    GET /api/videos/{id}/status to track progress.
+    """
+    if not file.filename.lower().endswith((".mp4", ".avi", ".mov", ".mkv")):
+        raise HTTPException(
+            status_code=400, detail="Invalid file type. Please upload a video file."
+        )
+
+    analysis_id = str(uuid.uuid4())
+    upload_path = save_upload(file, analysis_id)
+
+    video_record = create_video_record(
+        db,
+        user_id=current_user.id,
+        filename=file.filename,
+        upload_path=upload_path,
+    )
+    db.commit()
+
+    # Launch analysis in background thread
+    thread = threading.Thread(
+        target=_run_analysis_pipeline,
+        kwargs={
+            "video_id": video_record.id,
+            "upload_path": upload_path,
+            "analysis_id": analysis_id,
+            "filename": file.filename,
+            "user_id": current_user.id,
+            "run_metrics": run_metrics,
+            "run_video": run_video,
+            "run_quality": run_quality,
+            "dashboard_position": dashboard_position,
+            "session_id": session_id,
+        },
+        daemon=True,
+    )
+    thread.start()
+
+    return JSONResponse(
+        status_code=202,
+        content={
+            "video_id": video_record.id,
+            "status": VideoStatus.PROCESSING,
+            "message": "Upload received. Analysis running in background.",
+        },
+    )
+
+
+@router.get("/api/videos/{video_id}/status")
+async def get_video_status(
+    video_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Poll endpoint for video analysis status.
+
+    Returns current status and, when complete, the analysis ID.
+    """
+    video = (
+        db.query(Video)
+        .filter(Video.id == video_id, Video.user_id == current_user.id)
+        .first()
+    )
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+
+    # Force a fresh read from DB (background thread may have updated)
+    db.refresh(video)
+
+    result = {
+        "video_id": video.id,
+        "status": video.status,
+        "filename": video.filename,
+    }
+
+    if video.status == VideoStatus.COMPLETED:
+        # Include the analysis ID so the frontend can fetch results
+        latest_analysis = (
+            db.query(Analysis)
+            .filter(Analysis.video_id == video.id)
+            .order_by(Analysis.id.desc())
+            .first()
+        )
+        if latest_analysis:
+            result["analysis_id"] = latest_analysis.id
+
+    return JSONResponse(content=result)
 
 
 @router.get("/analysis/{analysis_id}")
