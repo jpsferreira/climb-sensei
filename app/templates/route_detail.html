@@ -291,10 +291,10 @@
         <div class="form-group">
           <label for="edit-grade-system">Grade System</label>
           <select id="edit-grade-system" name="grade_system">
-            <option value="V">V-scale</option>
-            <option value="Font">Font</option>
-            <option value="YDS">YDS</option>
-            <option value="French">French</option>
+            <option value="hueco">V-scale</option>
+            <option value="font">Font</option>
+            <option value="yds">YDS</option>
+            <option value="french">French</option>
           </select>
         </div>
       </div>
@@ -597,7 +597,9 @@
           loadRoute();
       } else {
           const err = await res.json().catch(() => ({}));
-          showAlert(err.detail || 'Failed to update route', 'error');
+          const detail = err.detail;
+          const msg = Array.isArray(detail) ? detail.map(d => d.msg).join(', ') : detail || 'Failed to update route';
+          showAlert(msg, 'error');
       }
   }
 

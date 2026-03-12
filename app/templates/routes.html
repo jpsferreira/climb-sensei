@@ -268,12 +268,10 @@
       <div class="form-group">
         <label for="route-grade-system">Grade System</label>
         <select id="route-grade-system" name="grade_system">
-          <option value="v_scale">V Scale (Bouldering)</option>
+          <option value="hueco">V Scale (Bouldering)</option>
           <option value="font">Font (Bouldering)</option>
           <option value="yds">YDS (Rope)</option>
           <option value="french">French (Rope)</option>
-          <option value="uiaa">UIAA</option>
-          <option value="ewbank">Ewbank</option>
         </select>
       </div>
       <div class="form-group">
@@ -461,8 +459,12 @@
         form.reset();
         loadRoutes();
       } else {
-        const err = await response.json();
-        showAlert(err.detail || "Failed to create route", "error");
+        const err = await response.json().catch(() => ({}));
+        const detail = err.detail;
+        const msg = Array.isArray(detail)
+          ? detail.map((d) => d.msg).join(", ")
+          : detail || "Failed to create route";
+        showAlert(msg, "error");
       }
     } catch (err) {
       showAlert(err.message || "Failed to create route", "error");
