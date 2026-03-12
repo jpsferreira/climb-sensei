@@ -77,6 +77,12 @@ class AttemptResponse(BaseModel):
 
 
 class AttemptDetailResponse(AttemptResponse):
+    max_velocity: Optional[float] = None
+    max_height: Optional[float] = None
+    total_vertical_progress: Optional[float] = None
+    lock_off_count: Optional[int] = None
+    rest_count: Optional[int] = None
+    fatigue_score: Optional[float] = None
     summary: Optional[dict] = None
     history: Optional[dict] = None
     video_quality: Optional[dict] = None

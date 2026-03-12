@@ -286,6 +286,69 @@ endblock %} {% block extra_css %}
     color: var(--accent);
   }
 
+  /* ── Tracking quality ───────────────────────────── */
+  .tracking-section {
+    margin-bottom: 20px;
+    display: none;
+  }
+  .tracking-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .tracking-card {
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px;
+  }
+  .tracking-card .metric-name {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-family: var(--font-display);
+    font-weight: 500;
+    margin-bottom: 4px;
+  }
+  .tracking-card .metric-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+    font-family: var(--font-display);
+    color: var(--text-primary);
+  }
+  .quality-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    font-family: var(--font-display);
+    text-transform: uppercase;
+  }
+  .quality-excellent {
+    background: var(--success-bg);
+    color: var(--success);
+  }
+  .quality-good {
+    background: var(--success-bg);
+    color: var(--success);
+  }
+  .quality-acceptable {
+    background: var(--warning-bg);
+    color: var(--warning);
+  }
+  .quality-poor {
+    background: var(--error-bg);
+    color: var(--error);
+  }
+
+  @media (min-width: 480px) {
+    .tracking-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
   /* ── Notes section ───────────────────────────────── */
   .notes-section {
     margin-bottom: 20px;
@@ -393,6 +456,13 @@ endblock %} {% block extra_css %}
 
 <div class="metrics-section fade-up fade-up-delay-2" id="metrics-section">
   <!-- Populated by JS -->
+</div>
+
+<div class="tracking-section fade-up fade-up-delay-3" id="tracking-section">
+  <div class="section-label">Tracking Quality</div>
+  <div class="tracking-grid" id="tracking-grid">
+    <!-- Populated by JS -->
+  </div>
 </div>
 
 <div class="notes-section fade-up fade-up-delay-3">
@@ -662,6 +732,38 @@ endblock %} {% block extra_css %}
     container.innerHTML = html;
   }
 
+  function renderTrackingQuality(attempt) {
+    const tq = attempt.tracking_quality;
+    const section = document.getElementById('tracking-section');
+    if (!tq) return;
+
+    section.style.display = 'block';
+    const level = (tq.quality_level || '').toLowerCase();
+    const grid = document.getElementById('tracking-grid');
+    grid.innerHTML = `
+      <div class="tracking-card" style="grid-column: span 2;">
+        <div class="metric-name">Quality</div>
+        <span class="quality-badge quality-${level}">${tq.quality_level || '—'}</span>
+      </div>
+      <div class="tracking-card">
+        <div class="metric-name">Detection Rate</div>
+        <div class="metric-value">${tq.detection_rate != null ? tq.detection_rate + '%' : '—'}</div>
+      </div>
+      <div class="tracking-card">
+        <div class="metric-name">Avg Confidence</div>
+        <div class="metric-value">${tq.avg_confidence != null ? tq.avg_confidence.toFixed(3) : '—'}</div>
+      </div>
+      <div class="tracking-card">
+        <div class="metric-name">Smoothness</div>
+        <div class="metric-value">${tq.tracking_smoothness != null ? tq.tracking_smoothness.toFixed(4) : '—'}</div>
+      </div>
+      <div class="tracking-card">
+        <div class="metric-name">Loss Events</div>
+        <div class="metric-value">${tq.tracking_loss_events != null ? tq.tracking_loss_events : '—'}</div>
+      </div>
+    `;
+  }
+
   function renderHeader(attempt) {
     const date = attempt.date
       ? new Date(attempt.date).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
@@ -744,6 +846,7 @@ endblock %} {% block extra_css %}
     renderHeader(attempt);
     renderVideo(attempt);
     renderMetrics(attempt);
+    renderTrackingQuality(attempt);
 
     // Initialize synced history plots once video metadata is ready
     const video = document.getElementById('attempt-video');
