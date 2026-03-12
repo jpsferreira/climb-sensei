@@ -1,7 +1,21 @@
-"""Tests for the metrics module."""
+"""Tests for the calculator-based metrics system.
+
+Tests the individual calculators and the ClimbingAnalysisService
+that replaced the legacy ClimbingAnalyzer.
+"""
 
 import pytest
-from climb_sensei.metrics import ClimbingAnalyzer, AdvancedClimbingMetrics
+
+from climb_sensei.services import ClimbingAnalysisService
+from climb_sensei.domain.calculators import (
+    StabilityCalculator,
+    ProgressCalculator,
+    EfficiencyCalculator,
+    TechniqueCalculator,
+    JointAngleCalculator,
+    FatigueCalculator,
+    FrameContext,
+)
 
 
 @pytest.fixture
@@ -14,287 +28,320 @@ def sample_landmarks():
                 "x": 0.5,
                 "y": 0.5,
                 "z": 0.0,
+                "visibility": 1.0,
             }
         )
 
     # Set specific landmarks for testing
-    landmarks[11] = {"x": 0.4, "y": 0.4, "z": 0.0}  # LEFT_SHOULDER
-    landmarks[12] = {"x": 0.6, "y": 0.4, "z": 0.0}  # RIGHT_SHOULDER
-    landmarks[23] = {"x": 0.4, "y": 0.6, "z": 0.0}  # LEFT_HIP
-    landmarks[24] = {"x": 0.6, "y": 0.6, "z": 0.0}  # RIGHT_HIP
-    landmarks[15] = {"x": 0.3, "y": 0.3, "z": 0.0}  # LEFT_WRIST
-    landmarks[16] = {"x": 0.7, "y": 0.3, "z": 0.0}  # RIGHT_WRIST
-    landmarks[27] = {"x": 0.4, "y": 0.8, "z": 0.0}  # LEFT_ANKLE
-    landmarks[28] = {"x": 0.6, "y": 0.8, "z": 0.0}  # RIGHT_ANKLE
+    landmarks[11] = {"x": 0.4, "y": 0.4, "z": 0.0, "visibility": 1.0}  # LEFT_SHOULDER
+    landmarks[12] = {"x": 0.6, "y": 0.4, "z": 0.0, "visibility": 1.0}  # RIGHT_SHOULDER
+    landmarks[13] = {"x": 0.35, "y": 0.45, "z": 0.0, "visibility": 1.0}  # LEFT_ELBOW
+    landmarks[14] = {"x": 0.65, "y": 0.45, "z": 0.0, "visibility": 1.0}  # RIGHT_ELBOW
+    landmarks[15] = {"x": 0.3, "y": 0.3, "z": 0.0, "visibility": 1.0}  # LEFT_WRIST
+    landmarks[16] = {"x": 0.7, "y": 0.3, "z": 0.0, "visibility": 1.0}  # RIGHT_WRIST
+    landmarks[23] = {"x": 0.4, "y": 0.6, "z": 0.0, "visibility": 1.0}  # LEFT_HIP
+    landmarks[24] = {"x": 0.6, "y": 0.6, "z": 0.0, "visibility": 1.0}  # RIGHT_HIP
+    landmarks[25] = {"x": 0.4, "y": 0.7, "z": 0.0, "visibility": 1.0}  # LEFT_KNEE
+    landmarks[26] = {"x": 0.6, "y": 0.7, "z": 0.0, "visibility": 1.0}  # RIGHT_KNEE
+    landmarks[27] = {"x": 0.4, "y": 0.8, "z": 0.0, "visibility": 1.0}  # LEFT_ANKLE
+    landmarks[28] = {"x": 0.6, "y": 0.8, "z": 0.0, "visibility": 1.0}  # RIGHT_ANKLE
 
     return landmarks
 
 
-class TestClimbingAnalyzer:
-    """Tests for ClimbingAnalyzer class."""
+class TestStabilityCalculator:
+    """Tests for StabilityCalculator."""
 
-    def test_initialization(self):
-        """Test analyzer initialization."""
-        analyzer = ClimbingAnalyzer(window_size=30, fps=30.0)
+    def test_first_frame_zero_velocity(self, sample_landmarks):
+        calc = StabilityCalculator(window_size=30, fps=30.0)
+        metrics = calc.calculate(sample_landmarks)
+        assert metrics["com_velocity"] == 0.0
 
-        assert analyzer.window_size == 30
-        assert analyzer.fps == 30.0
-        assert analyzer.dt == 1.0 / 30.0
-        assert analyzer.total_frames == 0
-        assert analyzer.initial_hip_height is None
+    def test_velocity_with_movement(self, sample_landmarks):
+        calc = StabilityCalculator(window_size=30, fps=30.0)
+        calc.calculate(sample_landmarks)
 
-    def test_analyze_frame_basic(self, sample_landmarks):
-        """Test basic frame analysis."""
-        analyzer = ClimbingAnalyzer(window_size=30, fps=30.0)
-
-        metrics = analyzer.analyze_frame(sample_landmarks)
-
-        assert "hip_height" in metrics
-        assert "com_x" in metrics
-        assert "com_y" in metrics
-        assert "com_velocity" in metrics
-        assert "com_sway" in metrics
-        assert "vertical_progress" in metrics
-        assert "jerk" in metrics
-        assert "body_angle" in metrics
-        assert "hand_span" in metrics
-        assert "foot_span" in metrics
-
-        assert analyzer.total_frames == 1
-        assert analyzer.initial_hip_height is not None
-
-    def test_analyze_frame_empty_landmarks(self):
-        """Test analysis with empty landmarks."""
-        analyzer = ClimbingAnalyzer()
-
-        metrics = analyzer.analyze_frame([])
-
-        assert metrics == {}
-        assert analyzer.total_frames == 0
-
-    def test_analyze_frame_insufficient_landmarks(self):
-        """Test analysis with insufficient landmarks."""
-        analyzer = ClimbingAnalyzer()
-        landmarks = [{"x": 0.5, "y": 0.5, "z": 0.0} for _ in range(10)]
-
-        metrics = analyzer.analyze_frame(landmarks)
-
-        assert metrics == {}
-
-    def test_velocity_calculation(self, sample_landmarks):
-        """Test velocity calculation over multiple frames."""
-        analyzer = ClimbingAnalyzer(window_size=30, fps=30.0)
-
-        # First frame - velocity should be 0
-        metrics1 = analyzer.analyze_frame(sample_landmarks)
-        assert metrics1["com_velocity"] == 0.0
-
-        # Second frame - move landmarks
-        landmarks2 = sample_landmarks.copy()
-        for lm in landmarks2:
+        moved = [dict(lm) for lm in sample_landmarks]
+        for lm in moved:
             lm["x"] += 0.1
             lm["y"] += 0.1
+        metrics = calc.calculate(moved)
+        assert metrics["com_velocity"] > 0.0
 
-        metrics2 = analyzer.analyze_frame(landmarks2)
-        assert metrics2["com_velocity"] > 0.0
+    def test_sway_requires_three_frames(self, sample_landmarks):
+        calc = StabilityCalculator(window_size=30, fps=30.0)
+        calc.calculate(sample_landmarks)
+        m2 = calc.calculate(sample_landmarks)
+        assert m2["com_sway"] == 0.0
 
-    def test_sway_calculation(self, sample_landmarks):
-        """Test sway calculation over multiple frames."""
-        analyzer = ClimbingAnalyzer(window_size=30, fps=30.0)
-
-        # First two frames - sway should be 0
-        analyzer.analyze_frame(sample_landmarks)
-        metrics2 = analyzer.analyze_frame(sample_landmarks)
-        assert metrics2["com_sway"] == 0.0
-
-        # Third frame with lateral movement
-        landmarks3 = sample_landmarks.copy()
-        for lm in landmarks3:
+        moved = [dict(lm) for lm in sample_landmarks]
+        for lm in moved:
             lm["x"] += 0.2
+        m3 = calc.calculate(moved)
+        assert m3["com_sway"] > 0.0
 
-        metrics3 = analyzer.analyze_frame(landmarks3)
-        assert metrics3["com_sway"] > 0.0
+    def test_empty_landmarks(self):
+        calc = StabilityCalculator()
+        assert calc.calculate([]) == {}
 
-    def test_vertical_progress_tracking(self, sample_landmarks):
-        """Test vertical progress tracking."""
-        analyzer = ClimbingAnalyzer()
+    def test_uses_context_com(self, sample_landmarks):
+        calc = StabilityCalculator()
+        ctx = FrameContext(com=(0.5, 0.5), hip_height=0.6, joint_angles={})
+        metrics = calc.calculate(sample_landmarks, context=ctx)
+        assert metrics["com_x"] == 0.5
+        assert metrics["com_y"] == 0.5
 
-        # First frame
-        metrics1 = analyzer.analyze_frame(sample_landmarks)
-        assert metrics1["vertical_progress"] == 0.0
+    def test_summary_after_frames(self, sample_landmarks):
+        calc = StabilityCalculator(window_size=30, fps=30.0)
+        for _ in range(5):
+            calc.calculate(sample_landmarks)
+        summary = calc.get_summary()
+        assert "avg_com_velocity" in summary
+        assert "avg_com_sway" in summary
 
-        # Second frame - move up (lower y value)
-        landmarks2 = sample_landmarks.copy()
-        landmarks2[23]["y"] -= 0.1  # LEFT_HIP
-        landmarks2[24]["y"] -= 0.1  # RIGHT_HIP
 
-        metrics2 = analyzer.analyze_frame(landmarks2)
-        assert metrics2["vertical_progress"] > 0.0
+class TestProgressCalculator:
+    """Tests for ProgressCalculator."""
 
-    def test_get_summary(self, sample_landmarks):
-        """Test summary statistics calculation."""
-        analyzer = ClimbingAnalyzer()
+    def test_initial_progress_zero(self, sample_landmarks):
+        calc = ProgressCalculator()
+        metrics = calc.calculate(sample_landmarks)
+        assert metrics["vertical_progress"] == 0.0
 
-        # Analyze multiple frames
-        for i in range(10):
-            landmarks = sample_landmarks.copy()
-            # Add some variation
-            for lm in landmarks:
-                lm["y"] -= i * 0.01
-                lm["x"] += (i % 3) * 0.01
-            analyzer.analyze_frame(landmarks)
+    def test_upward_movement(self, sample_landmarks):
+        calc = ProgressCalculator()
+        calc.calculate(sample_landmarks)
 
-        summary = analyzer.get_summary()
+        moved = [dict(lm) for lm in sample_landmarks]
+        moved[23]["y"] -= 0.1  # LEFT_HIP up
+        moved[24]["y"] -= 0.1  # RIGHT_HIP up
+        metrics = calc.calculate(moved)
+        assert metrics["vertical_progress"] > 0.0
 
-        assert "total_frames" in summary
-        assert summary["total_frames"] == 10
-        assert "avg_velocity" in summary
-        assert "max_velocity" in summary
-        assert "avg_sway" in summary
-        assert "avg_jerk" in summary
-        assert "avg_body_angle" in summary
+    def test_uses_context_hip_height(self, sample_landmarks):
+        calc = ProgressCalculator()
+        ctx = FrameContext(com=(0.5, 0.5), hip_height=0.6, joint_angles={})
+        metrics = calc.calculate(sample_landmarks, context=ctx)
+        assert metrics["hip_height"] == 0.6
+
+    def test_summary_tracks_heights(self, sample_landmarks):
+        calc = ProgressCalculator()
+        for _ in range(5):
+            calc.calculate(sample_landmarks)
+        summary = calc.get_summary()
         assert "total_vertical_progress" in summary
         assert "max_height" in summary
 
-    def test_get_summary_empty(self):
-        """Test summary with no frames analyzed."""
-        analyzer = ClimbingAnalyzer()
 
-        summary = analyzer.get_summary()
+class TestEfficiencyCalculator:
+    """Tests for EfficiencyCalculator."""
 
-        assert summary == {}
+    def test_initial_economy_zero(self, sample_landmarks):
+        calc = EfficiencyCalculator()
+        metrics = calc.calculate(sample_landmarks)
+        assert metrics["movement_economy"] == 0.0
 
-    def test_get_history(self, sample_landmarks):
-        """Test history retrieval."""
-        analyzer = ClimbingAnalyzer()
+    def test_economy_with_vertical_movement(self, sample_landmarks):
+        calc = EfficiencyCalculator()
+        calc.calculate(sample_landmarks)
 
-        # Analyze frames
+        # Move straight up (lower y = up in image coords)
+        moved = [dict(lm) for lm in sample_landmarks]
+        for lm in moved:
+            lm["y"] -= 0.1
+        metrics = calc.calculate(moved)
+        # Economy should be positive when moving upward
+        assert metrics["total_distance"] > 0.0
+
+    def test_uses_context(self, sample_landmarks):
+        calc = EfficiencyCalculator()
+        ctx = FrameContext(com=(0.5, 0.5), hip_height=0.6, joint_angles={})
+        metrics = calc.calculate(sample_landmarks, context=ctx)
+        assert "movement_economy" in metrics
+
+
+class TestTechniqueCalculator:
+    """Tests for TechniqueCalculator."""
+
+    def test_body_angle(self, sample_landmarks):
+        calc = TechniqueCalculator()
+        metrics = calc.calculate(sample_landmarks)
+        assert "body_angle" in metrics
+        assert 0 <= metrics["body_angle"] <= 90
+
+    def test_hand_foot_spans(self, sample_landmarks):
+        calc = TechniqueCalculator()
+        metrics = calc.calculate(sample_landmarks)
+        assert metrics["hand_span"] > 0.0
+        assert metrics["foot_span"] > 0.0
+
+    def test_lock_off_with_bent_elbow(self):
+        """Verify lock-off detected when elbow < 90 degrees."""
+        landmarks = [{"x": 0.5, "y": 0.5, "z": 0.0, "visibility": 1.0}] * 33
+
+        # Create bent left elbow (angle < 90)
+        ctx = FrameContext(
+            com=(0.5, 0.5),
+            hip_height=0.6,
+            joint_angles={
+                "left_elbow": 60.0,  # < 90 threshold
+                "right_elbow": 160.0,
+            },
+        )
+        calc = TechniqueCalculator()
+        metrics = calc.calculate(landmarks, context=ctx)
+        assert metrics["is_lock_off"] is True
+        assert metrics["left_lock_off"] is True
+
+    def test_rest_position_with_straight_arms(self):
+        """Verify rest position detected when both elbows > 150 degrees."""
+        landmarks = [{"x": 0.5, "y": 0.5, "z": 0.0, "visibility": 1.0}] * 33
+
+        ctx = FrameContext(
+            com=(0.5, 0.5),
+            hip_height=0.6,
+            joint_angles={
+                "left_elbow": 165.0,  # > 150 threshold
+                "right_elbow": 170.0,
+            },
+        )
+        calc = TechniqueCalculator()
+        metrics = calc.calculate(landmarks, context=ctx)
+        assert metrics["is_rest_position"] is True
+
+    def test_summary_counts(self, sample_landmarks):
+        calc = TechniqueCalculator()
         for _ in range(5):
-            analyzer.analyze_frame(sample_landmarks)
-
-        history = analyzer.get_history()
-
-        assert "hip_heights" in history
-        assert "velocities" in history
-        assert "sways" in history
-        assert "jerks" in history
-        assert "body_angles" in history
-        assert "hand_spans" in history
-        assert "foot_spans" in history
-
-        assert len(history["hip_heights"]) == 5
-        assert len(history["velocities"]) == 5
-
-    def test_reset(self, sample_landmarks):
-        """Test analyzer reset."""
-        analyzer = ClimbingAnalyzer()
-
-        # Analyze some frames
-        analyzer.analyze_frame(sample_landmarks)
-        analyzer.analyze_frame(sample_landmarks)
-        assert analyzer.total_frames == 2
-
-        # Reset
-        analyzer.reset()
-
-        assert analyzer.total_frames == 0
-        assert analyzer.initial_hip_height is None
-        assert len(analyzer._history_hip_heights) == 0
-        assert len(analyzer._history_velocities) == 0
+            calc.calculate(sample_landmarks)
+        summary = calc.get_summary()
+        assert "total_lock_offs" in summary
+        assert "total_rest_positions" in summary
 
 
-class TestAdvancedClimbingMetrics:
-    """Tests for AdvancedClimbingMetrics class."""
+class TestJointAngleCalculator:
+    """Tests for JointAngleCalculator."""
 
-    def test_calculate_jerk_insufficient_data(self):
-        """Test jerk calculation with insufficient data."""
-        positions = [(0, 0), (1, 1)]
+    def test_all_angles_present(self, sample_landmarks):
+        calc = JointAngleCalculator()
+        metrics = calc.calculate(sample_landmarks)
+        for joint in [
+            "left_elbow",
+            "right_elbow",
+            "left_shoulder",
+            "right_shoulder",
+            "left_knee",
+            "right_knee",
+            "left_hip",
+            "right_hip",
+        ]:
+            assert joint in metrics
 
-        jerk = AdvancedClimbingMetrics.calculate_jerk(positions, 0.033)
+    def test_uses_context_angles(self, sample_landmarks):
+        angles = {
+            "left_elbow": 90.0,
+            "right_elbow": 90.0,
+            "left_shoulder": 120.0,
+            "right_shoulder": 120.0,
+            "left_knee": 170.0,
+            "right_knee": 170.0,
+            "left_hip": 160.0,
+            "right_hip": 160.0,
+        }
+        ctx = FrameContext(com=(0.5, 0.5), hip_height=0.6, joint_angles=angles)
+        calc = JointAngleCalculator()
+        metrics = calc.calculate(sample_landmarks, context=ctx)
+        assert metrics["left_elbow"] == 90.0
 
-        assert jerk == 0.0
+    def test_summary_has_min_max_avg(self, sample_landmarks):
+        calc = JointAngleCalculator()
+        for _ in range(5):
+            calc.calculate(sample_landmarks)
+        summary = calc.get_summary()
+        assert "min_left_elbow" in summary
+        assert "max_left_elbow" in summary
+        assert "avg_left_elbow" in summary
 
-    def test_calculate_jerk_constant_velocity(self):
-        """Test jerk with constant velocity (should be near zero)."""
-        positions = [(i * 0.1, i * 0.1) for i in range(10)]
 
-        jerk = AdvancedClimbingMetrics.calculate_jerk(positions, 0.033)
+class TestFatigueCalculator:
+    """Tests for FatigueCalculator."""
 
-        # Constant velocity means zero acceleration and zero jerk
-        assert jerk < 0.1  # Allow small numerical errors
+    def test_insufficient_frames_returns_zero(self):
+        calc = FatigueCalculator(min_frames=90)
+        for _ in range(50):
+            calc.record_stability_metrics(jerk=1.0, sway=0.1)
+        summary = calc.get_summary()
+        assert summary["fatigue_score"] == 0.0
 
-    def test_calculate_jerk_accelerating(self):
-        """Test jerk with acceleration (should be positive)."""
-        positions = [(i * i * 0.01, i * i * 0.01) for i in range(10)]
+    def test_constant_quality_low_fatigue(self):
+        calc = FatigueCalculator(min_frames=90)
+        for _ in range(120):
+            calc.record_stability_metrics(jerk=1.0, sway=0.1)
+        summary = calc.get_summary()
+        assert summary["fatigue_score"] == pytest.approx(0.0, abs=0.01)
 
-        jerk = AdvancedClimbingMetrics.calculate_jerk(positions, 0.033)
+    def test_degrading_quality_high_fatigue(self):
+        calc = FatigueCalculator(min_frames=90)
+        # First 60 frames: low jerk/sway
+        for _ in range(60):
+            calc.record_stability_metrics(jerk=1.0, sway=0.1)
+        # Last 60 frames: doubled jerk/sway
+        for _ in range(60):
+            calc.record_stability_metrics(jerk=2.0, sway=0.2)
+        summary = calc.get_summary()
+        assert summary["fatigue_score"] > 0.0
 
-        assert jerk > 0.0
+    def test_zero_early_values_no_division_error(self):
+        calc = FatigueCalculator(min_frames=90)
+        # First 60 frames: zero values
+        for _ in range(60):
+            calc.record_stability_metrics(jerk=0.0, sway=0.0)
+        # Last 60 frames: nonzero
+        for _ in range(60):
+            calc.record_stability_metrics(jerk=2.0, sway=0.2)
+        summary = calc.get_summary()
+        assert summary["fatigue_score"] == 0.0  # Can't compute ratio from 0
 
-    def test_calculate_base_of_support(self, sample_landmarks):
-        """Test base of support calculation."""
-        result = AdvancedClimbingMetrics.calculate_base_of_support(sample_landmarks)
 
-        assert "hand_span" in result
-        assert "foot_span" in result
-        assert "hand_foot_span" in result
+class TestClimbingAnalysisService:
+    """Tests for the end-to-end analysis service."""
 
-        assert result["hand_span"] > 0.0
-        assert result["foot_span"] > 0.0
-        assert result["hand_foot_span"] > 0.0
+    def test_analyze_basic(self, sample_landmarks):
+        service = ClimbingAnalysisService()
+        sequence = [sample_landmarks] * 10
+        analysis = service.analyze(sequence, fps=30.0)
 
-    def test_calculate_base_of_support_empty(self):
-        """Test base of support with empty landmarks."""
-        result = AdvancedClimbingMetrics.calculate_base_of_support([])
+        assert analysis.summary.total_frames == 10
+        assert "com_velocity" in analysis.history
+        assert "hip_height" in analysis.history
 
-        assert result == {}
+    def test_analyze_with_none_frames(self, sample_landmarks):
+        service = ClimbingAnalysisService()
+        sequence = [sample_landmarks, None, sample_landmarks, None]
+        analysis = service.analyze(sequence, fps=30.0)
+        assert analysis.summary.total_frames == 2
 
-    def test_calculate_base_of_support_insufficient(self):
-        """Test base of support with insufficient landmarks."""
-        landmarks = [{"x": 0.5, "y": 0.5, "z": 0.0} for _ in range(10)]
+    def test_analyze_empty_sequence(self):
+        service = ClimbingAnalysisService()
+        analysis = service.analyze([], fps=30.0)
+        assert analysis.summary.total_frames == 0
 
-        result = AdvancedClimbingMetrics.calculate_base_of_support(landmarks)
+    def test_summary_has_fatigue_score(self, sample_landmarks):
+        service = ClimbingAnalysisService()
+        sequence = [sample_landmarks] * 120
+        analysis = service.analyze(sequence, fps=30.0)
+        assert hasattr(analysis.summary, "fatigue_score")
 
-        assert result == {}
+    def test_lock_off_percentage_computed(self, sample_landmarks):
+        service = ClimbingAnalysisService()
+        sequence = [sample_landmarks] * 10
+        analysis = service.analyze(sequence, fps=30.0)
+        # Percentage should be a float (may be 0 if no lock-offs detected)
+        assert isinstance(analysis.summary.lock_off_percentage, float)
 
-    def test_calculate_body_angle(self, sample_landmarks):
-        """Test body angle calculation."""
-        angle = AdvancedClimbingMetrics.calculate_body_angle(sample_landmarks)
-
-        assert isinstance(angle, float)
-        # Angle should be between 0 and 90 degrees (lean from vertical)
-        assert 0 <= angle <= 90
-
-    def test_calculate_body_angle_vertical(self):
-        """Test body angle when perfectly vertical."""
-        landmarks = [{"x": 0.5, "y": 0.5, "z": 0.0} for _ in range(33)]
-
-        # Shoulders and hips aligned vertically (shoulders above hips in image coords)
-        landmarks[11] = {"x": 0.5, "y": 0.4, "z": 0.0}  # LEFT_SHOULDER
-        landmarks[12] = {"x": 0.5, "y": 0.4, "z": 0.0}  # RIGHT_SHOULDER
-        landmarks[23] = {"x": 0.5, "y": 0.6, "z": 0.0}  # LEFT_HIP
-        landmarks[24] = {"x": 0.5, "y": 0.6, "z": 0.0}  # RIGHT_HIP
-
-        angle = AdvancedClimbingMetrics.calculate_body_angle(landmarks)
-
-        # When perfectly vertical, angle should be 0
-        assert abs(angle) < 1.0
-
-    def test_calculate_body_angle_leaning(self):
-        """Test body angle when leaning."""
-        landmarks = [{"x": 0.5, "y": 0.5, "z": 0.0} for _ in range(33)]
-
-        # Shoulders offset from hips horizontally (leaning)
-        landmarks[11] = {"x": 0.3, "y": 0.4, "z": 0.0}  # LEFT_SHOULDER
-        landmarks[12] = {"x": 0.3, "y": 0.4, "z": 0.0}  # RIGHT_SHOULDER
-        landmarks[23] = {"x": 0.5, "y": 0.6, "z": 0.0}  # LEFT_HIP
-        landmarks[24] = {"x": 0.5, "y": 0.6, "z": 0.0}  # RIGHT_HIP
-
-        angle = AdvancedClimbingMetrics.calculate_body_angle(landmarks)
-
-        # With dx=0.2 and dy=0.2, angle should be arctan(0.2/0.2) = 45 degrees
-        assert 40 < angle < 50
-        """Test body angle with empty landmarks."""
-        angle = AdvancedClimbingMetrics.calculate_body_angle([])
-
-        assert angle == 0.0
+    def test_custom_calculators(self, sample_landmarks):
+        custom = [StabilityCalculator(window_size=10, fps=30.0)]
+        service = ClimbingAnalysisService(calculators=custom)
+        analysis = service.analyze([sample_landmarks] * 5, fps=30.0)
+        assert "com_velocity" in analysis.history
+        # No progress metrics since ProgressCalculator not included
+        assert "hip_height" not in analysis.history

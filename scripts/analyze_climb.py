@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """Analyze climbing performance from a video.
 
-This script processes climbing videos to extract performance metrics.
-It can generate statistical summaries, export JSON data, and/or create
-annotated videos with metrics dashboards positioned side-by-side or overlaid.
+This script uses the modern service-oriented architecture for clean,
+composable analysis. Each service is independent and can be used separately.
 
 Usage:
     # Text summary only (fast)
@@ -35,7 +34,12 @@ from tqdm import tqdm
 # Add src to path for development
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from climb_sensei import ClimbingSensei
+from climb_sensei.services import (
+    VideoQualityService,
+    TrackingQualityService,
+    ClimbingAnalysisService,
+)
+from climb_sensei.pose_engine import PoseEngine
 from climb_sensei.video_io import VideoReader, VideoWriter
 from climb_sensei.viz import draw_pose_landmarks
 from climb_sensei.config import CLIMBING_CONNECTIONS, CLIMBING_LANDMARKS
@@ -75,60 +79,108 @@ def analyze_climb(
     if json_path:
         print(f"Will export JSON: {json_path}")
 
-    # Step 1: Extract landmarks once (with quality validation)
-    # This is the expensive operation - we only do it once!
-    print("\nExtracting landmarks with quality validation...")
-    with ClimbingSensei(input_path, validate_quality=True) as sensei:
-        # Phase 1: Extract landmarks (single MediaPipe pass)
-        extracted = sensei.extract_landmarks(verbose=show_progress)
+    # Initialize services
+    video_quality_service = VideoQualityService()
+    tracking_quality_service = TrackingQualityService()
+    climbing_service = ClimbingAnalysisService()
 
-        # Phase 2: Analyze from cached landmarks (fast)
-        print("\nAnalyzing climbing metrics...")
-        analysis = sensei.analyze_from_landmarks(
-            landmarks_sequence=extracted["landmarks"],
-            fps=extracted["fps"],
-            validate_tracking_quality=True,
-            verbose=show_progress,
+    # Step 1: Video quality validation
+    print("\n1. Validating video quality...")
+    video_quality_report = video_quality_service.analyze_sync(input_path)
+
+    if not video_quality_report.is_valid:
+        print("❌ Video quality validation failed:")
+        for issue in video_quality_report.issues:
+            print(f"  - {issue}")
+        return
+
+    print(
+        f"✓ Video Quality: {video_quality_report.resolution_quality} resolution, {video_quality_report.fps_quality} FPS"
+    )
+    if video_quality_report.warnings:
+        for warning in video_quality_report.warnings:
+            print(f"  ⚠️  {warning}")
+
+    # Step 2: Extract landmarks once (expensive operation)
+    print("\n2. Extracting landmarks...")
+    landmarks_history = []
+    pose_results_history = []
+    frame_count = 0
+    fps = 30.0
+
+    pose_engine = PoseEngine()
+
+    with VideoReader(input_path) as reader:
+        fps = reader.fps
+        total_frames = reader.frame_count
+
+        iterator = tqdm(
+            total=total_frames,
+            desc="Extracting",
+            unit="frame",
+            disable=not show_progress,
         )
 
-    # Add video quality from extraction phase
-    if extracted["video_quality"] is not None:
-        from climb_sensei.models import ClimbingAnalysis
+        while True:
+            success, frame = reader.read()
+            if not success:
+                break
 
-        analysis = ClimbingAnalysis(
-            summary=analysis.summary,
-            history=analysis.history,
-            video_path=analysis.video_path,
-            video_quality=extracted["video_quality"],
-            tracking_quality=analysis.tracking_quality,
-        )
+            # Detect pose
+            pose_result = pose_engine.process(frame)
+
+            if pose_result and pose_result.pose_landmarks:
+                landmarks = pose_engine.extract_landmarks(pose_result)
+                landmarks_history.append(landmarks)
+                pose_results_history.append(pose_result)
+                frame_count += 1
+            else:
+                landmarks_history.append(None)
+                pose_results_history.append(None)
+
+            if show_progress:
+                iterator.update(1)
+
+        if show_progress:
+            iterator.close()
+
+    pose_engine.close()
+    print(
+        f"✓ Extracted {len(landmarks_history)} frames total, {frame_count} with pose detected"
+    )
+
+    # Step 3: Tracking quality analysis
+    print("\n3. Analyzing tracking quality...")
+    tracking_quality_report = tracking_quality_service.analyze_from_landmarks(
+        landmarks_history, video_path=input_path
+    )
+
+    print(
+        f"✓ Tracking Quality: {tracking_quality_report.quality_level} ({tracking_quality_report.detection_rate:.1f}% detection)"
+    )
+    if not tracking_quality_report.is_trackable:
+        print("  ⚠️  Poor tracking quality - results may be unreliable")
+    elif tracking_quality_report.warnings:
+        for warning in tracking_quality_report.warnings:
+            print(f"  ⚠️  {warning}")
+
+    # Step 4: Climbing metrics analysis
+    print("\n4. Analyzing climbing metrics...")
+    analysis = climbing_service.analyze(landmarks_history, fps=fps)
+
+    # Attach quality reports
+    analysis.video_quality = video_quality_report
+    analysis.tracking_quality = tracking_quality_report
+    analysis.video_path = input_path
 
     # Extract results
     summary = analysis.summary.to_dict()
     history = analysis.history
+    detected_frames = summary["total_frames"]
+    frame_num = len(landmarks_history)
 
-    # Print quality reports
-    if analysis.video_quality:
-        vq = analysis.video_quality
-        print(
-            f"\nVideo Quality: {vq.resolution_quality} resolution, {vq.fps_quality} FPS"
-        )
-        if vq.warnings:
-            for warning in vq.warnings:
-                print(f"  ⚠️  {warning}")
-
-    if analysis.tracking_quality:
-        tq = analysis.tracking_quality
-        print(
-            f"Tracking Quality: {tq.quality_level} ({tq.detection_rate}% detection rate)"
-        )
-
-    # Step 2: Generate video output if requested (reusing cached landmarks!)
-    if not video_path:
-        # No video output needed
-        detected_frames = summary["total_frames"]
-        frame_num = summary["total_frames"]
-    else:
+    # Step 5: Generate video output if requested (reusing cached landmarks!)
+    if video_path:
         print("\nGenerating annotated video from cached landmarks...")
 
         # Use cached landmarks for video generation (no re-processing!)
@@ -165,7 +217,7 @@ def analyze_climb(
                 )
 
                 # Process frames for video generation using cached pose results
-                for pose_result in extracted["pose_results"]:
+                for pose_result in pose_results_history:
                     success, frame = reader.read()
                     if not success:
                         break
@@ -272,7 +324,7 @@ def analyze_climb(
     print("CLIMBING ANALYSIS SUMMARY")
     print("=" * 60)
     print(f"Total frames analyzed: {summary['total_frames']}")
-    print(f"Detection rate: {100*detected_frames/frame_num:.1f}%")
+    print(f"Detection rate: {100 * detected_frames / frame_num:.1f}%")
     print("\nVertical Progression:")
     print(
         f"  Total height gained: {summary['total_vertical_progress']:.3f} (normalized)"

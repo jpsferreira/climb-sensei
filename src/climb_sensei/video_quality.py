@@ -11,6 +11,8 @@ import cv2
 import numpy as np
 from pathlib import Path
 
+from .types import QualityLevel
+
 
 @dataclass
 class VideoQualityReport:
@@ -136,9 +138,9 @@ class VideoQualityChecker:
 
             # Check resolution
             resolution_quality = self._assess_resolution(width, height)
-            if resolution_quality == "poor":
+            if resolution_quality == QualityLevel.POOR:
                 issues.append(f"Resolution {width}x{height} is below minimum")
-            elif resolution_quality == "acceptable":
+            elif resolution_quality == QualityLevel.ACCEPTABLE:
                 warnings.append(f"Resolution {width}x{height} is below recommended")
                 recommendations.append(
                     f"Recommended minimum: {self.RECOMMENDED_RESOLUTION[0]}x{self.RECOMMENDED_RESOLUTION[1]}"
@@ -146,11 +148,11 @@ class VideoQualityChecker:
 
             # Check FPS
             fps_quality = self._assess_fps(fps)
-            if fps_quality == "poor":
+            if fps_quality == QualityLevel.POOR:
                 issues.append(
                     f"Frame rate {fps} is below minimum for temporal analysis"
                 )
-            elif fps_quality == "acceptable":
+            elif fps_quality == QualityLevel.ACCEPTABLE:
                 warnings.append(f"Frame rate {fps} is below recommended")
                 recommendations.append(
                     f"Recommended: {self.RECOMMENDED_FPS} fps or higher"
@@ -158,14 +160,14 @@ class VideoQualityChecker:
 
             # Check duration
             duration_quality = self._assess_duration(duration)
-            if duration_quality == "poor":
+            if duration_quality == QualityLevel.POOR:
                 if duration < self.MIN_DURATION:
                     issues.append(f"Video duration {duration:.1f}s is too short")
                 else:
                     warnings.append(
                         f"Video duration {duration:.1f}s is very long - may be slow to process"
                     )
-            elif duration_quality == "acceptable":
+            elif duration_quality == QualityLevel.ACCEPTABLE:
                 warnings.append(
                     f"Video duration {duration:.1f}s is outside optimal range"
                 )
@@ -183,9 +185,9 @@ class VideoQualityChecker:
             is_valid = (
                 len(issues) == 0
                 and format_compatible
-                and resolution_quality != "poor"
-                and fps_quality != "poor"
-                and duration_quality != "poor"
+                and resolution_quality != QualityLevel.POOR
+                and fps_quality != QualityLevel.POOR
+                and duration_quality != QualityLevel.POOR
             )
 
             # Add general recommendations
@@ -246,38 +248,38 @@ class VideoQualityChecker:
     def _assess_resolution(self, width: int, height: int) -> str:
         """Assess resolution quality."""
         if width >= self.OPTIMAL_RESOLUTION[0] and height >= self.OPTIMAL_RESOLUTION[1]:
-            return "excellent"
+            return QualityLevel.EXCELLENT
         elif (
             width >= self.RECOMMENDED_RESOLUTION[0]
             and height >= self.RECOMMENDED_RESOLUTION[1]
         ):
-            return "good"
+            return QualityLevel.GOOD
         elif width >= self.MIN_RESOLUTION[0] and height >= self.MIN_RESOLUTION[1]:
-            return "acceptable"
+            return QualityLevel.ACCEPTABLE
         else:
-            return "poor"
+            return QualityLevel.POOR
 
     def _assess_fps(self, fps: float) -> str:
         """Assess frame rate quality."""
         if fps >= self.OPTIMAL_FPS:
-            return "excellent"
+            return QualityLevel.EXCELLENT
         elif fps >= self.RECOMMENDED_FPS:
-            return "good"
+            return QualityLevel.GOOD
         elif fps >= self.MIN_FPS:
-            return "acceptable"
+            return QualityLevel.ACCEPTABLE
         else:
-            return "poor"
+            return QualityLevel.POOR
 
     def _assess_duration(self, duration: float) -> str:
         """Assess video duration."""
         if duration < self.MIN_DURATION:
-            return "poor"
+            return QualityLevel.POOR
         elif duration > self.MAX_DURATION:
-            return "poor"
+            return QualityLevel.POOR
         elif self.RECOMMENDED_DURATION[0] <= duration <= self.RECOMMENDED_DURATION[1]:
-            return "excellent"
+            return QualityLevel.EXCELLENT
         else:
-            return "acceptable"
+            return QualityLevel.ACCEPTABLE
 
     def _analyze_frames(
         self,
@@ -344,17 +346,17 @@ class VideoQualityChecker:
         if avg_brightness < self.MIN_BRIGHTNESS:
             issues.append(f"Video is too dark (brightness: {avg_brightness:.1f}/255)")
             recommendations.append("Improve lighting or adjust camera exposure")
-            return "poor"
+            return QualityLevel.POOR
         elif avg_brightness > self.MAX_BRIGHTNESS:
             warnings.append(
                 f"Video is overexposed (brightness: {avg_brightness:.1f}/255)"
             )
             recommendations.append("Reduce exposure or lighting intensity")
-            return "acceptable"
+            return QualityLevel.ACCEPTABLE
         elif self.OPTIMAL_BRIGHTNESS[0] <= avg_brightness <= self.OPTIMAL_BRIGHTNESS[1]:
-            return "excellent"
+            return QualityLevel.EXCELLENT
         else:
-            return "good"
+            return QualityLevel.GOOD
 
     def _assess_stability(
         self,
@@ -369,9 +371,9 @@ class VideoQualityChecker:
                 f"Possible motion blur detected (sharpness: {avg_blur:.1f})"
             )
             recommendations.append("Use a tripod or stabilization for better results")
-            return "acceptable"
+            return QualityLevel.ACCEPTABLE
         else:
-            return "excellent"
+            return QualityLevel.EXCELLENT
 
 
 def check_video_quality(

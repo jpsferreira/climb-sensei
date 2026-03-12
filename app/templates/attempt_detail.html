@@ -1,0 +1,901 @@
+{% extends "base.html" %} {% block title %}Attempt Detail - ClimbSensei{%
+endblock %} {% block extra_css %}
+<style>
+  .back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 0.82rem;
+    font-family: var(--font-display);
+    margin-bottom: 10px;
+    transition: color 0.2s;
+  }
+  .back-link:hover {
+    color: var(--accent);
+  }
+
+  .attempt-header {
+    padding: 16px 0 20px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 20px;
+  }
+  .attempt-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .attempt-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    font-family: var(--font-display);
+  }
+  .attempt-date-label {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  /* ── Attempt navigation ──────────────────────────── */
+  .attempt-nav {
+    display: flex;
+    gap: 8px;
+  }
+  .attempt-nav-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 12px;
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    font-family: var(--font-display);
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.2s;
+  }
+  .attempt-nav-btn:hover {
+    border-color: var(--accent-dim);
+    color: var(--accent);
+    background: var(--accent-glow);
+  }
+  .attempt-nav-btn.disabled {
+    opacity: 0.35;
+    pointer-events: none;
+  }
+
+  /* ── Video section ───────────────────────────────── */
+  .video-section {
+    margin-bottom: 20px;
+  }
+  .video-wrapper {
+    background: #000;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    border: 1px solid var(--border);
+    position: relative;
+    aspect-ratio: 16 / 9;
+  }
+  .video-wrapper video {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: contain;
+  }
+  .video-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: var(--text-muted);
+    font-family: var(--font-display);
+    font-size: 0.88rem;
+  }
+  .video-placeholder svg {
+    opacity: 0.35;
+  }
+
+  /* ── History plot (video-synced, single metric) ─── */
+  .plot-section {
+    margin-bottom: 20px;
+    display: none;
+  }
+  .plot-toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .plot-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 5px 12px;
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    font-family: var(--font-display);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .plot-toggle-btn:hover {
+    border-color: var(--accent-dim);
+    color: var(--accent);
+  }
+  .plot-toggle-btn.active {
+    background: var(--accent-glow);
+    border-color: var(--accent-dim);
+    color: var(--accent);
+  }
+  .plot-metric-chips {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+  .plot-metric-chip {
+    padding: 5px 12px;
+    border-radius: 16px;
+    font-size: 0.7rem;
+    font-family: var(--font-display);
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--bg-raised);
+    color: var(--text-muted);
+    transition: all 0.2s;
+  }
+  .plot-metric-chip:hover {
+    border-color: var(--border-light);
+    color: var(--text-secondary);
+  }
+  .plot-metric-chip.active {
+    border-color: var(--accent-dim);
+    background: var(--accent-glow);
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .plot-card {
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 12px 6px;
+    position: relative;
+  }
+  .plot-card .plot-title {
+    font-family: var(--font-display);
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+  .plot-card canvas {
+    width: 100%;
+    height: 100px;
+    display: block;
+  }
+  .plot-card .plot-value-badge {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    font-family: var(--font-display);
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--accent);
+  }
+  .plot-inner {
+    display: none;
+  }
+  .plot-inner.visible {
+    display: block;
+  }
+
+  /* ── Metrics grid ────────────────────────────────── */
+  .metrics-section {
+    margin-bottom: 20px;
+  }
+  .section-label {
+    font-family: var(--font-display);
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    margin-top: 16px;
+  }
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .metric-card {
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .metric-card:hover {
+    border-color: var(--border-light);
+  }
+  .metric-name {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-family: var(--font-display);
+    font-weight: 500;
+    margin-bottom: 6px;
+  }
+  .metric-value {
+    font-size: 1.4rem;
+    font-weight: 700;
+    font-family: var(--font-display);
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+  .metric-unit {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    font-weight: 400;
+    margin-left: 2px;
+  }
+  .metric-delta {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    margin-top: 5px;
+    font-size: 0.75rem;
+    font-family: var(--font-display);
+    font-weight: 600;
+  }
+  .delta-up {
+    color: var(--success);
+  }
+  .delta-down {
+    color: var(--error);
+  }
+  .delta-neutral {
+    color: var(--text-muted);
+  }
+
+  /* ── Fatigue highlight card ──────────────────────── */
+  .metric-card.featured {
+    grid-column: span 2;
+    background: linear-gradient(135deg, var(--bg-raised), var(--bg-surface));
+    border-color: var(--accent-dim);
+  }
+  .metric-card.featured .metric-value {
+    font-size: 2rem;
+    color: var(--accent);
+  }
+
+  /* ── Tracking quality ───────────────────────────── */
+  .tracking-section {
+    margin-bottom: 20px;
+    display: none;
+  }
+  .tracking-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .tracking-card {
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px;
+  }
+  .tracking-card .metric-name {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-family: var(--font-display);
+    font-weight: 500;
+    margin-bottom: 4px;
+  }
+  .tracking-card .metric-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+    font-family: var(--font-display);
+    color: var(--text-primary);
+  }
+  .quality-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    font-family: var(--font-display);
+    text-transform: uppercase;
+  }
+  .quality-excellent {
+    background: var(--success-bg);
+    color: var(--success);
+  }
+  .quality-good {
+    background: var(--success-bg);
+    color: var(--success);
+  }
+  .quality-acceptable {
+    background: var(--warning-bg);
+    color: var(--warning);
+  }
+  .quality-poor {
+    background: var(--error-bg);
+    color: var(--error);
+  }
+
+  @media (min-width: 480px) {
+    .tracking-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  /* ── Notes section ───────────────────────────────── */
+  .notes-section {
+    margin-bottom: 20px;
+  }
+  .notes-field {
+    width: 100%;
+    min-height: 90px;
+    padding: 12px;
+    background: var(--bg-base);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    font-family: var(--font-body);
+    resize: vertical;
+    transition: all 0.2s;
+  }
+  .notes-field::placeholder {
+    color: var(--text-faint);
+  }
+  .notes-field:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+  .notes-save-hint {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+  .notes-save-hint.saved {
+    color: var(--success);
+  }
+
+  @media (min-width: 480px) {
+    .metrics-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+    .metric-card.featured {
+      grid-column: span 3;
+    }
+  }
+
+  @media (max-width: 360px) {
+    .metric-value {
+      font-size: 1.15rem;
+    }
+  }
+</style>
+{% endblock %} {% block content %}
+<a href="/routes/{{ route_id }}" class="back-link" id="back-link"
+  >&larr; Route</a
+>
+
+<div id="attempt-header" class="attempt-header fade-up">
+  <p class="loading">Loading attempt...</p>
+</div>
+
+<div class="video-section fade-up fade-up-delay-1">
+  <div class="video-wrapper" id="video-wrapper">
+    <div class="video-placeholder">
+      <svg
+        width="48"
+        height="48"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.5"
+      >
+        <polygon points="5 3 19 12 5 21 5 3" />
+      </svg>
+      Loading...
+    </div>
+  </div>
+</div>
+
+<div class="plot-section fade-up fade-up-delay-2" id="plot-section">
+  <div class="plot-toggle-row">
+    <div class="section-label" style="margin: 0">Live Metrics</div>
+    <button class="plot-toggle-btn" id="plot-toggle-btn" onclick="togglePlot()">
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+      </svg>
+      Show
+    </button>
+  </div>
+  <div class="plot-inner" id="plot-inner">
+    <div class="plot-metric-chips" id="plot-chips">
+      <!-- Populated by JS -->
+    </div>
+    <div class="plot-card">
+      <div class="plot-title" id="plot-active-title">—</div>
+      <div class="plot-value-badge" id="plot-value-badge">—</div>
+      <canvas id="plot-canvas"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="metrics-section fade-up fade-up-delay-2" id="metrics-section">
+  <!-- Populated by JS -->
+</div>
+
+<div class="tracking-section fade-up fade-up-delay-3" id="tracking-section">
+  <div class="section-label">Tracking Quality</div>
+  <div class="tracking-grid" id="tracking-grid">
+    <!-- Populated by JS -->
+  </div>
+</div>
+
+<div class="notes-section fade-up fade-up-delay-3">
+  <div class="section-label">Notes</div>
+  <textarea
+    class="notes-field"
+    id="notes-field"
+    placeholder="Add notes about this attempt..."
+  ></textarea>
+  <div class="notes-save-hint" id="notes-hint">
+    Auto-saves when you click away
+  </div>
+</div>
+{% endblock %} {% block extra_js %}
+<script>
+  const routeId = {{ route_id }};
+  const attemptId = {{ attempt_id }};
+
+  if (!authToken) {
+    window.location.href = '/login';
+  }
+
+  // ── Metric metadata (label, unit, whether higher is better) ──
+  const METRIC_META = {
+    avg_velocity:           { label: 'Avg Velocity',         unit: 'm/s',  higherBetter: true  },
+    max_velocity:           { label: 'Max Velocity',         unit: 'm/s',  higherBetter: true  },
+    max_height:             { label: 'Max Height',           unit: 'm',    higherBetter: true  },
+    total_vertical_progress:{ label: 'Vertical Progress',    unit: 'm',    higherBetter: true  },
+    avg_sway:               { label: 'Avg Sway',             unit: '',     higherBetter: false },
+    avg_movement_economy:   { label: 'Movement Economy',     unit: '',     higherBetter: true  },
+    lock_off_count:         { label: 'Lock-off Count',       unit: '',     higherBetter: null  },
+    rest_count:             { label: 'Rest Count',           unit: '',     higherBetter: null  },
+    fatigue_score:          { label: 'Fatigue Score',        unit: '',     higherBetter: false },
+  };
+
+  // ── History plot definitions (key in history dict → display config) ──
+  const PLOT_DEFS = [
+    { key: 'movement_economy',  label: 'Movement Economy',  color: '#10b981' },
+    { key: 'com_velocity',      label: 'Movement Speed',    color: '#22c55e' },
+    { key: 'hip_height',        label: 'Vertical Progress', color: '#0ee5e5', invert: true },
+    { key: 'com_sway',          label: 'Lateral Sway',      color: '#f59e0b' },
+    { key: 'body_angle',        label: 'Body Angle',        color: '#818cf8' },
+    { key: 'jerk',              label: 'Smoothness (Jerk)', color: '#e879f9' },
+    { key: 'is_lock_off',       label: 'Lock-offs',         color: '#fb923c' },
+    { key: 'hand_span',         label: 'Hand Span',         color: '#38bdf8' },
+  ];
+
+  // Single-plot state
+  let activePlotData = {};   // key → processed data array
+  let availablePlots = [];   // PLOT_DEFS entries that have data
+  let activeMetricKey = null;
+  let plotCtx = null;
+  let plotCanvas = null;
+  let historyFps = 30;
+  let plotVisible = false;
+
+  function initPlots(history, fps) {
+    const section = document.getElementById('plot-section');
+    if (!history || Object.keys(history).length === 0) return;
+
+    historyFps = fps || 30;
+    activePlotData = {};
+    availablePlots = [];
+
+    for (const def of PLOT_DEFS) {
+      let data = history[def.key];
+      if (!data || !data.length) continue;
+      if (def.invert) {
+        const initial = data[0];
+        data = data.map(v => initial - v);
+      }
+      activePlotData[def.key] = data;
+      availablePlots.push(def);
+    }
+
+    if (availablePlots.length === 0) return;
+    section.style.display = 'block';
+
+    // Build chips
+    const chipsEl = document.getElementById('plot-chips');
+    chipsEl.innerHTML = availablePlots.map(def =>
+      `<button class="plot-metric-chip" data-key="${def.key}">${def.label}</button>`
+    ).join('');
+
+    chipsEl.querySelectorAll('.plot-metric-chip').forEach(chip => {
+      chip.addEventListener('click', () => selectMetric(chip.dataset.key));
+    });
+
+    // Prepare canvas
+    plotCanvas = document.getElementById('plot-canvas');
+    const dpr = window.devicePixelRatio || 1;
+    plotCanvas.width = plotCanvas.offsetWidth * dpr;
+    plotCanvas.height = 100 * dpr;
+    plotCtx = plotCanvas.getContext('2d');
+    plotCtx.scale(dpr, dpr);
+
+    // Default to first available (Movement Economy if present)
+    selectMetric(availablePlots[0].key);
+  }
+
+  function selectMetric(key) {
+    activeMetricKey = key;
+    // Update chips
+    document.querySelectorAll('.plot-metric-chip').forEach(c => {
+      c.classList.toggle('active', c.dataset.key === key);
+    });
+    // Update title
+    const def = availablePlots.find(d => d.key === key);
+    document.getElementById('plot-active-title').textContent = def ? def.label : '';
+    // Redraw
+    const video = document.getElementById('attempt-video');
+    updatePlot(video ? video.currentTime : 0);
+  }
+
+  function togglePlot() {
+    plotVisible = !plotVisible;
+    const inner = document.getElementById('plot-inner');
+    const btn = document.getElementById('plot-toggle-btn');
+    inner.classList.toggle('visible', plotVisible);
+    btn.classList.toggle('active', plotVisible);
+    btn.querySelector('svg').nextSibling.textContent = plotVisible ? ' Hide' : ' Show';
+    if (plotVisible && activeMetricKey) {
+      // Resize canvas on first show
+      const dpr = window.devicePixelRatio || 1;
+      plotCanvas.width = plotCanvas.offsetWidth * dpr;
+      plotCanvas.height = 100 * dpr;
+      plotCtx = plotCanvas.getContext('2d');
+      plotCtx.scale(dpr, dpr);
+      const video = document.getElementById('attempt-video');
+      updatePlot(video ? video.currentTime : 0);
+    }
+  }
+
+  function drawPlot(ctx, canvas, data, color, frameIndex) {
+    const w = canvas.offsetWidth;
+    const h = 100;
+    ctx.clearRect(0, 0, w, h);
+
+    const pad = { top: 6, bottom: 6, left: 4, right: 4 };
+    const plotW = w - pad.left - pad.right;
+    const plotH = h - pad.top - pad.bottom;
+
+    const numericData = data.map(v => (typeof v === 'number' && isFinite(v)) ? v : 0);
+    const minVal = Math.min(...numericData);
+    const maxVal = Math.max(...numericData);
+    const range = maxVal - minVal || 1;
+
+    function xAt(i) { return pad.left + (i / Math.max(data.length - 1, 1)) * plotW; }
+    function yAt(v) { return pad.top + plotH - ((v - minVal) / range) * plotH; }
+
+    // Filled area
+    ctx.beginPath();
+    ctx.moveTo(xAt(0), yAt(numericData[0]));
+    for (let i = 1; i < numericData.length; i++) ctx.lineTo(xAt(i), yAt(numericData[i]));
+    ctx.lineTo(xAt(numericData.length - 1), h);
+    ctx.lineTo(xAt(0), h);
+    ctx.closePath();
+    ctx.fillStyle = color + '15';
+    ctx.fill();
+
+    // Full curve (dimmed)
+    ctx.beginPath();
+    ctx.moveTo(xAt(0), yAt(numericData[0]));
+    for (let i = 1; i < numericData.length; i++) ctx.lineTo(xAt(i), yAt(numericData[i]));
+    ctx.strokeStyle = color + '50';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Highlighted portion up to current frame
+    const fi = Math.min(Math.max(0, Math.round(frameIndex)), numericData.length - 1);
+    if (fi > 0) {
+      ctx.beginPath();
+      ctx.moveTo(xAt(0), yAt(numericData[0]));
+      for (let i = 1; i <= fi; i++) ctx.lineTo(xAt(i), yAt(numericData[i]));
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+    }
+
+    // Dot at current frame
+    ctx.beginPath();
+    ctx.arc(xAt(fi), yAt(numericData[fi]), 5, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.strokeStyle = '#0f1419';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    return numericData[fi];
+  }
+
+  function updatePlot(currentTime) {
+    if (!plotVisible || !activeMetricKey || !plotCtx) return;
+    const data = activePlotData[activeMetricKey];
+    const def = availablePlots.find(d => d.key === activeMetricKey);
+    if (!data || !def) return;
+    const frameIndex = currentTime * historyFps;
+    const val = drawPlot(plotCtx, plotCanvas, data, def.color, frameIndex);
+    const badge = document.getElementById('plot-value-badge');
+    badge.textContent = typeof val === 'number' ? val.toFixed(2) : '—';
+    badge.style.color = def.color;
+  }
+
+  const CATEGORIES = [
+    { key: 'movement',   label: 'Movement',   metrics: ['avg_velocity', 'max_velocity', 'max_height', 'total_vertical_progress'] },
+    { key: 'stability',  label: 'Stability',  metrics: ['avg_sway'] },
+    { key: 'efficiency', label: 'Efficiency', metrics: ['avg_movement_economy', 'lock_off_count', 'rest_count'] },
+    { key: 'overall',    label: 'Overall',    metrics: ['fatigue_score'] },
+  ];
+
+  function formatValue(key, val) {
+    if (val == null) return '—';
+    if (['lock_off_count', 'rest_count'].includes(key)) return Math.round(val).toString();
+    return val.toFixed(2);
+  }
+
+  function deltaHtml(key, delta) {
+    if (delta == null) return '';
+    const meta = METRIC_META[key];
+    if (Math.abs(delta) < 0.001) {
+      return `<span class="metric-delta delta-neutral">&rarr; no change</span>`;
+    }
+    const improved = meta.higherBetter === null
+      ? null
+      : (meta.higherBetter ? delta > 0 : delta < 0);
+    const sign = delta > 0 ? '+' : '';
+    const formatted = ['lock_off_count', 'rest_count'].includes(key)
+      ? sign + Math.round(delta)
+      : sign + delta.toFixed(2);
+
+    if (improved === null) {
+      return `<span class="metric-delta delta-neutral">${formatted}</span>`;
+    }
+    return improved
+      ? `<span class="metric-delta delta-up">&#8593; ${formatted}</span>`
+      : `<span class="metric-delta delta-down">&#8595; ${formatted}</span>`;
+  }
+
+  function renderMetricCard(key, attempt) {
+    const meta = METRIC_META[key];
+    if (!meta) return '';
+    const val = attempt[key];
+    const delta = attempt.deltas ? attempt.deltas[key] : null;
+    const isFeatured = key === 'fatigue_score';
+    return `
+      <div class="metric-card${isFeatured ? ' featured' : ''}">
+        <div class="metric-name">${meta.label}</div>
+        <div>
+          <span class="metric-value">${formatValue(key, val)}</span>
+          ${meta.unit ? `<span class="metric-unit">${meta.unit}</span>` : ''}
+        </div>
+        ${deltaHtml(key, delta)}
+      </div>
+    `;
+  }
+
+  function renderMetrics(attempt) {
+    const container = document.getElementById('metrics-section');
+    let html = '';
+    for (const cat of CATEGORIES) {
+      const cards = cat.metrics.map(k => renderMetricCard(k, attempt)).join('');
+      html += `
+        <div class="section-label">${cat.label}</div>
+        <div class="metrics-grid">${cards}</div>
+      `;
+    }
+    container.innerHTML = html;
+  }
+
+  function renderTrackingQuality(attempt) {
+    const tq = attempt.tracking_quality;
+    const section = document.getElementById('tracking-section');
+    if (!tq) return;
+
+    section.style.display = 'block';
+    const level = (tq.quality_level || '').toLowerCase();
+    const grid = document.getElementById('tracking-grid');
+    grid.innerHTML = `
+      <div class="tracking-card" style="grid-column: span 2;">
+        <div class="metric-name">Quality</div>
+        <span class="quality-badge quality-${level}">${tq.quality_level || '—'}</span>
+      </div>
+      <div class="tracking-card">
+        <div class="metric-name">Detection Rate</div>
+        <div class="metric-value">${tq.detection_rate != null ? tq.detection_rate + '%' : '—'}</div>
+      </div>
+      <div class="tracking-card">
+        <div class="metric-name">Avg Confidence</div>
+        <div class="metric-value">${tq.avg_confidence != null ? tq.avg_confidence.toFixed(3) : '—'}</div>
+      </div>
+      <div class="tracking-card">
+        <div class="metric-name">Smoothness</div>
+        <div class="metric-value">${tq.tracking_smoothness != null ? tq.tracking_smoothness.toFixed(4) : '—'}</div>
+      </div>
+      <div class="tracking-card">
+        <div class="metric-name">Loss Events</div>
+        <div class="metric-value">${tq.tracking_loss_events != null ? tq.tracking_loss_events : '—'}</div>
+      </div>
+    `;
+  }
+
+  function renderHeader(attempt) {
+    const date = attempt.date
+      ? new Date(attempt.date).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+      : '';
+
+    const prevHref = attempt.prev_attempt_id
+      ? `/routes/${routeId}/attempts/${attempt.prev_attempt_id}`
+      : null;
+    const nextHref = attempt.next_attempt_id
+      ? `/routes/${routeId}/attempts/${attempt.next_attempt_id}`
+      : null;
+
+    document.getElementById('attempt-header').innerHTML = `
+      <div class="attempt-title-row">
+        <div>
+          <div class="attempt-title" id="route-name-label">Attempt</div>
+          <div class="attempt-date-label">${date}</div>
+        </div>
+        <div class="attempt-nav">
+          ${prevHref
+            ? `<a href="${prevHref}" class="attempt-nav-btn">&#8592; Prev</a>`
+            : `<span class="attempt-nav-btn disabled">&#8592; Prev</span>`}
+          ${nextHref
+            ? `<a href="${nextHref}" class="attempt-nav-btn">Next &#8594;</a>`
+            : `<span class="attempt-nav-btn disabled">Next &#8594;</span>`}
+        </div>
+      </div>
+    `;
+  }
+
+  async function loadRouteName() {
+    try {
+      const res = await apiRequest(`/api/routes/${routeId}`);
+      if (res.ok) {
+        const route = await res.json();
+        const nameEl = document.getElementById('route-name-label');
+        if (nameEl) nameEl.textContent = route.name || 'Attempt';
+        const backLink = document.getElementById('back-link');
+        if (backLink) backLink.textContent = '\u2190 ' + (route.name || 'Route');
+      }
+    } catch (_) { /* non-critical */ }
+  }
+
+  function renderVideo(attempt) {
+    const wrapper = document.getElementById('video-wrapper');
+    const videoSrc = attempt.output_video_path || attempt.original_video_url;
+    if (videoSrc) {
+      const isWebm = videoSrc.endsWith('.webm');
+      const mimeType = isWebm ? 'video/webm' : 'video/mp4';
+      wrapper.innerHTML = `
+        <video controls playsinline preload="metadata" id="attempt-video">
+          <source src="${videoSrc}" type="${mimeType}">
+          Your browser does not support the video tag.
+        </video>
+      `;
+      // Sync plots with video playback
+      const video = document.getElementById('attempt-video');
+      video.addEventListener('timeupdate', () => updatePlot(video.currentTime));
+      video.addEventListener('seeked', () => updatePlot(video.currentTime));
+    } else {
+      wrapper.innerHTML = `
+        <div class="video-placeholder">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <polygon points="5 3 19 12 5 21 5 3"/>
+          </svg>
+          <span>No video available for this attempt</span>
+        </div>
+      `;
+    }
+  }
+
+  async function loadAttempt() {
+    const res = await apiRequest(`/api/routes/${routeId}/attempts/${attemptId}`);
+    if (!res.ok) {
+      document.getElementById('attempt-header').innerHTML =
+        '<p style="color: var(--error)">Could not load attempt.</p>';
+      return;
+    }
+    const attempt = await res.json();
+    renderHeader(attempt);
+    renderVideo(attempt);
+    renderMetrics(attempt);
+    renderTrackingQuality(attempt);
+
+    // Initialize synced history plots once video metadata is ready
+    const video = document.getElementById('attempt-video');
+    if (video && attempt.history) {
+      const initWithFps = () => {
+        const totalF = attempt.summary?.total_frames || 0;
+        const fps = (totalF && video.duration) ? totalF / video.duration : 30;
+        initPlots(attempt.history, fps);
+      };
+      if (video.readyState >= 1) initWithFps();
+      else video.addEventListener('loadedmetadata', initWithFps);
+    } else if (attempt.history) {
+      initPlots(attempt.history, 30);
+    }
+
+    // Pre-fill notes
+    const notesField = document.getElementById('notes-field');
+    notesField.value = attempt.notes || '';
+  }
+
+  // ── Notes auto-save on blur ───────────────────────────────────
+  const notesField = document.getElementById('notes-field');
+  const notesHint = document.getElementById('notes-hint');
+
+  notesField.addEventListener('blur', async () => {
+    const notes = notesField.value;
+    try {
+      const res = await apiRequest(`/api/routes/${routeId}/attempts/${attemptId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ notes }),
+      });
+      if (res.ok) {
+        notesHint.textContent = 'Saved';
+        notesHint.classList.add('saved');
+        setTimeout(() => {
+          notesHint.textContent = 'Auto-saves when you click away';
+          notesHint.classList.remove('saved');
+        }, 2000);
+      } else {
+        notesHint.textContent = 'Failed to save notes';
+        notesHint.classList.remove('saved');
+      }
+    } catch (_) {
+      notesHint.textContent = 'Failed to save notes';
+      notesHint.classList.remove('saved');
+    }
+  });
+
+  loadAttempt();
+  loadRouteName();
+</script>
+{% endblock %}

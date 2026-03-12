@@ -1,0 +1,483 @@
+{% extends "base.html" %} {% block title %}My Routes — ClimbSensei{% endblock %}
+{% block extra_css %}
+<style>
+  .routes-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+  .routes-header h2 {
+    font-size: 1.3rem;
+    font-weight: 700;
+    font-family: var(--font-display);
+  }
+  .route-count {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+
+  .search-bar {
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    width: 100%;
+    margin-bottom: 12px;
+    font-family: "DM Sans", sans-serif;
+  }
+  .search-bar::placeholder {
+    color: var(--text-muted);
+  }
+
+  .filter-chips {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .filter-chip {
+    background: var(--bg-raised);
+    color: var(--text-muted);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    transition: all 0.2s;
+    font-family: var(--font-display);
+  }
+  .filter-chip.active {
+    background: var(--accent);
+    color: #000;
+    border-color: var(--accent);
+    font-weight: 600;
+  }
+
+  .sort-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 10px;
+  }
+  .sort-select {
+    background: var(--bg-raised);
+    color: var(--teal);
+    border: none;
+    font-size: 0.75rem;
+    font-family: "DM Sans", sans-serif;
+    cursor: pointer;
+  }
+
+  .route-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .route-item {
+    background: var(--bg-raised);
+    border-radius: 10px;
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    text-decoration: none;
+    color: inherit;
+    transition: background 0.2s;
+  }
+  .route-item:hover {
+    background: var(--bg-deep);
+  }
+  .route-sent {
+    border-left: 3px solid var(--success);
+  }
+
+  .grade-badge {
+    font-size: 0.7rem;
+    font-weight: 800;
+    padding: 6px 8px;
+    border-radius: 6px;
+    min-width: 36px;
+    text-align: center;
+    font-family: var(--font-display);
+  }
+  .grade-green {
+    background: var(--success);
+    color: #000;
+  }
+  .grade-amber {
+    background: var(--accent);
+    color: #000;
+  }
+  .grade-orange {
+    background: #f97316;
+    color: #000;
+  }
+  .grade-red {
+    background: var(--error);
+    color: #fff;
+  }
+  .grade-gray {
+    background: var(--bg-deep);
+    color: var(--text-muted);
+  }
+
+  .route-info {
+    flex: 1;
+    min-width: 0;
+  }
+  .route-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .route-meta {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  .route-sparkline {
+    flex-shrink: 0;
+  }
+
+  .routes-empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-muted);
+  }
+  .empty-state-icon {
+    font-size: 3rem;
+    margin-bottom: 12px;
+  }
+  .empty-state-text {
+    font-size: 0.9rem;
+    margin-bottom: 16px;
+  }
+
+  .add-route-btn {
+    position: fixed;
+    bottom: 80px;
+    right: 16px;
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 16px;
+    color: var(--accent);
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-display);
+    transition: all 0.2s;
+  }
+  .add-route-btn:hover {
+    background: var(--accent-glow);
+    border-color: var(--accent-dim);
+  }
+
+  @media (min-width: 768px) {
+    .add-route-btn {
+      bottom: 16px;
+      right: 16px;
+    }
+  }
+</style>
+{% endblock %} {% block content %}
+<div class="routes-header">
+  <h2>My Routes</h2>
+  <span class="route-count" id="route-count">0 routes</span>
+</div>
+
+<input
+  type="text"
+  class="search-bar"
+  id="search-input"
+  placeholder="Search routes..."
+  autocomplete="off"
+/>
+
+<div class="filter-chips">
+  <button class="filter-chip active" data-type="all">All</button>
+  <button class="filter-chip" data-type="boulder">Boulder</button>
+  <button class="filter-chip" data-type="sport">Sport</button>
+  <button class="filter-chip" data-type="trad">Trad</button>
+</div>
+
+<div class="sort-row">
+  <select class="sort-select" id="sort-select">
+    <option value="recent">Recent</option>
+    <option value="grade">Grade</option>
+    <option value="attempts">Most Attempts</option>
+  </select>
+</div>
+
+<div class="route-list" id="route-list"></div>
+
+<div class="routes-empty-state" id="empty-state" style="display: none">
+  <div class="empty-state-icon">
+    <svg
+      width="64"
+      height="64"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.5"
+    >
+      <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+    </svg>
+  </div>
+  <div class="empty-state-text">No routes yet</div>
+  <button class="btn" onclick="openCreateModal()">Add your first route</button>
+</div>
+
+<button class="add-route-btn" onclick="openCreateModal()">+ New Route</button>
+
+<!-- Create Route Modal -->
+<div class="modal hidden" id="create-route-modal">
+  <div class="modal-content">
+    <h2>Create Route</h2>
+    <form id="create-route-form" onsubmit="createRoute(event)">
+      <div class="form-group">
+        <label for="route-name">Name</label>
+        <input
+          type="text"
+          id="route-name"
+          name="name"
+          placeholder="e.g. The Nose"
+          required
+        />
+      </div>
+      <div class="form-group">
+        <label for="route-grade">Grade</label>
+        <input
+          type="text"
+          id="route-grade"
+          name="grade"
+          placeholder="e.g. V4 or 6b+"
+          required
+        />
+      </div>
+      <div class="form-group">
+        <label for="route-grade-system">Grade System</label>
+        <select id="route-grade-system" name="grade_system">
+          <option value="hueco">V Scale (Bouldering)</option>
+          <option value="font">Font (Bouldering)</option>
+          <option value="yds">YDS (Rope)</option>
+          <option value="french">French (Rope)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="route-type">Type</label>
+        <select id="route-type" name="type">
+          <option value="boulder">Boulder</option>
+          <option value="sport">Sport</option>
+          <option value="trad">Trad</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="route-location">Location (optional)</label>
+        <input
+          type="text"
+          id="route-location"
+          name="location"
+          placeholder="e.g. Fontainebleau"
+        />
+      </div>
+      <div class="modal-actions">
+        <button
+          type="button"
+          class="btn btn-secondary"
+          onclick="closeCreateModal()"
+        >
+          Cancel
+        </button>
+        <button type="submit" class="btn">Create</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %} {% block extra_js %}
+<script>
+  // Helpers
+  function gradeColor(grade) {
+    const num = parseInt(grade.replace(/[^0-9]/g, ""));
+    if (isNaN(num)) return "gray";
+    if (num <= 3) return "green";
+    if (num <= 6) return "amber";
+    if (num <= 9) return "orange";
+    return "red";
+  }
+
+  function renderSparkline(values) {
+    if (!values || !values.length) return "";
+    const h = 20,
+      w = 50;
+    const max = Math.max(...values),
+      min = Math.min(...values);
+    const range = max - min || 1;
+    const points = values
+      .map(
+        (v, i) =>
+          `${(i / Math.max(values.length - 1, 1)) * w},${h - ((v - min) / range) * h}`,
+      )
+      .join(" ");
+    return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><polyline points="${points}" fill="none" stroke="var(--accent)" stroke-width="1.5"/></svg>`;
+  }
+
+  function timeAgo(dateStr) {
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diff = Math.floor((now - d) / 86400000);
+    if (diff === 0) return "today";
+    if (diff === 1) return "yesterday";
+    if (diff < 7) return diff + "d ago";
+    if (diff < 30) return Math.floor(diff / 7) + "w ago";
+    return d.toLocaleDateString();
+  }
+
+  // State
+  let allRoutes = [];
+  let activeFilter = "all";
+  let currentSort = "recent";
+  let searchQuery = "";
+
+  // Fetch and render
+  async function loadRoutes() {
+    const params = new URLSearchParams();
+    if (activeFilter !== "all") params.set("type", activeFilter);
+    if (searchQuery) params.set("search", searchQuery);
+    params.set("sort", currentSort);
+
+    try {
+      const response = await apiRequest(`/api/routes?${params}`);
+      if (response.ok) {
+        allRoutes = await response.json();
+        renderRoutes();
+      }
+    } catch (err) {
+      console.error("Failed to load routes:", err);
+    }
+  }
+
+  function renderRoutes() {
+    const container = document.getElementById("route-list");
+    const emptyState = document.getElementById("empty-state");
+    const countEl = document.getElementById("route-count");
+
+    countEl.textContent =
+      allRoutes.length + " route" + (allRoutes.length !== 1 ? "s" : "");
+
+    if (allRoutes.length === 0) {
+      container.innerHTML = "";
+      emptyState.style.display = "block";
+      return;
+    }
+
+    emptyState.style.display = "none";
+    container.innerHTML = allRoutes
+      .map(
+        (route) => `
+        <a href="/routes/${route.id}" class="route-item ${route.status === "sent" ? "route-sent" : ""}">
+            <div class="grade-badge grade-${gradeColor(route.grade)}">${route.grade}</div>
+            <div class="route-info">
+                <div class="route-name">${route.name}</div>
+                <div class="route-meta">${route.location || "No location"} · ${route.attempt_count} attempt${route.attempt_count !== 1 ? "s" : ""}${route.last_attempt_date ? " · " + timeAgo(route.last_attempt_date) : ""}</div>
+            </div>
+            <div class="route-sparkline">${renderSparkline(route.sparkline)}</div>
+        </a>
+    `,
+      )
+      .join("");
+  }
+
+  // Filter chips
+  document.querySelectorAll(".filter-chip").forEach((chip) => {
+    chip.addEventListener("click", () => {
+      document.querySelector(".filter-chip.active").classList.remove("active");
+      chip.classList.add("active");
+      activeFilter = chip.dataset.type;
+      loadRoutes();
+    });
+  });
+
+  // Search
+  document.getElementById("search-input").addEventListener("input", (e) => {
+    searchQuery = e.target.value;
+    clearTimeout(window._searchTimeout);
+    window._searchTimeout = setTimeout(loadRoutes, 300);
+  });
+
+  // Sort
+  document.getElementById("sort-select").addEventListener("change", (e) => {
+    currentSort = e.target.value;
+    loadRoutes();
+  });
+
+  // Create route modal
+  function openCreateModal() {
+    document.getElementById("create-route-modal").classList.remove("hidden");
+  }
+
+  function closeCreateModal() {
+    document.getElementById("create-route-modal").classList.add("hidden");
+  }
+
+  // Close modal on backdrop click
+  document
+    .getElementById("create-route-modal")
+    .addEventListener("click", (e) => {
+      if (e.target === e.currentTarget) closeCreateModal();
+    });
+
+  async function createRoute(e) {
+    e.preventDefault();
+    const form = e.target;
+    const data = {
+      name: form.name.value,
+      grade: form.grade.value,
+      grade_system: form.grade_system.value,
+      type: form.type.value,
+      location: form.location.value || null,
+    };
+    try {
+      const response = await apiRequest("/api/routes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (response.ok) {
+        showAlert("Route created!", "success");
+        closeCreateModal();
+        form.reset();
+        loadRoutes();
+      } else {
+        const err = await response.json().catch(() => ({}));
+        const detail = err.detail;
+        const msg = Array.isArray(detail)
+          ? detail.map((d) => d.msg).join(", ")
+          : detail || "Failed to create route";
+        showAlert(msg, "error");
+      }
+    } catch (err) {
+      showAlert(err.message || "Failed to create route", "error");
+    }
+  }
+
+  // Init
+  document.addEventListener("DOMContentLoaded", () => {
+    if (!authToken) {
+      window.location.href = "/login";
+      return;
+    }
+    loadRoutes();
+  });
+</script>
+{% endblock %}

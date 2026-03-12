@@ -7,7 +7,7 @@ from climb_sensei.metrics_viz import (
     overlay_metrics_on_frame,
     draw_metric_text_overlay,
 )
-from climb_sensei.config import VisualizationConfig
+from climb_sensei.config import VIZ
 
 
 class TestCreateMetricPlot:
@@ -21,8 +21,8 @@ class TestCreateMetricPlot:
         plot = create_metric_plot(values, current_frame)
 
         assert plot.shape == (
-            VisualizationConfig.PLOT_HEIGHT,
-            VisualizationConfig.PLOT_WIDTH,
+            VIZ.plot_height,
+            VIZ.plot_width,
             3,
         )
         assert plot.dtype == np.uint8
@@ -40,8 +40,8 @@ class TestCreateMetricPlot:
         plot = create_metric_plot([], 0)
 
         assert plot.shape == (
-            VisualizationConfig.PLOT_HEIGHT,
-            VisualizationConfig.PLOT_WIDTH,
+            VIZ.plot_height,
+            VIZ.plot_width,
             3,
         )
         # Should return background without errors
@@ -51,8 +51,8 @@ class TestCreateMetricPlot:
         plot = create_metric_plot([5.0], 0)
 
         assert plot.shape == (
-            VisualizationConfig.PLOT_HEIGHT,
-            VisualizationConfig.PLOT_WIDTH,
+            VIZ.plot_height,
+            VIZ.plot_width,
             3,
         )
 
@@ -63,8 +63,8 @@ class TestCreateMetricPlot:
         plot = create_metric_plot(values, 1, title="Test Metric")
 
         assert plot.shape == (
-            VisualizationConfig.PLOT_HEIGHT,
-            VisualizationConfig.PLOT_WIDTH,
+            VIZ.plot_height,
+            VIZ.plot_width,
             3,
         )
 
@@ -75,8 +75,8 @@ class TestCreateMetricPlot:
         plot = create_metric_plot(values, 1, color=(255, 0, 0))
 
         assert plot.shape == (
-            VisualizationConfig.PLOT_HEIGHT,
-            VisualizationConfig.PLOT_WIDTH,
+            VIZ.plot_height,
+            VIZ.plot_width,
             3,
         )
 
@@ -87,8 +87,8 @@ class TestCreateMetricPlot:
         plot = create_metric_plot(values, 1, min_val=0.0, max_val=10.0)
 
         assert plot.shape == (
-            VisualizationConfig.PLOT_HEIGHT,
-            VisualizationConfig.PLOT_WIDTH,
+            VIZ.plot_height,
+            VIZ.plot_width,
             3,
         )
 
@@ -100,8 +100,8 @@ class TestCreateMetricPlot:
 
         # Should handle zero range without errors
         assert plot.shape == (
-            VisualizationConfig.PLOT_HEIGHT,
-            VisualizationConfig.PLOT_WIDTH,
+            VIZ.plot_height,
+            VIZ.plot_width,
             3,
         )
 
@@ -112,8 +112,8 @@ class TestCreateMetricPlot:
         plot = create_metric_plot(values, 1, y_label="units")
 
         assert plot.shape == (
-            VisualizationConfig.PLOT_HEIGHT,
-            VisualizationConfig.PLOT_WIDTH,
+            VIZ.plot_height,
+            VIZ.plot_width,
             3,
         )
 
@@ -124,8 +124,8 @@ class TestCreateMetricPlot:
         plot = create_metric_plot(values, 2, show_current=True)
 
         assert plot.shape == (
-            VisualizationConfig.PLOT_HEIGHT,
-            VisualizationConfig.PLOT_WIDTH,
+            VIZ.plot_height,
+            VIZ.plot_width,
             3,
         )
 
@@ -147,13 +147,9 @@ class TestCreateMetricsDashboard:
 
         dashboard = create_metrics_dashboard(history, current_frame=2)
 
-        assert (
-            dashboard.shape[1] == VisualizationConfig.PLOT_WIDTH
-        )  # Default plot width
+        assert dashboard.shape[1] == VIZ.plot_width  # Default plot width
         assert dashboard.shape[2] == 3  # BGR channels
-        assert (
-            dashboard.shape[0] > VisualizationConfig.PLOT_HEIGHT
-        )  # Multiple plots stacked
+        assert dashboard.shape[0] > VIZ.plot_height  # Multiple plots stacked
 
     def test_create_dashboard_custom_size(self):
         """Test dashboard with custom plot dimensions."""
@@ -174,7 +170,7 @@ class TestCreateMetricsDashboard:
 
         dashboard = create_metrics_dashboard(history, current_frame=0)
 
-        assert dashboard.shape == (100, VisualizationConfig.PLOT_WIDTH, 3)
+        assert dashboard.shape == (100, VIZ.plot_width, 3)
 
     def test_create_dashboard_partial_history(self):
         """Test dashboard with only some metrics."""

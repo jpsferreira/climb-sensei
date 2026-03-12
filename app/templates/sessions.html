@@ -1,0 +1,479 @@
+{% extends "base.html" %} {% block title %}Sessions - ClimbSensei{% endblock %}
+{% block content %}
+<div
+  class="flex justify-between items-center fade-up"
+  style="margin-bottom: 1.5rem"
+>
+  <div class="page-header" style="margin-bottom: 0">
+    <h1>Sessions</h1>
+    <p>Your climbing calendar</p>
+  </div>
+</div>
+
+<div class="card fade-up fade-up-delay-1">
+  <!-- Month navigation -->
+  <div class="calendar-nav">
+    <button onclick="prevMonth()" aria-label="Previous month">&#8249;</button>
+    <span class="calendar-month" id="calendarMonthLabel"></span>
+    <button onclick="nextMonth()" aria-label="Next month">&#8250;</button>
+  </div>
+
+  <!-- Calendar grid -->
+  <div class="calendar-grid" id="calendarGrid">
+    <div class="calendar-day-header">M</div>
+    <div class="calendar-day-header">T</div>
+    <div class="calendar-day-header">W</div>
+    <div class="calendar-day-header">T</div>
+    <div class="calendar-day-header">F</div>
+    <div class="calendar-day-header">S</div>
+    <div class="calendar-day-header">S</div>
+  </div>
+
+  <!-- Day detail -->
+  <div class="day-detail" id="dayDetail" style="display: none">
+    <div
+      style="height: 1px; background: var(--border); margin-bottom: 16px"
+    ></div>
+    <div class="day-detail-header" id="dayDetailHeader"></div>
+    <div id="dayDetailContent"></div>
+  </div>
+</div>
+{% endblock %} {% block extra_css %}
+<style>
+  /* ── Calendar Navigation ─────────────────────────────── */
+  .calendar-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding: 0 4px;
+  }
+  .calendar-nav button {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.4rem;
+    cursor: pointer;
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    line-height: 1;
+    transition:
+      color 0.2s,
+      background 0.2s;
+  }
+  .calendar-nav button:hover {
+    color: var(--text-primary);
+    background: var(--bg-hover);
+  }
+  .calendar-month {
+    font-family: var(--font-display);
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  /* ── Calendar Grid ───────────────────────────────────── */
+  .calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+    text-align: center;
+  }
+  .calendar-day-header {
+    font-family: var(--font-display);
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    padding: 8px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .calendar-day {
+    padding: 8px 4px;
+    font-size: 0.8rem;
+    font-family: var(--font-display);
+    border-radius: 8px;
+    cursor: pointer;
+    position: relative;
+    min-height: 36px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    transition: background 0.15s;
+    user-select: none;
+  }
+  .calendar-day:hover {
+    background: var(--bg-hover);
+  }
+  .calendar-day.today {
+    background: var(--accent);
+    color: #000;
+    font-weight: 700;
+  }
+  .calendar-day.today:hover {
+    background: var(--accent-bright);
+  }
+  .calendar-day.selected {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+  .calendar-day.today.selected {
+    outline: 2px solid #000;
+  }
+  .calendar-day.has-session::after {
+    content: "";
+    width: 5px;
+    height: 5px;
+    background: var(--accent);
+    border-radius: 50%;
+    position: absolute;
+    bottom: 3px;
+  }
+  .calendar-day.today.has-session::after {
+    background: #000;
+  }
+  .calendar-day.other-month {
+    color: var(--text-faint);
+    opacity: 0.4;
+  }
+  .calendar-day.other-month.has-session::after {
+    opacity: 0.5;
+  }
+
+  /* ── Day Detail ──────────────────────────────────────── */
+  .day-detail {
+    margin-top: 4px;
+  }
+  .day-detail-header {
+    font-family: var(--font-display);
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+  }
+  .day-detail-empty {
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    text-align: center;
+    padding: 20px;
+  }
+
+  /* ── Session Card ──────────────────────────────────── */
+  .session-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+    margin-bottom: 10px;
+  }
+  .session-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .session-card-title {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 0.88rem;
+    color: var(--text-primary);
+  }
+  .session-card-count {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    font-family: var(--font-display);
+  }
+
+  /* ── Route row inside session ──────────────────────── */
+  .session-route {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    background: var(--bg-raised);
+    border-radius: var(--radius-sm);
+    margin-bottom: 6px;
+    text-decoration: none;
+    color: inherit;
+    transition: background 0.15s;
+  }
+  .session-route:hover {
+    background: var(--bg-hover);
+  }
+  .session-route-grade {
+    font-family: var(--font-display);
+    font-size: 0.7rem;
+    font-weight: 800;
+    padding: 4px 7px;
+    border-radius: 5px;
+    min-width: 32px;
+    text-align: center;
+    background: var(--accent);
+    color: #000;
+  }
+  .session-route-name {
+    flex: 1;
+    font-size: 0.82rem;
+    font-weight: 500;
+  }
+  .session-route-attempts {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    font-family: var(--font-display);
+  }
+  .session-route-type {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-family: var(--font-display);
+  }
+
+  .session-notes {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    font-style: italic;
+    margin-top: 8px;
+    line-height: 1.5;
+  }
+  .session-location {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+</style>
+{% endblock %} {% block extra_js %}
+<script>
+  if (!authToken) {
+    window.location.href = "/login";
+  }
+
+  const MONTH_NAMES = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
+
+  let currentMonth = new Date().getMonth();
+  let currentYear = new Date().getFullYear();
+  let sessions = [];
+  let selectedDate = null;
+
+  async function loadSessions() {
+    try {
+      const res = await apiRequest(`${API_BASE}/sessions`);
+      if (!res.ok) return;
+      sessions = await res.json();
+      renderCalendar();
+    } catch (err) {
+      console.error("Failed to load sessions:", err);
+    }
+  }
+
+  function sessionDateKey(session) {
+    return session.date ? session.date.split("T")[0] : null;
+  }
+
+  function buildSessionDateSet() {
+    const s = new Set();
+    sessions.forEach((sess) => {
+      const key = sessionDateKey(sess);
+      if (key) s.add(key);
+    });
+    return s;
+  }
+
+  function renderCalendar() {
+    document.getElementById("calendarMonthLabel").textContent =
+      `${MONTH_NAMES[currentMonth]} ${currentYear}`;
+
+    const sessionDates = buildSessionDateSet();
+    const today = new Date();
+    const todayKey = isoDate(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate(),
+    );
+
+    const firstDay = new Date(currentYear, currentMonth, 1);
+    let startOffset = firstDay.getDay();
+    startOffset = startOffset === 0 ? 6 : startOffset - 1;
+
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    const daysInPrevMonth = new Date(currentYear, currentMonth, 0).getDate();
+
+    const grid = document.getElementById("calendarGrid");
+    const headers = Array.from(grid.querySelectorAll(".calendar-day-header"));
+    grid.innerHTML = "";
+    headers.forEach((h) => grid.appendChild(h));
+
+    for (let i = 0; i < startOffset; i++) {
+      const day = daysInPrevMonth - startOffset + 1 + i;
+      const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+      const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+      const dateKey = isoDate(prevYear, prevMonth, day);
+      grid.appendChild(makeDayCell(day, dateKey, sessionDates, todayKey, true));
+    }
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateKey = isoDate(currentYear, currentMonth, d);
+      grid.appendChild(makeDayCell(d, dateKey, sessionDates, todayKey, false));
+    }
+
+    const totalCells = startOffset + daysInMonth;
+    const trailingCount = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+    for (let d = 1; d <= trailingCount; d++) {
+      const nextMonth = currentMonth === 11 ? 0 : currentMonth + 1;
+      const nextYear = currentMonth === 11 ? currentYear + 1 : currentYear;
+      const dateKey = isoDate(nextYear, nextMonth, d);
+      grid.appendChild(makeDayCell(d, dateKey, sessionDates, todayKey, true));
+    }
+
+    if (selectedDate) renderDayDetail(selectedDate);
+  }
+
+  function makeDayCell(dayNum, dateKey, sessionDates, todayKey, isOtherMonth) {
+    const cell = document.createElement("div");
+    cell.className = "calendar-day";
+    cell.textContent = dayNum;
+    cell.dataset.date = dateKey;
+
+    if (isOtherMonth) cell.classList.add("other-month");
+    if (dateKey === todayKey) cell.classList.add("today");
+    if (sessionDates.has(dateKey)) cell.classList.add("has-session");
+    if (dateKey === selectedDate) cell.classList.add("selected");
+
+    cell.addEventListener("click", () => selectDay(dateKey));
+    return cell;
+  }
+
+  function isoDate(year, month, day) {
+    return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  }
+
+  function selectDay(dateKey) {
+    document
+      .querySelectorAll(".calendar-day.selected")
+      .forEach((el) => el.classList.remove("selected"));
+
+    if (selectedDate === dateKey) {
+      selectedDate = null;
+      document.getElementById("dayDetail").style.display = "none";
+      return;
+    }
+
+    selectedDate = dateKey;
+    const cell = document.querySelector(
+      `.calendar-day[data-date="${dateKey}"]`,
+    );
+    if (cell) cell.classList.add("selected");
+    renderDayDetail(dateKey);
+  }
+
+  function renderDayDetail(dateKey) {
+    const detailEl = document.getElementById("dayDetail");
+    const headerEl = document.getElementById("dayDetailHeader");
+    const contentEl = document.getElementById("dayDetailContent");
+    detailEl.style.display = "block";
+
+    const [y, m, d] = dateKey.split("-").map(Number);
+    const dateObj = new Date(y, m - 1, d);
+    headerEl.textContent = dateObj.toLocaleDateString("en-GB", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+
+    const daySessions = sessions.filter((s) => sessionDateKey(s) === dateKey);
+
+    if (daySessions.length === 0) {
+      contentEl.innerHTML = `
+        <div class="day-detail-empty">
+          No climbing this day
+        </div>`;
+      return;
+    }
+
+    contentEl.innerHTML = daySessions.map((s) => renderSessionCard(s)).join("");
+  }
+
+  function renderSessionCard(s) {
+    const routes = s.routes || [];
+    const routeCount = routes.length;
+    const attemptCount = routes.reduce((sum, r) => sum + r.attempt_count, 0);
+
+    const routeRows = routes
+      .map(
+        (r) => `
+      <a href="/routes/${r.route_id}" class="session-route">
+        <div class="session-route-grade">${escapeHtml(r.grade)}</div>
+        <div class="session-route-name">${escapeHtml(r.name)}</div>
+        <div class="session-route-type">${r.type}</div>
+        <div class="session-route-attempts">${r.attempt_count} attempt${r.attempt_count !== 1 ? "s" : ""}</div>
+      </a>`,
+      )
+      .join("");
+
+    const noRoutes =
+      routes.length === 0
+        ? '<div style="font-size: 0.78rem; color: var(--text-muted); padding: 8px 0;">No routes logged</div>'
+        : "";
+
+    return `
+      <div class="session-card">
+        <div class="session-card-header">
+          <div class="session-card-title">${escapeHtml(s.name || "Session")}</div>
+          <div class="session-card-count">${attemptCount} attempt${attemptCount !== 1 ? "s" : ""} &middot; ${routeCount} route${routeCount !== 1 ? "s" : ""}</div>
+        </div>
+        ${s.location ? `<div class="session-location">&#128205; ${escapeHtml(s.location)}</div>` : ""}
+        ${routeRows}
+        ${noRoutes}
+        ${s.notes ? `<div class="session-notes">${escapeHtml(s.notes)}</div>` : ""}
+      </div>`;
+  }
+
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function prevMonth() {
+    if (currentMonth === 0) {
+      currentMonth = 11;
+      currentYear--;
+    } else {
+      currentMonth--;
+    }
+    renderCalendar();
+  }
+
+  function nextMonth() {
+    if (currentMonth === 11) {
+      currentMonth = 0;
+      currentYear++;
+    } else {
+      currentMonth++;
+    }
+    renderCalendar();
+  }
+
+  loadSessions();
+</script>
+{% endblock %}

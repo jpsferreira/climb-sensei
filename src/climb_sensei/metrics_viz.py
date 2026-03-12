@@ -7,17 +7,17 @@ and overlay them on video frames.
 from typing import List, Dict, Optional, Tuple
 import numpy as np
 import cv2
-from .config import VisualizationConfig
+from .config import VIZ, COLORS  # noqa: F401
 
 
 def create_metric_plot(
     values: List[float],
     current_frame: int,
-    width: int = VisualizationConfig.PLOT_WIDTH,
-    height: int = VisualizationConfig.PLOT_HEIGHT,
+    width: int = VIZ.plot_width,
+    height: int = VIZ.plot_height,
     title: str = "",
     color: Tuple[int, int, int] = (0, 255, 0),
-    background_color: Tuple[int, int, int] = VisualizationConfig.PLOT_BACKGROUND_COLOR,
+    background_color: Tuple[int, int, int] = VIZ.plot_background_color,
     show_current: bool = True,
     y_label: str = "",
     min_val: Optional[float] = None,
@@ -59,10 +59,10 @@ def create_metric_plot(
         value_range = 1.0
 
     # Plot margins - from config
-    margin_left = VisualizationConfig.PLOT_MARGIN_LEFT
-    margin_right = VisualizationConfig.PLOT_MARGIN_RIGHT
-    margin_top = VisualizationConfig.PLOT_MARGIN_TOP
-    margin_bottom = VisualizationConfig.PLOT_MARGIN_BOTTOM
+    margin_left = VIZ.plot_margin_left
+    margin_right = VIZ.plot_margin_right
+    margin_top = VIZ.plot_margin_top
+    margin_bottom = VIZ.plot_margin_bottom
 
     plot_width = width - margin_left - margin_right
     plot_height = height - margin_top - margin_bottom
@@ -74,9 +74,9 @@ def create_metric_plot(
             title,
             (margin_left, 25),
             cv2.FONT_HERSHEY_SIMPLEX,
-            VisualizationConfig.PLOT_TITLE_FONT_SCALE,
-            VisualizationConfig.PLOT_TITLE_COLOR,
-            VisualizationConfig.PLOT_TITLE_THICKNESS,
+            VIZ.plot_title_font_scale,
+            VIZ.plot_title_color,
+            VIZ.plot_title_thickness,
             cv2.LINE_AA,
         )
 
@@ -88,9 +88,9 @@ def create_metric_plot(
             f"{max_val:.2f}",
             (5, margin_top + 5),
             cv2.FONT_HERSHEY_SIMPLEX,
-            VisualizationConfig.PLOT_LABEL_FONT_SCALE,
-            VisualizationConfig.PLOT_LABEL_COLOR,
-            VisualizationConfig.PLOT_LABEL_THICKNESS,
+            VIZ.plot_label_font_scale,
+            VIZ.plot_label_color,
+            VIZ.plot_label_thickness,
             cv2.LINE_AA,
         )
         # Min value
@@ -99,9 +99,9 @@ def create_metric_plot(
             f"{min_val:.2f}",
             (5, height - margin_bottom),
             cv2.FONT_HERSHEY_SIMPLEX,
-            VisualizationConfig.PLOT_LABEL_FONT_SCALE,
-            VisualizationConfig.PLOT_LABEL_COLOR,
-            VisualizationConfig.PLOT_LABEL_THICKNESS,
+            VIZ.plot_label_font_scale,
+            VIZ.plot_label_color,
+            VIZ.plot_label_thickness,
             cv2.LINE_AA,
         )
 
@@ -118,7 +118,7 @@ def create_metric_plot(
             plot,
             (margin_left, y),
             (width - margin_right, y),
-            VisualizationConfig.PLOT_GRID_COLOR,
+            VIZ.plot_grid_color,
             1,
         )
 
@@ -138,7 +138,7 @@ def create_metric_plot(
                 points[i],
                 points[i + 1],
                 color,
-                VisualizationConfig.PLOT_LINE_THICKNESS,
+                VIZ.plot_line_thickness,
                 cv2.LINE_AA,
             )
 
@@ -148,16 +148,16 @@ def create_metric_plot(
             cv2.circle(
                 plot,
                 curr_point,
-                VisualizationConfig.PLOT_CURRENT_MARKER_INNER_RADIUS,
-                VisualizationConfig.PLOT_CURRENT_MARKER_INNER_COLOR,
+                VIZ.plot_current_marker_inner_radius,
+                VIZ.plot_current_marker_inner_color,
                 -1,
             )
             cv2.circle(
                 plot,
                 curr_point,
-                VisualizationConfig.PLOT_CURRENT_MARKER_OUTER_RADIUS,
+                VIZ.plot_current_marker_outer_radius,
                 color,
-                VisualizationConfig.PLOT_CURRENT_MARKER_OUTER_THICKNESS,
+                VIZ.plot_current_marker_outer_thickness,
             )
 
             # Draw vertical line at current position
@@ -165,7 +165,7 @@ def create_metric_plot(
                 plot,
                 (curr_point[0], margin_top),
                 (curr_point[0], height - margin_bottom),
-                VisualizationConfig.PLOT_CURRENT_LINE_COLOR,
+                VIZ.plot_current_line_color,
                 1,
             )
 
@@ -176,8 +176,8 @@ def create_metrics_dashboard(
     history: Dict[str, List[float]],
     current_frame: int,
     fps: float = 30.0,
-    plot_width: int = VisualizationConfig.PLOT_WIDTH,
-    plot_height: int = VisualizationConfig.PLOT_HEIGHT,
+    plot_width: int = VIZ.plot_width,
+    plot_height: int = VIZ.plot_height,
 ) -> np.ndarray:
     """Create a dashboard with multiple metric plots.
 

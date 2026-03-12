@@ -46,24 +46,24 @@ lint-fix: ## Fix linting issues automatically
 .PHONY: test
 test: ## Run tests with pytest
 	@echo "🚀 Testing code: Running pytest"
-	@pytest --cov --cov-config=pyproject.toml --cov-report=term-missing
+	@uv run pytest --cov --cov-config=pyproject.toml --cov-report=term-missing
 	@echo "✅ Tests complete!"
 
 .PHONY: test-fast
 test-fast: ## Run tests without coverage
 	@echo "🚀 Running fast tests (no coverage)"
-	@pytest -v
+	@uv run pytest -v
 	@echo "✅ Tests complete!"
 
 .PHONY: test-watch
 test-watch: ## Run tests in watch mode
 	@echo "🚀 Running tests in watch mode"
-	@pytest-watch
+	@uv run pytest-watch
 
 .PHONY: coverage
 coverage: ## Generate HTML coverage report
 	@echo "🚀 Generating coverage report"
-	@pytest --cov --cov-config=pyproject.toml --cov-report=html
+	@uv run pytest --cov --cov-config=pyproject.toml --cov-report=html
 	@echo "✅ Coverage report generated in htmlcov/index.html"
 	@open htmlcov/index.html || xdg-open htmlcov/index.html
 
@@ -136,7 +136,7 @@ clean-build: ## Clean build artifacts
 	@echo "✅ Build artifacts removed!"
 
 .PHONY: all
-all: clean install check test ## Run all checks and tests
+all: clean install-dev check test ## Run all checks and tests
 	@echo "✅ All tasks complete!"
 
 .PHONY: qa

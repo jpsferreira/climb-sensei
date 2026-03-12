@@ -5,8 +5,13 @@ biomechanical metrics such as joint angles and distances.
 All functions are stateless and work with normalized coordinates.
 """
 
+from __future__ import annotations
+
 import math
-from typing import Tuple
+from typing import TYPE_CHECKING, Tuple
+
+if TYPE_CHECKING:
+    from .config import LandmarkIndex
 
 
 def calculate_joint_angle(
@@ -138,7 +143,7 @@ def calculate_center_of_mass(
 
 
 def calculate_limb_angles(
-    landmarks: list[dict[str, float]], landmark_indices: object
+    landmarks: list[dict[str, float]], landmark_indices: type[LandmarkIndex]
 ) -> dict[str, float]:
     """Calculate joint angles for all major limbs.
 
