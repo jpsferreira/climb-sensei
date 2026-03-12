@@ -114,42 +114,6 @@ endblock %} {% block extra_css %}
     text-decoration: underline;
   }
 
-  /* Analysis option chips */
-  .option-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    margin-bottom: 1.25rem;
-  }
-  .option-chip {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.5rem 0.9rem;
-    background: var(--bg-base);
-    border: 1px solid var(--border);
-    border-radius: 100px;
-    cursor: pointer;
-    font-size: 0.82rem;
-    font-family: var(--font-display);
-    font-weight: 500;
-    color: var(--text-secondary);
-    transition: all 0.2s;
-    user-select: none;
-  }
-  .option-chip:hover {
-    border-color: var(--border-light);
-    background: var(--bg-hover);
-  }
-  .option-chip input[type="checkbox"] {
-    display: none;
-  }
-  .option-chip.chip-on {
-    border-color: var(--accent-dim);
-    background: var(--accent-glow);
-    color: var(--accent-bright);
-  }
-
   .section-label {
     display: block;
     font-weight: 500;
@@ -157,26 +121,6 @@ endblock %} {% block extra_css %}
     font-size: 0.88rem;
     font-family: var(--font-display);
     margin-bottom: 0.5rem;
-  }
-
-  .session-today {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    background: var(--bg-base);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 0.6rem 0.85rem;
-    font-size: 0.88rem;
-    color: var(--text-secondary);
-    width: 100%;
-  }
-  .session-today .today-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: var(--success);
-    flex-shrink: 0;
   }
 </style>
 {% endblock %} {% block content %}
@@ -248,90 +192,6 @@ endblock %} {% block extra_css %}
           </label>
         </div>
         <small>Supported: MP4, MOV, AVI, MKV</small>
-      </div>
-
-      <!-- Session -->
-      <div class="form-group">
-        <label class="section-label">Session</label>
-        <div id="session-today-pill" class="session-today">
-          <span class="today-dot"></span>
-          <span id="session-today-label">Today — auto-create</span>
-        </div>
-        <div
-          id="session-dropdown-group"
-          class="hidden"
-          style="margin-top: 0.5rem"
-        >
-          <select id="session_id" name="session_id">
-            <option value="">Today (auto-create)</option>
-          </select>
-        </div>
-        <small>
-          <a href="#" id="toggle-session-picker" style="color: var(--teal)"
-            >Choose a different session</a
-          >
-        </small>
-      </div>
-
-      <!-- Analysis options -->
-      <div style="margin-bottom: 1.25rem">
-        <span class="section-label">Analysis options</span>
-        <div class="option-chips">
-          <label class="option-chip chip-on" id="chip-metrics">
-            <input
-              type="checkbox"
-              id="run_metrics"
-              name="run_metrics"
-              checked
-            />
-            <svg
-              width="13"
-              height="13"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              viewBox="0 0 24 24"
-            >
-              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-            </svg>
-            Metrics
-          </label>
-          <label class="option-chip" id="chip-video">
-            <input type="checkbox" id="run_video" name="run_video" />
-            <svg
-              width="13"
-              height="13"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              viewBox="0 0 24 24"
-            >
-              <polygon points="23 7 16 12 23 17 23 7" />
-              <rect x="1" y="5" width="15" height="14" rx="2" />
-            </svg>
-            Annotated Video
-          </label>
-          <label class="option-chip chip-on" id="chip-quality">
-            <input
-              type="checkbox"
-              id="run_quality"
-              name="run_quality"
-              checked
-            />
-            <svg
-              width="13"
-              height="13"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              viewBox="0 0 24 24"
-            >
-              <path d="M9 11l3 3L22 4" />
-              <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
-            </svg>
-            Quality Check
-          </label>
-        </div>
       </div>
 
       <button type="submit" class="btn" style="width: 100%">
@@ -538,35 +398,6 @@ endblock %} {% block extra_css %}
     document.getElementById("fileName").textContent = name;
   });
 
-  // ─── Option chip toggles ──────────────────────────────────────────────────
-  document.querySelectorAll(".option-chip").forEach((chip) => {
-    chip.addEventListener("click", () => {
-      const cb = chip.querySelector("input[type='checkbox']");
-      cb.checked = !cb.checked;
-      chip.classList.toggle("chip-on", cb.checked);
-    });
-  });
-
-  // ─── Session picker toggle ────────────────────────────────────────────────
-  document
-    .getElementById("toggle-session-picker")
-    .addEventListener("click", (e) => {
-      e.preventDefault();
-      const pill = document.getElementById("session-today-pill");
-      const dropdown = document.getElementById("session-dropdown-group");
-      const link = e.target;
-      const isShowing = !dropdown.classList.contains("hidden");
-      if (isShowing) {
-        dropdown.classList.add("hidden");
-        pill.style.display = "";
-        link.textContent = "Choose a different session";
-      } else {
-        dropdown.classList.remove("hidden");
-        pill.style.display = "none";
-        link.textContent = "Use today (auto-create)";
-      }
-    });
-
   // ─── Route prefill ────────────────────────────────────────────────────────
   function applyPrefilledRoute(route) {
     const color = gradeColor(route.grade);
@@ -604,31 +435,6 @@ endblock %} {% block extra_css %}
       });
     } catch (err) {
       console.error("Failed to load routes:", err);
-    }
-  }
-
-  // ─── Sessions ─────────────────────────────────────────────────────────────
-  async function loadSessions() {
-    try {
-      const resp = await apiRequest(`${API_BASE}/sessions`);
-      if (!resp.ok) return;
-      const sessions = await resp.json();
-      const select = document.getElementById("session_id");
-      const todayStr = new Date().toLocaleDateString(undefined, {
-        weekday: "long",
-        month: "short",
-        day: "numeric",
-      });
-      document.getElementById("session-today-label").textContent =
-        `Today, ${todayStr} — auto-create`;
-      sessions.forEach((s) => {
-        const opt = document.createElement("option");
-        opt.value = s.id;
-        opt.textContent = `${s.name} — ${new Date(s.date).toLocaleDateString()}`;
-        select.appendChild(opt);
-      });
-    } catch (err) {
-      console.error("Failed to load sessions:", err);
     }
   }
 
@@ -766,11 +572,10 @@ endblock %} {% block extra_css %}
       const form = e.target;
       const formData = new FormData(form);
 
-      // Checkboxes: explicitly set false for unchecked (backend defaults to true)
-      ["run_metrics", "run_video", "run_quality"].forEach((name) => {
-        const cb = document.getElementById(name);
-        formData.set(name, cb.checked ? "true" : "false");
-      });
+      // All analysis options always active
+      formData.set("run_metrics", "true");
+      formData.set("run_video", "true");
+      formData.set("run_quality", "true");
 
       // Resolve route_id: hidden input (prefilled) wins over dropdown
       const routeIdHidden = document.getElementById("route_id_hidden").value;
@@ -907,8 +712,6 @@ endblock %} {% block extra_css %}
     } else {
       await loadRouteDropdown();
     }
-
-    await loadSessions();
   });
 </script>
 {% endblock %}
