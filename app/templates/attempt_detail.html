@@ -1,0 +1,480 @@
+{% extends "base.html" %} {% block title %}Attempt Detail - ClimbSensei{%
+endblock %} {% block extra_css %}
+<style>
+  .back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 0.82rem;
+    font-family: var(--font-display);
+    margin-bottom: 10px;
+    transition: color 0.2s;
+  }
+  .back-link:hover {
+    color: var(--accent);
+  }
+
+  .attempt-header {
+    padding: 16px 0 20px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 20px;
+  }
+  .attempt-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .attempt-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    font-family: var(--font-display);
+  }
+  .attempt-date-label {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  /* ── Attempt navigation ──────────────────────────── */
+  .attempt-nav {
+    display: flex;
+    gap: 8px;
+  }
+  .attempt-nav-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 12px;
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    font-family: var(--font-display);
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.2s;
+  }
+  .attempt-nav-btn:hover {
+    border-color: var(--accent-dim);
+    color: var(--accent);
+    background: var(--accent-glow);
+  }
+  .attempt-nav-btn.disabled {
+    opacity: 0.35;
+    pointer-events: none;
+  }
+
+  /* ── Video section ───────────────────────────────── */
+  .video-section {
+    margin-bottom: 20px;
+  }
+  .video-wrapper {
+    background: #000;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    border: 1px solid var(--border);
+    position: relative;
+    aspect-ratio: 16 / 9;
+  }
+  .video-wrapper video {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: contain;
+  }
+  .video-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: var(--text-muted);
+    font-family: var(--font-display);
+    font-size: 0.88rem;
+  }
+  .video-placeholder svg {
+    opacity: 0.35;
+  }
+
+  /* ── Metrics grid ────────────────────────────────── */
+  .metrics-section {
+    margin-bottom: 20px;
+  }
+  .section-label {
+    font-family: var(--font-display);
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    margin-top: 16px;
+  }
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .metric-card {
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .metric-card:hover {
+    border-color: var(--border-light);
+  }
+  .metric-name {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-family: var(--font-display);
+    font-weight: 500;
+    margin-bottom: 6px;
+  }
+  .metric-value {
+    font-size: 1.4rem;
+    font-weight: 700;
+    font-family: var(--font-display);
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+  .metric-unit {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    font-weight: 400;
+    margin-left: 2px;
+  }
+  .metric-delta {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    margin-top: 5px;
+    font-size: 0.75rem;
+    font-family: var(--font-display);
+    font-weight: 600;
+  }
+  .delta-up {
+    color: var(--success);
+  }
+  .delta-down {
+    color: var(--error);
+  }
+  .delta-neutral {
+    color: var(--text-muted);
+  }
+
+  /* ── Fatigue highlight card ──────────────────────── */
+  .metric-card.featured {
+    grid-column: span 2;
+    background: linear-gradient(135deg, var(--bg-raised), var(--bg-surface));
+    border-color: var(--accent-dim);
+  }
+  .metric-card.featured .metric-value {
+    font-size: 2rem;
+    color: var(--accent);
+  }
+
+  /* ── Notes section ───────────────────────────────── */
+  .notes-section {
+    margin-bottom: 20px;
+  }
+  .notes-field {
+    width: 100%;
+    min-height: 90px;
+    padding: 12px;
+    background: var(--bg-base);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    font-family: var(--font-body);
+    resize: vertical;
+    transition: all 0.2s;
+  }
+  .notes-field::placeholder {
+    color: var(--text-faint);
+  }
+  .notes-field:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+  .notes-save-hint {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+  .notes-save-hint.saved {
+    color: var(--success);
+  }
+
+  @media (min-width: 480px) {
+    .metrics-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+    .metric-card.featured {
+      grid-column: span 3;
+    }
+  }
+
+  @media (max-width: 360px) {
+    .metric-value {
+      font-size: 1.15rem;
+    }
+  }
+</style>
+{% endblock %} {% block content %}
+<a href="/routes/{{ route_id }}" class="back-link" id="back-link"
+  >&larr; Route</a
+>
+
+<div id="attempt-header" class="attempt-header fade-up">
+  <p class="loading">Loading attempt...</p>
+</div>
+
+<div class="video-section fade-up fade-up-delay-1">
+  <div class="video-wrapper" id="video-wrapper">
+    <div class="video-placeholder">
+      <svg
+        width="48"
+        height="48"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.5"
+      >
+        <polygon points="5 3 19 12 5 21 5 3" />
+      </svg>
+      Loading...
+    </div>
+  </div>
+</div>
+
+<div class="metrics-section fade-up fade-up-delay-2" id="metrics-section">
+  <!-- Populated by JS -->
+</div>
+
+<div class="notes-section fade-up fade-up-delay-3">
+  <div class="section-label">Notes</div>
+  <textarea
+    class="notes-field"
+    id="notes-field"
+    placeholder="Add notes about this attempt..."
+  ></textarea>
+  <div class="notes-save-hint" id="notes-hint">
+    Auto-saves when you click away
+  </div>
+</div>
+{% endblock %} {% block extra_js %}
+<script>
+  const routeId = {{ route_id }};
+  const attemptId = {{ attempt_id }};
+
+  if (!authToken) {
+    window.location.href = '/login';
+  }
+
+  // ── Metric metadata (label, unit, whether higher is better) ──
+  const METRIC_META = {
+    avg_velocity:           { label: 'Avg Velocity',         unit: 'm/s',  higherBetter: true  },
+    max_velocity:           { label: 'Max Velocity',         unit: 'm/s',  higherBetter: true  },
+    max_height:             { label: 'Max Height',           unit: 'm',    higherBetter: true  },
+    total_vertical_progress:{ label: 'Vertical Progress',    unit: 'm',    higherBetter: true  },
+    avg_sway:               { label: 'Avg Sway',             unit: '',     higherBetter: false },
+    avg_movement_economy:   { label: 'Movement Economy',     unit: '',     higherBetter: true  },
+    lock_off_count:         { label: 'Lock-off Count',       unit: '',     higherBetter: null  },
+    rest_count:             { label: 'Rest Count',           unit: '',     higherBetter: null  },
+    fatigue_score:          { label: 'Fatigue Score',        unit: '',     higherBetter: false },
+  };
+
+  const CATEGORIES = [
+    { key: 'movement',   label: 'Movement',   metrics: ['avg_velocity', 'max_velocity', 'max_height', 'total_vertical_progress'] },
+    { key: 'stability',  label: 'Stability',  metrics: ['avg_sway'] },
+    { key: 'efficiency', label: 'Efficiency', metrics: ['avg_movement_economy', 'lock_off_count', 'rest_count'] },
+    { key: 'overall',    label: 'Overall',    metrics: ['fatigue_score'] },
+  ];
+
+  function formatValue(key, val) {
+    if (val == null) return '—';
+    if (['lock_off_count', 'rest_count'].includes(key)) return Math.round(val).toString();
+    return val.toFixed(2);
+  }
+
+  function deltaHtml(key, delta) {
+    if (delta == null) return '';
+    const meta = METRIC_META[key];
+    if (Math.abs(delta) < 0.001) {
+      return `<span class="metric-delta delta-neutral">&rarr; no change</span>`;
+    }
+    const improved = meta.higherBetter === null
+      ? null
+      : (meta.higherBetter ? delta > 0 : delta < 0);
+    const sign = delta > 0 ? '+' : '';
+    const formatted = ['lock_off_count', 'rest_count'].includes(key)
+      ? sign + Math.round(delta)
+      : sign + delta.toFixed(2);
+
+    if (improved === null) {
+      return `<span class="metric-delta delta-neutral">${formatted}</span>`;
+    }
+    return improved
+      ? `<span class="metric-delta delta-up">&#8593; ${formatted}</span>`
+      : `<span class="metric-delta delta-down">&#8595; ${formatted}</span>`;
+  }
+
+  function renderMetricCard(key, attempt) {
+    const meta = METRIC_META[key];
+    if (!meta) return '';
+    const val = attempt[key];
+    const delta = attempt.deltas ? attempt.deltas[key] : null;
+    const isFeatured = key === 'fatigue_score';
+    return `
+      <div class="metric-card${isFeatured ? ' featured' : ''}">
+        <div class="metric-name">${meta.label}</div>
+        <div>
+          <span class="metric-value">${formatValue(key, val)}</span>
+          ${meta.unit ? `<span class="metric-unit">${meta.unit}</span>` : ''}
+        </div>
+        ${deltaHtml(key, delta)}
+      </div>
+    `;
+  }
+
+  function renderMetrics(attempt) {
+    const container = document.getElementById('metrics-section');
+    let html = '';
+    for (const cat of CATEGORIES) {
+      const cards = cat.metrics.map(k => renderMetricCard(k, attempt)).join('');
+      html += `
+        <div class="section-label">${cat.label}</div>
+        <div class="metrics-grid">${cards}</div>
+      `;
+    }
+    container.innerHTML = html;
+  }
+
+  function renderHeader(attempt) {
+    const date = attempt.date
+      ? new Date(attempt.date).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+      : '';
+
+    const prevHref = attempt.prev_attempt_id
+      ? `/routes/${routeId}/attempts/${attempt.prev_attempt_id}`
+      : null;
+    const nextHref = attempt.next_attempt_id
+      ? `/routes/${routeId}/attempts/${attempt.next_attempt_id}`
+      : null;
+
+    document.getElementById('attempt-header').innerHTML = `
+      <div class="attempt-title-row">
+        <div>
+          <div class="attempt-title" id="route-name-label">Attempt</div>
+          <div class="attempt-date-label">${date}</div>
+        </div>
+        <div class="attempt-nav">
+          ${prevHref
+            ? `<a href="${prevHref}" class="attempt-nav-btn">&#8592; Prev</a>`
+            : `<span class="attempt-nav-btn disabled">&#8592; Prev</span>`}
+          ${nextHref
+            ? `<a href="${nextHref}" class="attempt-nav-btn">Next &#8594;</a>`
+            : `<span class="attempt-nav-btn disabled">Next &#8594;</span>`}
+        </div>
+      </div>
+    `;
+  }
+
+  async function loadRouteName() {
+    try {
+      const res = await apiRequest(`/api/routes/${routeId}`);
+      if (res.ok) {
+        const route = await res.json();
+        const nameEl = document.getElementById('route-name-label');
+        if (nameEl) nameEl.textContent = route.name || 'Attempt';
+        const backLink = document.getElementById('back-link');
+        if (backLink) backLink.textContent = '\u2190 ' + (route.name || 'Route');
+      }
+    } catch (_) { /* non-critical */ }
+  }
+
+  function renderVideo(attempt) {
+    const wrapper = document.getElementById('video-wrapper');
+    if (attempt.has_video && attempt.output_video_path) {
+      wrapper.innerHTML = `
+        <video controls playsinline preload="metadata">
+          <source src="${attempt.output_video_path}" type="video/mp4">
+          Your browser does not support the video tag.
+        </video>
+      `;
+    } else {
+      wrapper.innerHTML = `
+        <div class="video-placeholder">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <polygon points="5 3 19 12 5 21 5 3"/>
+          </svg>
+          <span>No video available for this attempt</span>
+        </div>
+      `;
+    }
+  }
+
+  async function loadAttempt() {
+    const res = await apiRequest(`/api/routes/${routeId}/attempts/${attemptId}`);
+    if (!res.ok) {
+      document.getElementById('attempt-header').innerHTML =
+        '<p style="color: var(--error)">Could not load attempt.</p>';
+      return;
+    }
+    const attempt = await res.json();
+    renderHeader(attempt);
+    renderVideo(attempt);
+    renderMetrics(attempt);
+
+    // Pre-fill notes
+    const notesField = document.getElementById('notes-field');
+    notesField.value = attempt.notes || '';
+  }
+
+  // ── Notes auto-save on blur ───────────────────────────────────
+  const notesField = document.getElementById('notes-field');
+  const notesHint = document.getElementById('notes-hint');
+
+  notesField.addEventListener('blur', async () => {
+    const notes = notesField.value;
+    try {
+      const res = await apiRequest(`/api/routes/${routeId}/attempts/${attemptId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ notes }),
+      });
+      if (res.ok) {
+        notesHint.textContent = 'Saved';
+        notesHint.classList.add('saved');
+        setTimeout(() => {
+          notesHint.textContent = 'Auto-saves when you click away';
+          notesHint.classList.remove('saved');
+        }, 2000);
+      } else {
+        notesHint.textContent = 'Failed to save notes';
+        notesHint.classList.remove('saved');
+      }
+    } catch (_) {
+      notesHint.textContent = 'Failed to save notes';
+      notesHint.classList.remove('saved');
+    }
+  });
+
+  loadAttempt();
+  loadRouteName();
+</script>
+{% endblock %}
