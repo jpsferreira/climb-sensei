@@ -19,18 +19,17 @@ import pytest
 # Skip entire module if playwright is not installed or browsers are missing
 pytest.importorskip("playwright")
 
-import shutil  # noqa: E402
+from playwright.sync_api import Page, expect, sync_playwright  # noqa: E402
 
-if not shutil.which("chromium") and not any(
-    p.exists()
-    for p in Path.home().glob(".cache/ms-playwright/chromium*/chrome-*/chrome*")
-):
+try:
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        browser.close()
+except Exception:
     pytest.skip(
         "Playwright browsers not installed (run: playwright install chromium)",
         allow_module_level=True,
     )
-
-from playwright.sync_api import Page, expect  # noqa: E402
 
 APP_PORT = 18765
 BASE_URL = f"http://localhost:{APP_PORT}"
