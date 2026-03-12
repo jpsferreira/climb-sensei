@@ -102,15 +102,68 @@ endblock %} {% block extra_css %}
     opacity: 0.35;
   }
 
-  /* ── History plots (video-synced) ────────────────── */
-  .plots-section {
+  /* ── History plot (video-synced, single metric) ─── */
+  .plot-section {
     margin-bottom: 20px;
     display: none;
   }
-  .plots-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 10px;
+  .plot-toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .plot-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 5px 12px;
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    font-family: var(--font-display);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .plot-toggle-btn:hover {
+    border-color: var(--accent-dim);
+    color: var(--accent);
+  }
+  .plot-toggle-btn.active {
+    background: var(--accent-glow);
+    border-color: var(--accent-dim);
+    color: var(--accent);
+  }
+  .plot-metric-chips {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+  .plot-metric-chip {
+    padding: 5px 12px;
+    border-radius: 16px;
+    font-size: 0.7rem;
+    font-family: var(--font-display);
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--bg-raised);
+    color: var(--text-muted);
+    transition: all 0.2s;
+  }
+  .plot-metric-chip:hover {
+    border-color: var(--border-light);
+    color: var(--text-secondary);
+  }
+  .plot-metric-chip.active {
+    border-color: var(--accent-dim);
+    background: var(--accent-glow);
+    color: var(--accent);
+    font-weight: 600;
   }
   .plot-card {
     background: var(--bg-raised);
@@ -130,7 +183,7 @@ endblock %} {% block extra_css %}
   }
   .plot-card canvas {
     width: 100%;
-    height: 80px;
+    height: 100px;
     display: block;
   }
   .plot-card .plot-value-badge {
@@ -138,15 +191,15 @@ endblock %} {% block extra_css %}
     top: 8px;
     right: 10px;
     font-family: var(--font-display);
-    font-size: 0.78rem;
+    font-size: 0.82rem;
     font-weight: 700;
     color: var(--accent);
   }
-
-  @media (min-width: 480px) {
-    .plots-grid {
-      grid-template-columns: repeat(2, 1fr);
-    }
+  .plot-inner {
+    display: none;
+  }
+  .plot-inner.visible {
+    display: block;
   }
 
   /* ── Metrics grid ────────────────────────────────── */
@@ -309,10 +362,32 @@ endblock %} {% block extra_css %}
   </div>
 </div>
 
-<div class="plots-section fade-up fade-up-delay-2" id="plots-section">
-  <div class="section-label">Live Metrics</div>
-  <div class="plots-grid" id="plots-grid">
-    <!-- Populated by JS when history data is available -->
+<div class="plot-section fade-up fade-up-delay-2" id="plot-section">
+  <div class="plot-toggle-row">
+    <div class="section-label" style="margin: 0">Live Metrics</div>
+    <button class="plot-toggle-btn" id="plot-toggle-btn" onclick="togglePlot()">
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+      </svg>
+      Show
+    </button>
+  </div>
+  <div class="plot-inner" id="plot-inner">
+    <div class="plot-metric-chips" id="plot-chips">
+      <!-- Populated by JS -->
+    </div>
+    <div class="plot-card">
+      <div class="plot-title" id="plot-active-title">—</div>
+      <div class="plot-value-badge" id="plot-value-badge">—</div>
+      <canvas id="plot-canvas"></canvas>
+    </div>
   </div>
 </div>
 
@@ -355,76 +430,108 @@ endblock %} {% block extra_css %}
 
   // ── History plot definitions (key in history dict → display config) ──
   const PLOT_DEFS = [
-    { key: 'hip_heights',       label: 'Vertical Progress', color: '#0ee5e5', invert: true,  unit: 'h' },
-    { key: 'velocities',        label: 'Movement Speed',    color: '#22c55e', invert: false, unit: 'vel' },
-    { key: 'sways',             label: 'Lateral Sway',      color: '#f59e0b', invert: false, unit: '' },
-    { key: 'body_angles',       label: 'Body Angle',        color: '#818cf8', invert: false, unit: 'deg' },
-    { key: 'movement_economy',  label: 'Movement Economy',  color: '#10b981', invert: false, unit: '' },
-    { key: 'jerks',             label: 'Smoothness (Jerk)', color: '#e879f9', invert: false, unit: '' },
-    { key: 'lock_offs',         label: 'Lock-offs',         color: '#fb923c', invert: false, unit: '' },
-    { key: 'hand_spans',        label: 'Hand Span',         color: '#38bdf8', invert: false, unit: '' },
+    { key: 'movement_economy',  label: 'Movement Economy',  color: '#10b981' },
+    { key: 'velocities',        label: 'Movement Speed',    color: '#22c55e' },
+    { key: 'hip_heights',       label: 'Vertical Progress', color: '#0ee5e5', invert: true },
+    { key: 'sways',             label: 'Lateral Sway',      color: '#f59e0b' },
+    { key: 'body_angles',       label: 'Body Angle',        color: '#818cf8' },
+    { key: 'jerks',             label: 'Smoothness (Jerk)', color: '#e879f9' },
+    { key: 'lock_offs',         label: 'Lock-offs',         color: '#fb923c' },
+    { key: 'hand_spans',        label: 'Hand Span',         color: '#38bdf8' },
   ];
 
-  // Store references for animation loop
-  let plotCanvases = [];   // [{canvas, ctx, data, color, badge}]
+  // Single-plot state
+  let activePlotData = {};   // key → processed data array
+  let availablePlots = [];   // PLOT_DEFS entries that have data
+  let activeMetricKey = null;
+  let plotCtx = null;
+  let plotCanvas = null;
   let historyFps = 30;
-  let totalFrames = 0;
+  let plotVisible = false;
 
   function initPlots(history, fps) {
-    const section = document.getElementById('plots-section');
-    const grid = document.getElementById('plots-grid');
+    const section = document.getElementById('plot-section');
     if (!history || Object.keys(history).length === 0) return;
 
     historyFps = fps || 30;
-    grid.innerHTML = '';
-    plotCanvases = [];
+    activePlotData = {};
+    availablePlots = [];
 
     for (const def of PLOT_DEFS) {
       let data = history[def.key];
       if (!data || !data.length) continue;
-
-      // For hip_heights, convert to vertical progress (invert)
-      if (def.invert && data.length > 0) {
+      if (def.invert) {
         const initial = data[0];
         data = data.map(v => initial - v);
       }
-
-      totalFrames = Math.max(totalFrames, data.length);
-
-      const card = document.createElement('div');
-      card.className = 'plot-card';
-      card.innerHTML = `
-        <div class="plot-title">${def.label}</div>
-        <div class="plot-value-badge" id="badge-${def.key}">—</div>
-        <canvas id="plot-${def.key}"></canvas>
-      `;
-      grid.appendChild(card);
-
-      const canvas = card.querySelector('canvas');
-      const dpr = window.devicePixelRatio || 1;
-      canvas.width = canvas.offsetWidth * dpr;
-      canvas.height = 80 * dpr;
-      const ctx = canvas.getContext('2d');
-      ctx.scale(dpr, dpr);
-
-      const badge = card.querySelector('.plot-value-badge');
-      plotCanvases.push({ canvas, ctx, data, color: def.color, badge, key: def.key });
-
-      // Draw initial state (full curve, dot at start)
-      drawPlot(ctx, canvas, data, def.color, 0);
+      activePlotData[def.key] = data;
+      availablePlots.push(def);
     }
 
-    if (plotCanvases.length > 0) {
-      section.style.display = 'block';
+    if (availablePlots.length === 0) return;
+    section.style.display = 'block';
+
+    // Build chips
+    const chipsEl = document.getElementById('plot-chips');
+    chipsEl.innerHTML = availablePlots.map(def =>
+      `<button class="plot-metric-chip" data-key="${def.key}">${def.label}</button>`
+    ).join('');
+
+    chipsEl.querySelectorAll('.plot-metric-chip').forEach(chip => {
+      chip.addEventListener('click', () => selectMetric(chip.dataset.key));
+    });
+
+    // Prepare canvas
+    plotCanvas = document.getElementById('plot-canvas');
+    const dpr = window.devicePixelRatio || 1;
+    plotCanvas.width = plotCanvas.offsetWidth * dpr;
+    plotCanvas.height = 100 * dpr;
+    plotCtx = plotCanvas.getContext('2d');
+    plotCtx.scale(dpr, dpr);
+
+    // Default to first available (Movement Economy if present)
+    selectMetric(availablePlots[0].key);
+  }
+
+  function selectMetric(key) {
+    activeMetricKey = key;
+    // Update chips
+    document.querySelectorAll('.plot-metric-chip').forEach(c => {
+      c.classList.toggle('active', c.dataset.key === key);
+    });
+    // Update title
+    const def = availablePlots.find(d => d.key === key);
+    document.getElementById('plot-active-title').textContent = def ? def.label : '';
+    // Redraw
+    const video = document.getElementById('attempt-video');
+    updatePlot(video ? video.currentTime : 0);
+  }
+
+  function togglePlot() {
+    plotVisible = !plotVisible;
+    const inner = document.getElementById('plot-inner');
+    const btn = document.getElementById('plot-toggle-btn');
+    inner.classList.toggle('visible', plotVisible);
+    btn.classList.toggle('active', plotVisible);
+    btn.querySelector('svg').nextSibling.textContent = plotVisible ? ' Hide' : ' Show';
+    if (plotVisible && activeMetricKey) {
+      // Resize canvas on first show
+      const dpr = window.devicePixelRatio || 1;
+      plotCanvas.width = plotCanvas.offsetWidth * dpr;
+      plotCanvas.height = 100 * dpr;
+      plotCtx = plotCanvas.getContext('2d');
+      plotCtx.scale(dpr, dpr);
+      const video = document.getElementById('attempt-video');
+      updatePlot(video ? video.currentTime : 0);
     }
   }
 
   function drawPlot(ctx, canvas, data, color, frameIndex) {
     const w = canvas.offsetWidth;
-    const h = 80;
+    const h = 100;
     ctx.clearRect(0, 0, w, h);
 
-    const pad = { top: 4, bottom: 4, left: 2, right: 2 };
+    const pad = { top: 6, bottom: 6, left: 4, right: 4 };
     const plotW = w - pad.left - pad.right;
     const plotH = h - pad.top - pad.bottom;
 
@@ -436,60 +543,57 @@ endblock %} {% block extra_css %}
     function xAt(i) { return pad.left + (i / Math.max(data.length - 1, 1)) * plotW; }
     function yAt(v) { return pad.top + plotH - ((v - minVal) / range) * plotH; }
 
-    // Draw filled area
+    // Filled area
     ctx.beginPath();
     ctx.moveTo(xAt(0), yAt(numericData[0]));
-    for (let i = 1; i < numericData.length; i++) {
-      ctx.lineTo(xAt(i), yAt(numericData[i]));
-    }
+    for (let i = 1; i < numericData.length; i++) ctx.lineTo(xAt(i), yAt(numericData[i]));
     ctx.lineTo(xAt(numericData.length - 1), h);
     ctx.lineTo(xAt(0), h);
     ctx.closePath();
     ctx.fillStyle = color + '15';
     ctx.fill();
 
-    // Draw curve
+    // Full curve (dimmed)
     ctx.beginPath();
     ctx.moveTo(xAt(0), yAt(numericData[0]));
-    for (let i = 1; i < numericData.length; i++) {
-      ctx.lineTo(xAt(i), yAt(numericData[i]));
-    }
-    ctx.strokeStyle = color + '60';
+    for (let i = 1; i < numericData.length; i++) ctx.lineTo(xAt(i), yAt(numericData[i]));
+    ctx.strokeStyle = color + '50';
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
-    // Draw highlighted portion up to current frame
+    // Highlighted portion up to current frame
     const fi = Math.min(Math.max(0, Math.round(frameIndex)), numericData.length - 1);
     if (fi > 0) {
       ctx.beginPath();
       ctx.moveTo(xAt(0), yAt(numericData[0]));
-      for (let i = 1; i <= fi; i++) {
-        ctx.lineTo(xAt(i), yAt(numericData[i]));
-      }
+      for (let i = 1; i <= fi; i++) ctx.lineTo(xAt(i), yAt(numericData[i]));
       ctx.strokeStyle = color;
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 2.5;
       ctx.stroke();
     }
 
-    // Draw dot at current frame
+    // Dot at current frame
     ctx.beginPath();
-    ctx.arc(xAt(fi), yAt(numericData[fi]), 4, 0, Math.PI * 2);
+    ctx.arc(xAt(fi), yAt(numericData[fi]), 5, 0, Math.PI * 2);
     ctx.fillStyle = color;
     ctx.fill();
     ctx.strokeStyle = '#0f1419';
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = 2;
     ctx.stroke();
+
+    return numericData[fi];
   }
 
-  function updatePlots(currentTime) {
+  function updatePlot(currentTime) {
+    if (!plotVisible || !activeMetricKey || !plotCtx) return;
+    const data = activePlotData[activeMetricKey];
+    const def = availablePlots.find(d => d.key === activeMetricKey);
+    if (!data || !def) return;
     const frameIndex = currentTime * historyFps;
-    for (const p of plotCanvases) {
-      drawPlot(p.ctx, p.canvas, p.data, p.color, frameIndex);
-      // Update badge with current value
-      const fi = Math.min(Math.max(0, Math.round(frameIndex)), p.data.length - 1);
-      const val = p.data[fi];
-      p.badge.textContent = typeof val === 'number' ? val.toFixed(2) : '—';
-    }
+    const val = drawPlot(plotCtx, plotCanvas, data, def.color, frameIndex);
+    const badge = document.getElementById('plot-value-badge');
+    badge.textContent = typeof val === 'number' ? val.toFixed(2) : '—';
+    badge.style.color = def.color;
   }
 
   const CATEGORIES = [
@@ -615,8 +719,8 @@ endblock %} {% block extra_css %}
       `;
       // Sync plots with video playback
       const video = document.getElementById('attempt-video');
-      video.addEventListener('timeupdate', () => updatePlots(video.currentTime));
-      video.addEventListener('seeked', () => updatePlots(video.currentTime));
+      video.addEventListener('timeupdate', () => updatePlot(video.currentTime));
+      video.addEventListener('seeked', () => updatePlot(video.currentTime));
     } else {
       wrapper.innerHTML = `
         <div class="video-placeholder">
