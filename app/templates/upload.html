@@ -180,54 +180,8 @@ endblock %} {% block extra_css %}
   }
 </style>
 {% endblock %} {% block content %}
-<!-- Auth gate -->
-<div
-  id="auth-required-message"
-  class="hidden"
-  style="text-align: center; padding: 4rem 2rem"
->
-  <div
-    style="
-      width: 56px;
-      height: 56px;
-      background: var(--accent-glow);
-      border: 1px solid var(--accent-dim);
-      border-radius: var(--radius-lg);
-      display: grid;
-      place-items: center;
-      margin: 0 auto 1.25rem;
-      font-size: 1.5rem;
-    "
-  >
-    &#9650;
-  </div>
-  <h2
-    style="
-      font-family: var(--font-display);
-      font-size: 1.5rem;
-      margin-bottom: 0.5rem;
-    "
-  >
-    Sign in to analyze
-  </h2>
-  <p style="color: var(--text-muted); margin-bottom: 1.5rem">
-    <a
-      href="/login"
-      style="color: var(--accent); text-decoration: none; font-weight: 500"
-      >Login</a
-    >
-    or
-    <a
-      href="/register"
-      style="color: var(--accent); text-decoration: none; font-weight: 500"
-      >Register</a
-    >
-    to upload and analyze climbing videos.
-  </p>
-</div>
-
 <!-- Upload form -->
-<div id="upload-section" class="hidden">
+<div id="upload-section">
   <div class="page-header fade-up">
     <h1>Analyze Attempt</h1>
     <p>Upload a climbing video for detailed biomechanical analysis.</p>
@@ -921,17 +875,10 @@ endblock %} {% block extra_css %}
 
   // ─── Init ─────────────────────────────────────────────────────────────────
   document.addEventListener("DOMContentLoaded", async () => {
-    const authMessage = document.getElementById("auth-required-message");
-    const uploadSection = document.getElementById("upload-section");
-
     if (!authToken) {
-      authMessage.classList.remove("hidden");
-      uploadSection.classList.add("hidden");
+      window.location.href = "/login";
       return;
     }
-
-    authMessage.classList.add("hidden");
-    uploadSection.classList.remove("hidden");
 
     const params = new URLSearchParams(window.location.search);
     prefilledRouteId = params.get("route_id");

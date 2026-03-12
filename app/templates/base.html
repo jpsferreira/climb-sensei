@@ -1133,7 +1133,6 @@
         authToken = data.access_token;
         localStorage.setItem("authToken", authToken);
         await loadCurrentUser();
-        updateAuthMenu();
         return true;
       }
 
@@ -1141,8 +1140,7 @@
         authToken = null;
         currentUser = null;
         localStorage.removeItem("authToken");
-        updateAuthMenu();
-        window.location.href = "/";
+        window.location.href = "/login";
       }
 
       async function loadCurrentUser() {
@@ -1159,50 +1157,10 @@
         return null;
       }
 
-      function getActivePage() {
-        const path = window.location.pathname;
-        return path === "/" ? "/" : path.replace(/\/$/, "");
-      }
-
-      function updateAuthMenu() {
-        const authMenu = document.getElementById("auth-menu");
-        const active = getActivePage();
-
-        if (authToken && currentUser) {
-          const links = [
-            { href: "/", label: "Upload" },
-            { href: "/dashboard", label: "Dashboard" },
-            { href: "/sessions", label: "Sessions" },
-            { href: "/goals", label: "Goals" },
-            { href: "/progress", label: "Progress" },
-          ];
-          authMenu.innerHTML =
-            links
-              .map(
-                (l) =>
-                  `<a href="${l.href}" class="${active === l.href ? "active" : ""}">${l.label}</a>`,
-              )
-              .join("") +
-            `
-                    <div class="nav-user">
-                        <span class="nav-user-email">${currentUser.email}</span>
-                        <button class="nav-btn-logout" onclick="logout()">Sign out</button>
-                    </div>
-                `;
-        } else {
-          authMenu.innerHTML = `
-                    <a href="/" class="${active === "/" ? "active" : ""}">Home</a>
-                    <a href="/login" class="${active === "/login" ? "active" : ""}">Login</a>
-                    <a href="/register" class="${active === "/register" ? "active" : ""}">Register</a>
-                `;
-        }
-      }
-
       document.addEventListener("DOMContentLoaded", async () => {
         if (authToken) {
           await loadCurrentUser();
         }
-        updateAuthMenu();
       });
     </script>
     {% block extra_js %}{% endblock %}

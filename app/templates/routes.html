@@ -465,15 +465,17 @@
         showAlert(err.detail || "Failed to create route", "error");
       }
     } catch (err) {
-      showAlert("Failed to create route", "error");
+      showAlert(err.message || "Failed to create route", "error");
     }
   }
 
   // Init
   document.addEventListener("DOMContentLoaded", () => {
-    if (authToken) {
-      loadRoutes();
+    if (!authToken) {
+      window.location.href = "/login";
+      return;
     }
+    loadRoutes();
   });
 </script>
 {% endblock %}
