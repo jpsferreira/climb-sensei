@@ -12,10 +12,6 @@ from typing import Any, Dict, List, Optional, Tuple
 from sqlalchemy.orm import Session
 
 from climb_sensei.config import CLIMBING_CONNECTIONS, CLIMBING_LANDMARKS
-from climb_sensei.metrics_viz import (
-    compose_frame_with_dashboard,
-    create_metrics_dashboard,
-)
 from climb_sensei.models import ClimbingAnalysis
 from climb_sensei.pose_engine import PoseEngine
 from climb_sensei.services import (
@@ -437,35 +433,31 @@ def generate_annotated_video(
     analysis_id: str,
     pose_results_history: List,
     fps: float,
-    history: Optional[Dict] = None,
-    dashboard_position: str = "right",
 ) -> str:
-    """Generate annotated video with pose overlay and optional dashboard.
+    """Generate annotated video with pose overlay only.
+
+    Metrics/plots are displayed in the web app UI, not composited onto
+    the video.  Output uses VP8/WebM for smaller file sizes.
 
     Args:
         upload_path: Path to original video
         analysis_id: Unique analysis ID
         pose_results_history: Cached pose results
         fps: Video FPS
-        history: Optional metric history for dashboard
-        dashboard_position: Dashboard position (left/right)
 
     Returns:
         Output video URL path
     """
-    output_video_path = OUTPUT_DIR / f"{analysis_id}_output.mp4"
+    output_video_path = OUTPUT_DIR / f"{analysis_id}_output.webm"
 
     output_frames = []
     output_dims = None
 
     with VideoReader(str(upload_path)) as reader:
-        frame_num = 0
         for pose_result in pose_results_history:
             success, frame = reader.read()
             if not success:
                 break
-
-            frame_num += 1
 
             if pose_result is not None:
                 annotated = draw_pose_landmarks(
@@ -475,33 +467,21 @@ def generate_annotated_video(
                     landmarks_to_draw=CLIMBING_LANDMARKS,
                 )
 
-                if history:
-                    dashboard = create_metrics_dashboard(
-                        history,
-                        current_frame=frame_num - 1,
-                        fps=fps,
-                    )
-                    output_frame = compose_frame_with_dashboard(
-                        annotated,
-                        dashboard,
-                        position=dashboard_position,
-                    )
-                else:
-                    output_frame = annotated
-
                 if output_dims is None:
-                    h, w = output_frame.shape[:2]
+                    h, w = annotated.shape[:2]
                     output_dims = (w, h)
 
-                output_frames.append(output_frame)
+                output_frames.append(annotated)
 
     if output_dims is not None:
         w, h = output_dims
-        with VideoWriter(str(output_video_path), fps=fps, width=w, height=h) as writer:
+        with VideoWriter(
+            str(output_video_path), fps=fps, width=w, height=h, fourcc="VP80"
+        ) as writer:
             for output_frame in output_frames:
                 writer.write(output_frame)
 
-    return f"/outputs/{analysis_id}_output.mp4"
+    return f"/outputs/{analysis_id}_output.webm"
 
 
 def persist_results(

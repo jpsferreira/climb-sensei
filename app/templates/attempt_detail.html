@@ -412,9 +412,11 @@ endblock %} {% block extra_css %}
     const wrapper = document.getElementById('video-wrapper');
     const videoSrc = attempt.output_video_path || attempt.original_video_url;
     if (videoSrc) {
+      const isWebm = videoSrc.endsWith('.webm');
+      const mimeType = isWebm ? 'video/webm' : 'video/mp4';
       wrapper.innerHTML = `
         <video controls playsinline preload="metadata">
-          <source src="${videoSrc}" type="video/mp4">
+          <source src="${videoSrc}" type="${mimeType}">
           Your browser does not support the video tag.
         </video>
       `;

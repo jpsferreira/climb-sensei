@@ -92,16 +92,13 @@ def _run_analysis_pipeline(
             )
             results["metrics"] = build_metrics_response(analysis, fps)
 
-        # Phase 5: Generate annotated video
+        # Phase 5: Generate annotated video (pose overlay only; plots shown in app)
         if run_video:
-            history = analysis.history if run_metrics and analysis else None
             results["video_output"] = generate_annotated_video(
                 upload_path,
                 analysis_id,
                 pose_results_history,
                 fps,
-                history=history,
-                dashboard_position=dashboard_position,
             )
 
         # Persist to database
