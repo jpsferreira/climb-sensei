@@ -119,10 +119,10 @@ class TestPageNavigation:
     """Test that all pages load and render correctly."""
 
     def test_home_page_loads(self, home: Page):
-        """Home page should load with title and upload section."""
-        expect(home).to_have_title("ClimbSensei - Upload & Analyze")
-        # Upload section may be hidden (requires auth), but the page renders
-        assert home.locator("#upload-section").count() == 1
+        """Home page should load the routes landing page."""
+        expect(home).to_have_title("My Routes — ClimbSensei")
+        # Routes page renders a route list and search bar
+        assert home.locator("#route-list").count() == 1
 
     def test_login_page_loads(self, page: Page, app_server):
         """Login page should have email/password form."""
@@ -140,38 +140,35 @@ class TestPageNavigation:
         expect(page.locator("#password")).to_be_visible()
         expect(page.locator("#confirmPassword")).to_be_visible()
 
-    def test_dashboard_page_loads(self, authenticated_page: Page):
-        """Dashboard page should load when authenticated."""
-        authenticated_page.goto(f"{BASE_URL}/dashboard")
-        expect(authenticated_page).to_have_title("Dashboard - ClimbSensei")
+    def test_dashboard_redirects_to_home(self, page: Page, app_server):
+        """Legacy /dashboard URL should redirect (301) to home."""
+        page.goto(f"{BASE_URL}/dashboard")
+        # Playwright follows redirects; verify we ended up at home
+        assert page.url == f"{BASE_URL}/" or page.url == BASE_URL + "/"
+        expect(page).to_have_title("My Routes — ClimbSensei")
 
     def test_sessions_page_loads(self, authenticated_page: Page):
         """Sessions page should load when authenticated."""
         authenticated_page.goto(f"{BASE_URL}/sessions")
         expect(authenticated_page).to_have_title("Sessions - ClimbSensei")
 
-    def test_progress_page_loads(self, authenticated_page: Page):
-        """Progress page should load when authenticated."""
-        authenticated_page.goto(f"{BASE_URL}/progress")
-        expect(authenticated_page).to_have_title("Progress - ClimbSensei")
+    def test_progress_redirects_to_home(self, page: Page, app_server):
+        """Legacy /progress URL should redirect (301) to home."""
+        page.goto(f"{BASE_URL}/progress")
+        assert page.url == f"{BASE_URL}/" or page.url == BASE_URL + "/"
+        expect(page).to_have_title("My Routes — ClimbSensei")
 
-    def test_goals_page_loads(self, authenticated_page: Page):
-        """Goals page should load when authenticated."""
-        authenticated_page.goto(f"{BASE_URL}/goals")
-        expect(authenticated_page).to_have_title("Goals - ClimbSensei")
+    def test_goals_redirects_to_profile(self, page: Page, app_server):
+        """Legacy /goals URL should redirect (301) to profile."""
+        page.goto(f"{BASE_URL}/goals")
+        assert page.url == f"{BASE_URL}/profile" or page.url == BASE_URL + "/profile"
 
-    def test_unauthenticated_dashboard_redirects_to_login(self, page: Page, app_server):
-        """Dashboard should redirect to login when not authenticated."""
-        page.goto(f"{BASE_URL}/dashboard")
-        page.wait_for_url("**/login", timeout=5000)
-        expect(page).to_have_title("Login - ClimbSensei")
-
-    def test_navbar_links_when_authenticated(self, authenticated_page: Page):
-        """Navbar should have navigation links when authenticated."""
+    def test_bottom_nav_links_when_authenticated(self, authenticated_page: Page):
+        """Bottom tab bar should have navigation links when authenticated."""
         authenticated_page.goto(BASE_URL)
         authenticated_page.wait_for_load_state("networkidle")
-        navbar = authenticated_page.locator(".navbar")
-        expect(navbar.locator("a[href='/']").first).to_be_visible()
+        bottom_nav = authenticated_page.locator(".bottom-nav")
+        expect(bottom_nav.locator("a[href='/']").first).to_be_visible()
 
 
 class TestAuthWorkflow:
@@ -190,7 +187,7 @@ class TestAuthWorkflow:
         # Should show success alert
         page.wait_for_selector(".alert", timeout=5000)
         alert = page.locator(".alert")
-        expect(alert).to_contain_text("successful")
+        expect(alert).to_contain_text("created")
 
     def test_register_password_mismatch(self, page: Page, app_server):
         """Should show error when passwords don't match."""
@@ -247,9 +244,10 @@ class TestUploadWorkflow:
         # May or may not be visible depending on JS auth state
         assert upload_section is not None
 
-    def test_upload_rejects_non_video(self, home: Page):
+    def test_upload_rejects_non_video(self, page: Page, app_server):
         """Should reject non-video file types via file input accept attribute."""
-        file_input = home.locator("#file")
+        page.goto(f"{BASE_URL}/upload")
+        file_input = page.locator("#file")
         accept = file_input.get_attribute("accept")
         assert accept == "video/*"
 

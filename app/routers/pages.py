@@ -1,7 +1,7 @@
 """Page routes serving HTML templates."""
 
 from fastapi import APIRouter
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from starlette.requests import Request
 
 from app.templating import templates
@@ -64,12 +64,10 @@ async def register_page(request: Request):
     )
 
 
-@router.get("/dashboard", response_class=HTMLResponse)
-async def dashboard_page(request: Request):
-    """Render the dashboard page."""
-    return templates.TemplateResponse(
-        "dashboard.html", {"request": request, "active_tab": "routes"}
-    )
+@router.get("/dashboard")
+async def dashboard_redirect():
+    """Redirect legacy dashboard URL to home."""
+    return RedirectResponse(url="/", status_code=301)
 
 
 @router.get("/sessions", response_class=HTMLResponse)
@@ -80,20 +78,16 @@ async def sessions_page(request: Request):
     )
 
 
-@router.get("/goals", response_class=HTMLResponse)
-async def goals_page(request: Request):
-    """Render the goals page."""
-    return templates.TemplateResponse(
-        "goals.html", {"request": request, "active_tab": "routes"}
-    )
+@router.get("/goals")
+async def goals_redirect():
+    """Redirect legacy goals URL to profile."""
+    return RedirectResponse(url="/profile", status_code=301)
 
 
-@router.get("/progress", response_class=HTMLResponse)
-async def progress_page(request: Request):
-    """Render the progress tracking page."""
-    return templates.TemplateResponse(
-        "progress.html", {"request": request, "active_tab": "routes"}
-    )
+@router.get("/progress")
+async def progress_redirect():
+    """Redirect legacy progress URL to home."""
+    return RedirectResponse(url="/", status_code=301)
 
 
 @router.get("/profile", response_class=HTMLResponse)

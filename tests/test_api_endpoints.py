@@ -127,11 +127,10 @@ class TestHomeEndpoint:
         assert response.status_code == 200
         assert "text/html" in response.headers["content-type"]
 
-    def test_home_contains_upload_form(self, client):
-        """Home page should contain upload form."""
+    def test_home_contains_routes_content(self, client):
+        """Home page should contain routes content."""
         response = client.get("/")
-        assert b"upload" in response.content.lower()
-        assert b"video" in response.content.lower()
+        assert b"route" in response.content.lower()
 
 
 class TestUploadEndpoint:
