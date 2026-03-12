@@ -14,6 +14,7 @@ from climb_sensei.auth.routes_new import router as auth_router
 from climb_sensei.database.config import init_db
 from climb_sensei.progress.routes import router as progress_router
 from climb_sensei.progress.route_routes import router as route_router
+from climb_sensei.progress.attempt_routes import router as attempt_router
 
 from app.routers.api import router as api_router
 from app.routers.pages import router as pages_router
@@ -42,6 +43,7 @@ def create_app() -> FastAPI:
     application.include_router(auth_router, prefix="/api")
     application.include_router(progress_router)
     application.include_router(route_router)
+    application.include_router(attempt_router)
     application.include_router(api_router)
     application.include_router(pages_router)
 

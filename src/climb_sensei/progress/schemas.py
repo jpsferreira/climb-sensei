@@ -70,7 +70,7 @@ class GoalBase(BaseModel):
 class GoalCreate(GoalBase):
     """Schema for creating a goal."""
 
-    pass
+    route_id: Optional[int] = None
 
 
 class GoalUpdate(BaseModel):
@@ -90,6 +90,7 @@ class GoalResponse(GoalBase):
 
     id: int
     user_id: int
+    route_id: Optional[int] = None
     current_value: Optional[float] = None
     created_at: datetime
     updated_at: datetime
@@ -104,7 +105,7 @@ class GoalResponse(GoalBase):
 class ClimbSessionBase(BaseModel):
     """Base schema for climbing sessions."""
 
-    name: str = Field(..., max_length=255)
+    name: Optional[str] = Field(None, max_length=255)
     date: datetime
     location: Optional[str] = Field(None, max_length=255)
     notes: Optional[str] = None

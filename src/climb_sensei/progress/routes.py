@@ -253,6 +253,7 @@ async def create_goal(
         current_value=current_value,
         deadline=goal.deadline,
         notes=goal.notes,
+        route_id=goal.route_id,
     )
 
     db.add(db_goal)
@@ -273,6 +274,7 @@ async def create_goal(
 @router.get("/goals", response_model=list[GoalResponse])
 async def list_goals(
     active_only: bool = Query(False, description="Show only active goals"),
+    route_id: int = Query(None, description="Filter goals by route ID"),
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ):
@@ -280,6 +282,7 @@ async def list_goals(
 
     Args:
         active_only: Filter to show only active (not achieved) goals
+        route_id: Optional route ID to filter goals for a specific route
         current_user: Authenticated user
         db: Database session
 
@@ -290,6 +293,9 @@ async def list_goals(
 
     if active_only:
         query = query.filter(Goal.achieved == 0)  # SQLite stores False as 0
+
+    if route_id:
+        query = query.filter(Goal.route_id == route_id)
 
     goals = query.order_by(Goal.created_at.desc()).all()
 
@@ -429,9 +435,10 @@ async def create_session(
     Returns:
         Created session
     """
+    name = session.name or session.date.strftime("%b %d, %Y")
     db_session = ClimbSession(
         user_id=current_user.id,
-        name=session.name,
+        name=name,
         date=session.date,
         location=session.location,
         notes=session.notes,

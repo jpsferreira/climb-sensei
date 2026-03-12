@@ -44,6 +44,7 @@ def _run_analysis_pipeline(
     run_quality: bool,
     dashboard_position: str,
     session_id,
+    route_id=None,
 ):
     """Run the full analysis pipeline in a background thread.
 
@@ -104,7 +105,7 @@ def _run_analysis_pipeline(
             )
 
         # Persist to database
-        persist_results(
+        db_analysis_id = persist_results(
             db=db,
             video_record=video_record,
             analysis=analysis,
@@ -116,6 +117,21 @@ def _run_analysis_pipeline(
             session_id=session_id,
             user_id=user_id,
         )
+
+        # Link attempt to route if route_id was provided
+        if route_id:
+            from climb_sensei.database.models import Attempt
+            from datetime import datetime, timezone
+
+            attempt = Attempt(
+                route_id=route_id,
+                video_id=video_id,
+                session_id=session_id,
+                analysis_id=db_analysis_id,
+                date=datetime.now(timezone.utc),
+            )
+            db.add(attempt)
+            db.commit()
 
         logger.info("Background analysis complete for video %d", video_id)
 
@@ -142,6 +158,7 @@ async def upload_video(
     run_quality: bool = Form(True),
     dashboard_position: str = Form("right"),
     session_id: int = Form(None),
+    route_id: int = Form(None),
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ):
@@ -180,6 +197,7 @@ async def upload_video(
             "run_quality": run_quality,
             "dashboard_position": dashboard_position,
             "session_id": session_id,
+            "route_id": route_id,
         },
         daemon=True,
     )
@@ -189,6 +207,7 @@ async def upload_video(
         status_code=202,
         content={
             "video_id": video_record.id,
+            "route_id": route_id,
             "status": VideoStatus.PROCESSING,
             "message": "Upload received. Analysis running in background.",
         },
