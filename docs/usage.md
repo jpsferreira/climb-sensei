@@ -2,15 +2,15 @@
 
 ## Analyzing Climbing Performance
 
-### ClimbingAnalyzer
+### ClimbingAnalysis
 
-The `ClimbingAnalyzer` class is the main interface for analyzing climbing metrics:
+The `ClimbingAnalysis` class is the main interface for analyzing climbing metrics:
 
 ```python
-from climb_sensei import ClimbingAnalyzer
+from climb_sensei import ClimbingAnalysis
 
 # Initialize with custom parameters
-analyzer = ClimbingAnalyzer(
+analyzer = ClimbingAnalysis(
     window_size=30,  # Frames for moving average (1 second at 30fps)
     fps=30           # Video frame rate
 )
@@ -243,11 +243,11 @@ When landmarks are already extracted (e.g., during `analyze_climb`), analyze tra
 from climb_sensei import (
     PoseEngine,
     VideoReader,
-    ClimbingAnalyzer,
+    ClimbingAnalysis,
     analyze_tracking_from_landmarks,
 )
 
-analyzer = ClimbingAnalyzer(window_size=30, fps=30)
+analyzer = ClimbingAnalysis(window_size=30, fps=30)
 landmarks_history = []
 
 with PoseEngine() as engine:
@@ -466,12 +466,12 @@ distance = calculate_total_distance_traveled(com_positions)
 ```python
 from climb_sensei import (
     PoseEngine, VideoReader, VideoWriter,
-    ClimbingAnalyzer, draw_pose_landmarks
+    ClimbingAnalysis, draw_pose_landmarks
 )
 from climb_sensei.metrics_viz import compose_frame_with_dashboard
 
 # Initialize
-analyzer = ClimbingAnalyzer(window_size=30, fps=30)
+analyzer = ClimbingAnalysis(window_size=30, fps=30)
 
 with PoseEngine() as engine:
     with VideoReader('input.mp4') as reader:

@@ -17,10 +17,10 @@ A Python pose estimation tool for analyzing climbing footage. Extract vertical m
 ## Quick Example
 
 ```python
-from climb_sensei import PoseEngine, VideoReader, ClimbingAnalyzer
+from climb_sensei import PoseEngine, VideoReader, ClimbingAnalysis
 
 # Analyze climbing performance
-analyzer = ClimbingAnalyzer(window_size=30, fps=30)
+analyzer = ClimbingAnalysis(window_size=30, fps=30)
 
 with PoseEngine() as engine:
     with VideoReader('climbing_video.mp4') as video:
@@ -55,7 +55,7 @@ climb-sensei/
 │   ├── video_io.py           # Video input/output handling
 │   ├── pose_engine.py        # MediaPipe pose estimation
 │   ├── biomechanics.py       # Pure mathematical calculations
-│   ├── metrics.py            # ClimbingAnalyzer with temporal tracking
+│   ├── metrics.py            # ClimbingAnalysis with temporal tracking
 │   ├── metrics_viz.py        # Metrics dashboard visualization
 │   └── viz.py                # Pose visualization utilities
 ├── scripts/

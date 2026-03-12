@@ -4,7 +4,7 @@ Complete API documentation for all public classes and functions.
 
 ## ClimbingAnalysis
 
-::: climb_sensei.metrics.ClimbingAnalysis
+::: climb_sensei.models.ClimbingAnalysis
 options:
 show_source: true
 heading_level: 3

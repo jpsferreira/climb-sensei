@@ -50,10 +50,10 @@ python scripts/analyze_climb.py climbing_video.mp4 --json data.json --video outp
 ### Basic Usage
 
 ```python
-from climb_sensei import PoseEngine, VideoReader, ClimbingAnalyzer
+from climb_sensei import PoseEngine, VideoReader, ClimbingAnalysis
 
 # Initialize analyzer
-analyzer = ClimbingAnalyzer(window_size=30, fps=30)
+analyzer = ClimbingAnalysis(window_size=30, fps=30)
 
 with PoseEngine() as engine:
     with VideoReader('climbing_video.mp4') as video:
