@@ -89,7 +89,7 @@ climb-sensei follows strict **Separation of Concerns** principles for maintainab
 
 **Purpose**: Temporal analysis and stateful tracking
 
-**Key Class**: `ClimbingAnalyzer`
+**Key Class**: `ClimbingAnalysis`
 
 **Responsibilities**:
 
@@ -156,7 +156,7 @@ PoseEngine → Landmarks (33 points)
     ↓
 biomechanics.py → Joint Angles, Distances
     ↓
-ClimbingAnalyzer → Metrics Dictionary
+ClimbingAnalysis → Metrics Dictionary
     ↓
     ├→ metrics_viz.py → Dashboard
     ├→ viz.py → Annotated Frame
@@ -198,7 +198,7 @@ VideoWriter → Output Video
 ```
 tests/
 ├── test_biomechanics.py       # Pure functions
-├── test_metrics.py            # ClimbingAnalyzer
+├── test_metrics.py            # ClimbingAnalysis
 ├── test_video_io.py          # Video I/O
 ├── test_pose_engine.py       # Pose detection
 ├── test_viz.py               # Visualization
@@ -241,10 +241,10 @@ from climb_sensei.domain.calculators import (
 
 **Location**: `metrics.py`
 
-`ClimbingAnalyzer` builds complex state over time:
+`ClimbingAnalysis` builds complex state over time:
 
 ```python
-analyzer = ClimbingAnalyzer(window_size=30, fps=30)
+analyzer = ClimbingAnalysis(window_size=30, fps=30)
 for landmarks in frames:
     metrics = analyzer.analyze_frame(landmarks)  # Builds internal state
 summary = analyzer.get_summary()  # Final product
@@ -265,7 +265,7 @@ with VideoReader('input.mp4') as video:
 
 **Location**: `metrics.py`
 
-`ClimbingAnalyzer` stores and retrieves historical data:
+`ClimbingAnalysis` stores and retrieves historical data:
 
 ```python
 history = analyzer.get_history()  # Retrieve all stored data
@@ -277,7 +277,7 @@ summary = analyzer.get_summary()  # Aggregate view
 ### Adding New Metrics
 
 1. **Pure Calculation**: Add function to `biomechanics.py`
-2. **Temporal Tracking**: Extend `ClimbingAnalyzer` in `metrics.py`
+2. **Temporal Tracking**: Extend `ClimbingAnalysis` in `metrics.py`
 3. **Visualization**: Add plot to `metrics_viz.py`
 4. **Tests**: Add test coverage
 
@@ -290,7 +290,7 @@ def calculate_leg_extension(landmarks: List[Tuple[float, float]]) -> float:
     return distance
 
 # 2. metrics.py
-class ClimbingAnalyzer:
+class ClimbingAnalysis:
     def analyze_frame(self, landmarks):
         leg_extension = calculate_leg_extension(landmarks)
         self._leg_extensions.append(leg_extension)

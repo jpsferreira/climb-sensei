@@ -157,7 +157,7 @@ make test
 tests/
 ├── __init__.py
 ├── test_biomechanics.py      # Pure function tests
-├── test_metrics.py           # ClimbingAnalyzer tests
+├── test_metrics.py           # ClimbingAnalysis tests
 ├── test_video_io.py          # Video I/O tests
 ├── test_pose_engine.py       # Pose detection tests
 ├── test_viz.py               # Visualization tests
