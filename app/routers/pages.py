@@ -94,3 +94,11 @@ async def progress_page(request: Request):
     return templates.TemplateResponse(
         "progress.html", {"request": request, "active_tab": "routes"}
     )
+
+
+@router.get("/profile", response_class=HTMLResponse)
+async def profile(request: Request):
+    """Render the profile page."""
+    return templates.TemplateResponse(
+        "profile.html", {"request": request, "active_tab": "profile"}
+    )

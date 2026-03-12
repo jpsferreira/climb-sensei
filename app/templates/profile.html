@@ -1,0 +1,739 @@
+{% extends "base.html" %} {% block title %}Profile - ClimbSensei{% endblock %}
+{% block extra_css %}
+<style>
+  /* ── Profile Header ───────────────────────────────────── */
+  .profile-header {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 1.5rem;
+  }
+  .avatar {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--teal));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--bg-deep);
+    flex-shrink: 0;
+  }
+  .profile-info h1 {
+    font-family: var(--font-display);
+    font-size: 1.4rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .profile-info p {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin-top: 2px;
+  }
+
+  /* ── Stats Grid ───────────────────────────────────────── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+  }
+  @media (min-width: 500px) {
+    .stats-grid {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
+
+  /* ── Section Header ───────────────────────────────────── */
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+  .section-header h2 {
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  /* ── Toggle Pills ─────────────────────────────────────── */
+  .toggle-pills {
+    display: inline-flex;
+    background: var(--bg-base);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 3px;
+    gap: 2px;
+  }
+  .toggle-pill {
+    padding: 5px 14px;
+    border-radius: 100px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    font-family: var(--font-display);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    min-height: 30px;
+  }
+  .toggle-pill.active {
+    background: var(--accent);
+    color: var(--bg-deep);
+  }
+
+  /* ── Grade Pyramid ────────────────────────────────────── */
+  .pyramid-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+  .pyramid-tab {
+    padding: 5px 14px;
+    border-radius: 100px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    font-family: var(--font-display);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    min-height: 30px;
+  }
+  .pyramid-tab.active {
+    border-color: var(--teal);
+    color: var(--teal);
+    background: var(--teal-glow);
+  }
+  .chart-wrap {
+    position: relative;
+    height: 220px;
+  }
+
+  /* ── Goal Card ────────────────────────────────────────── */
+  .goal-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem 1.25rem;
+    margin-bottom: 0.75rem;
+    cursor: pointer;
+    transition:
+      border-color 0.2s,
+      background 0.2s;
+    text-decoration: none;
+    display: block;
+  }
+  .goal-card:hover {
+    border-color: var(--border-light);
+    background: var(--bg-hover);
+  }
+  .goal-card.achieved {
+    border-left: 3px solid var(--success);
+  }
+  .goal-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.5rem;
+  }
+  .goal-name {
+    font-family: var(--font-display);
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  .goal-route {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+  .goal-meta {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin-top: 0.5rem;
+  }
+  .goal-meta .val {
+    font-family: var(--font-display);
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  /* ── Settings ─────────────────────────────────────────── */
+  .settings-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    padding: 0.9rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .settings-field:last-of-type {
+    border-bottom: none;
+  }
+  .settings-label {
+    font-size: 0.75rem;
+    font-family: var(--font-display);
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .settings-value {
+    font-size: 0.92rem;
+    color: var(--text-primary);
+  }
+  .settings-value.muted {
+    color: var(--text-muted);
+    font-style: italic;
+  }
+  .oauth-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.82rem;
+  }
+  .oauth-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .oauth-dot.connected {
+    background: var(--success);
+  }
+  .oauth-dot.disconnected {
+    background: var(--text-muted);
+  }
+
+  /* ── Logout ───────────────────────────────────────────── */
+  .logout-section {
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+  }
+</style>
+{% endblock %} {% block content %}
+
+<!-- Profile Header -->
+<div class="profile-header fade-up">
+  <div class="avatar" id="avatar-initials">?</div>
+  <div class="profile-info">
+    <h1 id="profile-name">Loading...</h1>
+    <p id="profile-email"></p>
+  </div>
+</div>
+
+<!-- Stats Section -->
+<div class="stats-grid fade-up fade-up-delay-1">
+  <div class="stat-card teal">
+    <h3 id="stat-routes">—</h3>
+    <p>Routes</p>
+  </div>
+  <div class="stat-card">
+    <h3 id="stat-sessions">—</h3>
+    <p>Sessions</p>
+  </div>
+  <div class="stat-card accent">
+    <h3 id="stat-attempts">—</h3>
+    <p>Attempts</p>
+  </div>
+  <div class="stat-card">
+    <h3 id="stat-freq">—</h3>
+    <p>Per Week</p>
+  </div>
+</div>
+
+<!-- Grade Pyramid -->
+<div class="card fade-up fade-up-delay-2">
+  <div class="section-header">
+    <h2>Grade Pyramid</h2>
+    <div class="pyramid-tabs">
+      <button
+        class="pyramid-tab active"
+        id="tab-boulder"
+        onclick="switchPyramidTab('boulder')"
+      >
+        Boulder
+      </button>
+      <button
+        class="pyramid-tab"
+        id="tab-sport"
+        onclick="switchPyramidTab('sport')"
+      >
+        Sport / Trad
+      </button>
+    </div>
+  </div>
+
+  <div id="pyramid-boulder">
+    <div class="chart-wrap">
+      <canvas id="chart-boulder"></canvas>
+    </div>
+    <div id="pyramid-boulder-empty" class="empty-state hidden">
+      <p>No boulder routes recorded yet</p>
+    </div>
+  </div>
+
+  <div id="pyramid-sport" class="hidden">
+    <div class="chart-wrap">
+      <canvas id="chart-sport"></canvas>
+    </div>
+    <div id="pyramid-sport-empty" class="empty-state hidden">
+      <p>No sport / trad routes recorded yet</p>
+    </div>
+  </div>
+</div>
+
+<!-- Goals Overview -->
+<div class="card fade-up fade-up-delay-3">
+  <div class="section-header">
+    <h2>Goals</h2>
+    <div class="toggle-pills">
+      <button
+        class="toggle-pill active"
+        id="pill-active"
+        onclick="switchGoalTab('active')"
+      >
+        Active
+      </button>
+      <button
+        class="toggle-pill"
+        id="pill-achieved"
+        onclick="switchGoalTab('achieved')"
+      >
+        Achieved
+      </button>
+    </div>
+  </div>
+
+  <div id="goals-active">
+    <p class="loading">Loading goals...</p>
+  </div>
+  <div id="goals-achieved" class="hidden">
+    <p class="loading">Loading goals...</p>
+  </div>
+</div>
+
+<!-- Settings -->
+<div class="card fade-up fade-up-delay-4">
+  <h2>Settings</h2>
+
+  <div class="settings-field">
+    <span class="settings-label">Name</span>
+    <span class="settings-value" id="settings-name">—</span>
+  </div>
+  <div class="settings-field">
+    <span class="settings-label">Email</span>
+    <span class="settings-value" id="settings-email">—</span>
+  </div>
+  <div class="settings-field">
+    <span class="settings-label">Member Since</span>
+    <span class="settings-value" id="settings-member-since">—</span>
+  </div>
+  <div class="settings-field">
+    <span class="settings-label">Password</span>
+    <a
+      href="/profile/change-password"
+      class="settings-value"
+      style="color: var(--teal); text-decoration: none; font-size: 0.9rem"
+      >Change password</a
+    >
+  </div>
+  <div class="settings-field">
+    <span class="settings-label">Google Account</span>
+    <span class="settings-value oauth-status" id="settings-oauth">
+      <span class="oauth-dot disconnected" id="oauth-dot"></span>
+      <span id="oauth-label">Not connected</span>
+    </span>
+  </div>
+
+  <div class="logout-section">
+    <button class="btn btn-danger" onclick="logout()" style="width: 100%">
+      Sign Out
+    </button>
+  </div>
+</div>
+
+{% endblock %} {% block extra_js %}
+<script>
+  if (!authToken) {
+    window.location.href = "/login";
+  }
+
+  // ── State ────────────────────────────────────────────────
+  let allRoutes = [];
+  let allSessions = [];
+  let activeGoals = [];
+  let achievedGoals = [];
+  let boulderChart = null;
+  let sportChart = null;
+  let currentPyramidTab = "boulder";
+  let currentGoalTab = "active";
+
+  // ── Bootstrap ────────────────────────────────────────────
+  async function loadProfile() {
+    await Promise.all([loadUser(), loadRoutes(), loadSessions(), loadGoals()]);
+  }
+
+  // ── User ─────────────────────────────────────────────────
+  async function loadUser() {
+    try {
+      const res = await apiRequest(`${API_BASE}/auth/me`);
+      if (!res.ok) return;
+      const user = await res.json();
+
+      const name = user.name || user.display_name || user.username || "";
+      const email = user.email || "";
+      const initials = getInitials(name || email);
+      const createdAt = user.created_at ? new Date(user.created_at) : null;
+      const hasGoogle = !!(
+        user.google_oauth_token || user.oauth_provider === "google"
+      );
+
+      document.getElementById("avatar-initials").textContent = initials;
+      document.getElementById("profile-name").textContent =
+        name || email || "Climber";
+      document.getElementById("profile-email").textContent = email;
+      document.getElementById("settings-name").textContent = name || "—";
+      document.getElementById("settings-email").textContent = email || "—";
+      document.getElementById("settings-member-since").textContent = createdAt
+        ? createdAt.toLocaleDateString(undefined, {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          })
+        : "—";
+
+      const dot = document.getElementById("oauth-dot");
+      const label = document.getElementById("oauth-label");
+      if (hasGoogle) {
+        dot.className = "oauth-dot connected";
+        label.textContent = "Connected";
+      } else {
+        dot.className = "oauth-dot disconnected";
+        label.textContent = "Not connected";
+      }
+    } catch (err) {
+      console.error("Failed to load user", err);
+    }
+  }
+
+  function getInitials(str) {
+    if (!str) return "?";
+    const parts = str.trim().split(/[\s@]+/);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return str.slice(0, 2).toUpperCase();
+  }
+
+  // ── Routes & Pyramid ─────────────────────────────────────
+  async function loadRoutes() {
+    try {
+      const res = await apiRequest(`${API_BASE}/routes`);
+      if (!res.ok) return;
+      allRoutes = await res.json();
+      document.getElementById("stat-routes").textContent = allRoutes.length;
+      buildPyramid();
+    } catch (err) {
+      console.error("Failed to load routes", err);
+    }
+  }
+
+  function buildPyramid() {
+    const boulderRoutes = allRoutes.filter((r) => r.type === "boulder");
+    const sportRoutes = allRoutes.filter((r) => r.type !== "boulder");
+
+    renderPyramidChart(
+      "boulder",
+      boulderRoutes,
+      document.getElementById("chart-boulder"),
+      document.getElementById("pyramid-boulder-empty"),
+    );
+    renderPyramidChart(
+      "sport",
+      sportRoutes,
+      document.getElementById("chart-sport"),
+      document.getElementById("pyramid-sport-empty"),
+    );
+  }
+
+  function renderPyramidChart(type, routes, canvas, emptyEl) {
+    // Group by grade and count
+    const gradeCounts = {};
+    routes.forEach((r) => {
+      const g = r.grade || "Unknown";
+      gradeCounts[g] = (gradeCounts[g] || 0) + 1;
+    });
+
+    const grades = Object.keys(gradeCounts).sort(gradeComparator);
+    const counts = grades.map((g) => gradeCounts[g]);
+
+    if (grades.length === 0) {
+      canvas.parentElement.classList.add("hidden");
+      emptyEl.classList.remove("hidden");
+      return;
+    }
+
+    emptyEl.classList.add("hidden");
+    canvas.parentElement.classList.remove("hidden");
+
+    const existingChart = type === "boulder" ? boulderChart : sportChart;
+    if (existingChart) existingChart.destroy();
+
+    const chart = new Chart(canvas.getContext("2d"), {
+      type: "bar",
+      data: {
+        labels: grades,
+        datasets: [
+          {
+            data: counts,
+            backgroundColor:
+              type === "boulder"
+                ? "rgba(245, 158, 11, 0.65)"
+                : "rgba(14, 165, 233, 0.65)",
+            borderColor:
+              type === "boulder"
+                ? "rgba(245, 158, 11, 0.9)"
+                : "rgba(14, 165, 233, 0.9)",
+            borderWidth: 1,
+            borderRadius: 4,
+            barThickness: 20,
+          },
+        ],
+      },
+      options: {
+        indexAxis: "y",
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) =>
+                ` ${ctx.parsed.x} route${ctx.parsed.x !== 1 ? "s" : ""}`,
+            },
+          },
+        },
+        scales: {
+          x: {
+            beginAtZero: true,
+            ticks: {
+              color: "#64748b",
+              font: { size: 10 },
+              stepSize: 1,
+              precision: 0,
+            },
+            grid: { color: "#1a2332" },
+          },
+          y: {
+            ticks: { color: "#94a3b8", font: { size: 11 } },
+            grid: { display: false },
+          },
+        },
+      },
+    });
+
+    if (type === "boulder") boulderChart = chart;
+    else sportChart = chart;
+  }
+
+  // Rough grade sort: V-scale, Font, YDS/French numbers
+  function gradeComparator(a, b) {
+    const vA = parseGradeOrder(a);
+    const vB = parseGradeOrder(b);
+    return vA - vB;
+  }
+
+  function parseGradeOrder(grade) {
+    if (!grade) return 9999;
+    // V-scale: V0 – V17
+    const vMatch = grade.match(/^[Vv](\d+)/);
+    if (vMatch) return parseInt(vMatch[1], 10);
+    // Font scale: 3 – 9a+
+    const fontMatch = grade.match(/^(\d+)/);
+    if (fontMatch) {
+      let base = parseFloat(fontMatch[1]) * 100;
+      if (grade.includes("a")) base += 0;
+      if (grade.includes("b")) base += 33;
+      if (grade.includes("c")) base += 66;
+      if (grade.includes("+")) base += 10;
+      return base;
+    }
+    return 9999;
+  }
+
+  function switchPyramidTab(tab) {
+    currentPyramidTab = tab;
+    document
+      .getElementById("pyramid-boulder")
+      .classList.toggle("hidden", tab !== "boulder");
+    document
+      .getElementById("pyramid-sport")
+      .classList.toggle("hidden", tab !== "sport");
+    document
+      .getElementById("tab-boulder")
+      .classList.toggle("active", tab === "boulder");
+    document
+      .getElementById("tab-sport")
+      .classList.toggle("active", tab === "sport");
+  }
+
+  // ── Sessions ─────────────────────────────────────────────
+  async function loadSessions() {
+    try {
+      const res = await apiRequest(`${API_BASE}/sessions`);
+      if (!res.ok) return;
+      allSessions = await res.json();
+
+      // Total attempts = sum of attempt_count across sessions (fallback: session count)
+      let totalAttempts = 0;
+      allSessions.forEach((s) => {
+        totalAttempts += s.attempt_count || s.attempts || 0;
+      });
+      document.getElementById("stat-sessions").textContent = allSessions.length;
+      document.getElementById("stat-attempts").textContent =
+        totalAttempts || "—";
+
+      // Sessions per week: count sessions in the last 4 weeks
+      const fourWeeksAgo = new Date();
+      fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
+      const recent = allSessions.filter(
+        (s) => s.date && new Date(s.date) >= fourWeeksAgo,
+      );
+      const perWeek = (recent.length / 4).toFixed(1);
+      document.getElementById("stat-freq").textContent =
+        parseFloat(perWeek) > 0 ? perWeek : "—";
+    } catch (err) {
+      console.error("Failed to load sessions", err);
+    }
+  }
+
+  // ── Goals ────────────────────────────────────────────────
+  async function loadGoals() {
+    try {
+      const [activeRes, achievedRes] = await Promise.all([
+        apiRequest(`${API_BASE}/goals?active_only=true`),
+        apiRequest(`${API_BASE}/goals?active_only=false`),
+      ]);
+
+      if (activeRes.ok) {
+        const all = await activeRes.json();
+        activeGoals = all.filter((g) => !g.achieved);
+      }
+      if (achievedRes.ok) {
+        const all = await achievedRes.json();
+        achievedGoals = all.filter((g) => g.achieved);
+      }
+      renderGoals("active");
+      renderGoals("achieved");
+    } catch (err) {
+      console.error("Failed to load goals", err);
+    }
+  }
+
+  function renderGoals(tab) {
+    const goals = tab === "active" ? activeGoals : achievedGoals;
+    const container = document.getElementById(`goals-${tab}`);
+
+    if (goals.length === 0) {
+      container.innerHTML = `<div class="empty-state"><p>${tab === "active" ? "No active goals right now." : "No achieved goals yet."}</p></div>`;
+      return;
+    }
+
+    container.innerHTML = goals
+      .map((g) => {
+        const pct =
+          g.target_value > 0
+            ? Math.min(
+                100,
+                Math.round((g.current_value / g.target_value) * 100),
+              )
+            : 0;
+        const achieved = g.achieved || pct >= 100;
+        const overdue =
+          g.deadline && !achieved && new Date(g.deadline) < new Date();
+        const metricLabel = formatMetric(g.metric_name);
+        const routeHref = g.route_id ? `/routes/${g.route_id}` : "#";
+        const deadline = g.deadline
+          ? new Date(g.deadline).toLocaleDateString(undefined, {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            })
+          : null;
+
+        return `
+        <a href="${routeHref}" class="goal-card ${achieved ? "achieved" : ""}" style="color: inherit;">
+          <div class="goal-card-header">
+            <div>
+              <div class="goal-name">
+                ${metricLabel}
+                ${achieved ? '<span class="badge badge-success" style="margin-left: 6px;">Achieved</span>' : ""}
+                ${overdue ? '<span class="badge badge-error" style="margin-left: 6px;">Overdue</span>' : ""}
+              </div>
+              ${g.route_name ? `<div class="goal-route">${g.route_name}</div>` : ""}
+            </div>
+          </div>
+          <div class="goal-meta">
+            <span>Target: <span class="val">${g.target_value}</span></span>
+            <span>Current: <span class="val">${g.current_value || 0}</span></span>
+            ${deadline ? `<span>Due: ${deadline}</span>` : ""}
+          </div>
+          ${
+            !achieved
+              ? `
+            <div style="margin-top: 0.6rem;">
+              <div class="flex justify-between" style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 3px;">
+                <span>Progress</span><span>${pct}%</span>
+              </div>
+              <div class="progress-bar">
+                <div class="progress-fill" style="width: ${pct}%;"></div>
+              </div>
+            </div>
+          `
+              : ""
+          }
+        </a>
+      `;
+      })
+      .join("");
+  }
+
+  function switchGoalTab(tab) {
+    currentGoalTab = tab;
+    document
+      .getElementById("goals-active")
+      .classList.toggle("hidden", tab !== "active");
+    document
+      .getElementById("goals-achieved")
+      .classList.toggle("hidden", tab !== "achieved");
+    document
+      .getElementById("pill-active")
+      .classList.toggle("active", tab === "active");
+    document
+      .getElementById("pill-achieved")
+      .classList.toggle("active", tab === "achieved");
+  }
+
+  function formatMetric(name) {
+    return (name || "")
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
+  // ── Init ─────────────────────────────────────────────────
+  loadProfile();
+</script>
+{% endblock %}
