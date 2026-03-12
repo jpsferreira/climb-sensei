@@ -11,9 +11,18 @@ router = APIRouter()
 
 @router.get("/", response_class=HTMLResponse)
 async def home(request: Request):
-    """Render the upload page (will become routes page in Task 13)."""
+    """Render the routes landing page."""
     return templates.TemplateResponse(
-        "upload.html", {"request": request, "active_tab": "routes"}
+        "routes.html", {"request": request, "active_tab": "routes"}
+    )
+
+
+@router.get("/routes/{route_id}", response_class=HTMLResponse)
+async def route_detail(request: Request, route_id: int):
+    """Render the route detail page."""
+    return templates.TemplateResponse(
+        "route_detail.html",
+        {"request": request, "active_tab": "routes", "route_id": route_id},
     )
 
 
