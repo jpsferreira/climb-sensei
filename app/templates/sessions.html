@@ -8,7 +8,6 @@
     <h1>Sessions</h1>
     <p>Your climbing calendar</p>
   </div>
-  <button class="btn" onclick="showCreateModal()">New Session</button>
 </div>
 
 <div class="card fade-up fade-up-delay-1">
@@ -37,51 +36,6 @@
     ></div>
     <div class="day-detail-header" id="dayDetailHeader"></div>
     <div id="dayDetailContent"></div>
-  </div>
-</div>
-
-<!-- Create / Edit Session Modal -->
-<div id="sessionModal" class="modal hidden">
-  <div class="modal-content">
-    <h2 id="modalTitle">Create Session</h2>
-    <form id="sessionForm">
-      <input type="hidden" id="editSessionId" value="" />
-      <div class="form-group">
-        <label for="sessionName">Session name</label>
-        <input
-          type="text"
-          id="sessionName"
-          placeholder="Morning bouldering"
-          required
-        />
-      </div>
-      <div class="form-group">
-        <label for="sessionDate">Date</label>
-        <input type="date" id="sessionDate" required />
-      </div>
-      <div class="form-group">
-        <label for="sessionLocation">Location</label>
-        <input
-          type="text"
-          id="sessionLocation"
-          placeholder="Gym or crag name"
-        />
-      </div>
-      <div class="form-group">
-        <label for="sessionNotes">Notes</label>
-        <textarea
-          id="sessionNotes"
-          rows="3"
-          placeholder="How did it go?"
-        ></textarea>
-      </div>
-      <div class="modal-actions">
-        <button type="button" class="btn btn-secondary" onclick="hideModal()">
-          Cancel
-        </button>
-        <button type="submit" class="btn">Save</button>
-      </div>
-    </form>
   </div>
 </div>
 {% endblock %} {% block extra_css %}
@@ -204,95 +158,91 @@
     text-align: center;
     padding: 20px;
   }
-  .day-detail-empty .empty-hint {
-    margin-top: 8px;
-    font-size: 0.75rem;
-    opacity: 0.7;
-  }
 
-  /* ── Session Detail Card ─────────────────────────────── */
-  .session-detail-card {
+  /* ── Session Card ──────────────────────────────────── */
+  .session-card {
     background: var(--bg-surface);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    padding: 1rem;
-    margin-bottom: 0.75rem;
+    padding: 14px;
+    margin-bottom: 10px;
   }
-  .session-detail-title {
+  .session-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .session-card-title {
     font-family: var(--font-display);
     font-weight: 600;
-    font-size: 0.92rem;
+    font-size: 0.88rem;
     color: var(--text-primary);
-    margin-bottom: 6px;
   }
-  .session-detail-meta {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-    font-size: 0.78rem;
+  .session-card-count {
+    font-size: 0.72rem;
     color: var(--text-muted);
-    margin-bottom: 8px;
+    font-family: var(--font-display);
   }
-  .session-detail-meta span {
+
+  /* ── Route row inside session ──────────────────────── */
+  .session-route {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    background: var(--bg-raised);
+    border-radius: var(--radius-sm);
+    margin-bottom: 6px;
+    text-decoration: none;
+    color: inherit;
+    transition: background 0.15s;
+  }
+  .session-route:hover {
+    background: var(--bg-hover);
+  }
+  .session-route-grade {
+    font-family: var(--font-display);
+    font-size: 0.7rem;
+    font-weight: 800;
+    padding: 4px 7px;
+    border-radius: 5px;
+    min-width: 32px;
+    text-align: center;
+    background: var(--accent);
+    color: #000;
+  }
+  .session-route-name {
+    flex: 1;
+    font-size: 0.82rem;
+    font-weight: 500;
+  }
+  .session-route-attempts {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    font-family: var(--font-display);
+  }
+  .session-route-type {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-family: var(--font-display);
+  }
+
+  .session-notes {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    font-style: italic;
+    margin-top: 8px;
+    line-height: 1.5;
+  }
+  .session-location {
+    font-size: 0.72rem;
+    color: var(--text-muted);
     display: flex;
     align-items: center;
     gap: 4px;
-  }
-  .session-detail-notes {
-    font-size: 0.82rem;
-    color: var(--text-secondary);
-    font-style: italic;
-    margin-top: 6px;
-    line-height: 1.5;
-  }
-  .session-detail-actions {
-    display: flex;
-    gap: 8px;
-    margin-top: 10px;
-  }
-
-  /* ── Inline edit fields ──────────────────────────────── */
-  .inline-edit-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 6px;
-  }
-  .inline-edit-row label {
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    min-width: 56px;
-    font-family: var(--font-display);
-  }
-  .inline-edit-field {
-    flex: 1;
-    background: var(--bg-base);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    color: var(--text-primary);
-    font-size: 0.82rem;
-    font-family: var(--font-body);
-    padding: 5px 8px;
-    transition: border-color 0.2s;
-  }
-  .inline-edit-field:focus {
-    outline: none;
-    border-color: var(--accent);
-  }
-  .inline-save-btn {
-    background: var(--accent);
-    color: #000;
-    border: none;
-    border-radius: var(--radius-sm);
-    padding: 5px 10px;
-    font-size: 0.75rem;
-    font-family: var(--font-display);
-    font-weight: 600;
-    cursor: pointer;
-    transition: filter 0.2s;
-  }
-  .inline-save-btn:hover {
-    filter: brightness(1.1);
   }
 </style>
 {% endblock %} {% block extra_js %}
@@ -319,9 +269,7 @@
   let currentMonth = new Date().getMonth();
   let currentYear = new Date().getFullYear();
   let sessions = [];
-  let selectedDate = null; // ISO date string 'YYYY-MM-DD'
-
-  // ── Data loading ──────────────────────────────────────────
+  let selectedDate = null;
 
   async function loadSessions() {
     try {
@@ -334,12 +282,10 @@
     }
   }
 
-  // Returns the ISO date string for a session (handles datetime strings)
   function sessionDateKey(session) {
     return session.date ? session.date.split("T")[0] : null;
   }
 
-  // Returns a Set of 'YYYY-MM-DD' strings that have sessions
   function buildSessionDateSet() {
     const s = new Set();
     sessions.forEach((sess) => {
@@ -348,8 +294,6 @@
     });
     return s;
   }
-
-  // ── Calendar rendering ────────────────────────────────────
 
   function renderCalendar() {
     document.getElementById("calendarMonthLabel").textContent =
@@ -363,22 +307,18 @@
       today.getDate(),
     );
 
-    // First day of the month (0=Sun … 6=Sat → convert to Mon-based: 0=Mon … 6=Sun)
     const firstDay = new Date(currentYear, currentMonth, 1);
-    let startOffset = firstDay.getDay(); // 0=Sun
-    startOffset = startOffset === 0 ? 6 : startOffset - 1; // Mon-based
+    let startOffset = firstDay.getDay();
+    startOffset = startOffset === 0 ? 6 : startOffset - 1;
 
     const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
     const daysInPrevMonth = new Date(currentYear, currentMonth, 0).getDate();
 
     const grid = document.getElementById("calendarGrid");
-
-    // Keep the 7 header cells, replace day cells
     const headers = Array.from(grid.querySelectorAll(".calendar-day-header"));
     grid.innerHTML = "";
     headers.forEach((h) => grid.appendChild(h));
 
-    // Leading cells from previous month
     for (let i = 0; i < startOffset; i++) {
       const day = daysInPrevMonth - startOffset + 1 + i;
       const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
@@ -387,13 +327,11 @@
       grid.appendChild(makeDayCell(day, dateKey, sessionDates, todayKey, true));
     }
 
-    // Current month cells
     for (let d = 1; d <= daysInMonth; d++) {
       const dateKey = isoDate(currentYear, currentMonth, d);
       grid.appendChild(makeDayCell(d, dateKey, sessionDates, todayKey, false));
     }
 
-    // Trailing cells from next month
     const totalCells = startOffset + daysInMonth;
     const trailingCount = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
     for (let d = 1; d <= trailingCount; d++) {
@@ -403,10 +341,7 @@
       grid.appendChild(makeDayCell(d, dateKey, sessionDates, todayKey, true));
     }
 
-    // Re-render day detail if a date is selected
-    if (selectedDate) {
-      renderDayDetail(selectedDate);
-    }
+    if (selectedDate) renderDayDetail(selectedDate);
   }
 
   function makeDayCell(dayNum, dateKey, sessionDates, todayKey, isOtherMonth) {
@@ -428,15 +363,11 @@
     return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
   }
 
-  // ── Day selection ─────────────────────────────────────────
-
   function selectDay(dateKey) {
-    // Deselect previous
     document
       .querySelectorAll(".calendar-day.selected")
       .forEach((el) => el.classList.remove("selected"));
 
-    // Toggle off if same day clicked again
     if (selectedDate === dateKey) {
       selectedDate = null;
       document.getElementById("dayDetail").style.display = "none";
@@ -444,13 +375,10 @@
     }
 
     selectedDate = dateKey;
-
-    // Highlight selected cell
     const cell = document.querySelector(
       `.calendar-day[data-date="${dateKey}"]`,
     );
     if (cell) cell.classList.add("selected");
-
     renderDayDetail(dateKey);
   }
 
@@ -458,31 +386,23 @@
     const detailEl = document.getElementById("dayDetail");
     const headerEl = document.getElementById("dayDetailHeader");
     const contentEl = document.getElementById("dayDetailContent");
-
     detailEl.style.display = "block";
 
-    // Format the date heading
     const [y, m, d] = dateKey.split("-").map(Number);
     const dateObj = new Date(y, m - 1, d);
-    const formatted = dateObj.toLocaleDateString("en-GB", {
+    headerEl.textContent = dateObj.toLocaleDateString("en-GB", {
       weekday: "long",
       day: "numeric",
       month: "long",
       year: "numeric",
     });
-    headerEl.textContent = formatted;
 
     const daySessions = sessions.filter((s) => sessionDateKey(s) === dateKey);
 
     if (daySessions.length === 0) {
       contentEl.innerHTML = `
         <div class="day-detail-empty">
-          <div>No climbing this day</div>
-          <div class="empty-hint">
-            <button class="btn btn-sm btn-secondary" onclick="showCreateModalForDate('${dateKey}')">
-              + Log a session
-            </button>
-          </div>
+          No climbing this day
         </div>`;
       return;
     }
@@ -491,35 +411,37 @@
   }
 
   function renderSessionCard(s) {
-    const videos =
-      s.total_videos != null ? s.total_videos : s.analyses_count ?? 0;
-    const score =
-      s.avg_performance_score != null
-        ? `<span title="Avg performance">&#9733; ${(s.avg_performance_score * 100).toFixed(0)}%</span>`
+    const routes = s.routes || [];
+    const routeCount = routes.length;
+    const attemptCount = routes.reduce((sum, r) => sum + r.attempt_count, 0);
+
+    const routeRows = routes
+      .map(
+        (r) => `
+      <a href="/routes/${r.route_id}" class="session-route">
+        <div class="session-route-grade">${escapeHtml(r.grade)}</div>
+        <div class="session-route-name">${escapeHtml(r.name)}</div>
+        <div class="session-route-type">${r.type}</div>
+        <div class="session-route-attempts">${r.attempt_count} attempt${r.attempt_count !== 1 ? "s" : ""}</div>
+      </a>`,
+      )
+      .join("");
+
+    const noRoutes =
+      routes.length === 0
+        ? '<div style="font-size: 0.78rem; color: var(--text-muted); padding: 8px 0;">No routes logged</div>'
         : "";
 
     return `
-      <div class="session-detail-card" id="session-card-${s.id}">
-        <div class="session-detail-title">${escapeHtml(s.name)}</div>
-        <div class="session-detail-meta">
-          ${videos > 0 ? `<span>&#127910; ${videos} video${videos !== 1 ? "s" : ""}</span>` : ""}
-          ${score}
+      <div class="session-card">
+        <div class="session-card-header">
+          <div class="session-card-title">${escapeHtml(s.name || "Session")}</div>
+          <div class="session-card-count">${attemptCount} attempt${attemptCount !== 1 ? "s" : ""} &middot; ${routeCount} route${routeCount !== 1 ? "s" : ""}</div>
         </div>
-        <div class="inline-edit-row">
-          <label>Location</label>
-          <input class="inline-edit-field" id="loc-${s.id}" type="text"
-            value="${escapeHtml(s.location || "")}" placeholder="Add location…" />
-        </div>
-        <div class="inline-edit-row">
-          <label>Notes</label>
-          <input class="inline-edit-field" id="notes-${s.id}" type="text"
-            value="${escapeHtml(s.notes || "")}" placeholder="Add notes…" />
-        </div>
-        <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
-          <button class="inline-save-btn" onclick="saveSessionMeta(${s.id})">Save</button>
-          <button class="btn btn-sm btn-secondary" onclick="editSession(${s.id})">Edit all</button>
-          <button class="btn btn-sm btn-danger" onclick="deleteSession(${s.id})">Delete</button>
-        </div>
+        ${s.location ? `<div class="session-location">&#128205; ${escapeHtml(s.location)}</div>` : ""}
+        ${routeRows}
+        ${noRoutes}
+        ${s.notes ? `<div class="session-notes">${escapeHtml(s.notes)}</div>` : ""}
       </div>`;
   }
 
@@ -531,35 +453,6 @@
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#39;");
   }
-
-  // ── Inline metadata save ──────────────────────────────────
-
-  async function saveSessionMeta(id) {
-    const location = document.getElementById(`loc-${id}`).value.trim() || null;
-    const notes = document.getElementById(`notes-${id}`).value.trim() || null;
-    try {
-      const res = await apiRequest(`${API_BASE}/sessions/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ location, notes }),
-      });
-      if (res.ok) {
-        // Update local cache
-        const idx = sessions.findIndex((s) => s.id === id);
-        if (idx !== -1) {
-          sessions[idx].location = location;
-          sessions[idx].notes = notes;
-        }
-        showAlert("Session updated", "success");
-      } else {
-        const err = await res.json();
-        showAlert(err.detail || "Failed to save", "error");
-      }
-    } catch (err) {
-      showAlert("Failed to save session", "error");
-    }
-  }
-
-  // ── Month navigation ──────────────────────────────────────
 
   function prevMonth() {
     if (currentMonth === 0) {
@@ -581,91 +474,6 @@
     renderCalendar();
   }
 
-  // ── Modal helpers ─────────────────────────────────────────
-
-  function showCreateModal() {
-    document.getElementById("modalTitle").textContent = "Create Session";
-    document.getElementById("editSessionId").value = "";
-    document.getElementById("sessionForm").reset();
-    document.getElementById("sessionDate").value = new Date()
-      .toISOString()
-      .split("T")[0];
-    document.getElementById("sessionModal").classList.remove("hidden");
-  }
-
-  function showCreateModalForDate(dateKey) {
-    showCreateModal();
-    document.getElementById("sessionDate").value = dateKey;
-  }
-
-  function hideModal() {
-    document.getElementById("sessionModal").classList.add("hidden");
-  }
-
-  function editSession(id) {
-    const session = sessions.find((s) => s.id === id);
-    if (!session) return;
-    document.getElementById("modalTitle").textContent = "Edit Session";
-    document.getElementById("editSessionId").value = id;
-    document.getElementById("sessionName").value = session.name;
-    document.getElementById("sessionDate").value = session.date
-      ? session.date.split("T")[0]
-      : "";
-    document.getElementById("sessionLocation").value = session.location || "";
-    document.getElementById("sessionNotes").value = session.notes || "";
-    document.getElementById("sessionModal").classList.remove("hidden");
-  }
-
-  async function deleteSession(id) {
-    if (!confirm("Delete this session?")) return;
-    try {
-      await apiRequest(`${API_BASE}/sessions/${id}`, { method: "DELETE" });
-      sessions = sessions.filter((s) => s.id !== id);
-      showAlert("Session deleted", "success");
-      renderCalendar();
-      if (selectedDate) renderDayDetail(selectedDate);
-    } catch (err) {
-      showAlert("Failed to delete session", "error");
-    }
-  }
-
-  // ── Form submit ───────────────────────────────────────────
-
-  document
-    .getElementById("sessionForm")
-    .addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const id = document.getElementById("editSessionId").value;
-      const data = {
-        name: document.getElementById("sessionName").value,
-        date: document.getElementById("sessionDate").value,
-        location: document.getElementById("sessionLocation").value || null,
-        notes: document.getElementById("sessionNotes").value || null,
-      };
-
-      try {
-        const url = id ? `${API_BASE}/sessions/${id}` : `${API_BASE}/sessions`;
-        const method = id ? "PATCH" : "POST";
-        const res = await apiRequest(url, {
-          method,
-          body: JSON.stringify(data),
-        });
-        if (res.ok) {
-          hideModal();
-          showAlert(id ? "Session updated" : "Session created", "success");
-          await loadSessions();
-          // Auto-select the saved session's date
-          if (data.date) selectDay(data.date);
-        } else {
-          const err = await res.json();
-          showAlert(err.detail || "Failed to save", "error");
-        }
-      } catch (err) {
-        showAlert("Failed to save session", "error");
-      }
-    });
-
-  // ── Init ──────────────────────────────────────────────────
   loadSessions();
 </script>
 {% endblock %}

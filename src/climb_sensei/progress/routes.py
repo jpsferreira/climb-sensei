@@ -451,14 +451,14 @@ async def create_session(
     return ClimbSessionResponse.model_validate(db_session)
 
 
-@router.get("/sessions", response_model=list[ClimbSessionResponse])
+@router.get("/sessions")
 async def list_sessions(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ):
-    """List all climbing sessions for the current user.
+    """List all climbing sessions with attempts grouped by route.
 
     Args:
         skip: Number of sessions to skip (pagination)
@@ -467,7 +467,7 @@ async def list_sessions(
         db: Database session
 
     Returns:
-        List of sessions
+        List of sessions with route summaries
     """
     sessions = (
         db.query(ClimbSession)
@@ -478,7 +478,36 @@ async def list_sessions(
         .all()
     )
 
-    return [ClimbSessionResponse.model_validate(s) for s in sessions]
+    result = []
+    for s in sessions:
+        # Group attempts by route
+        route_map: dict = {}
+        for attempt in s.attempts:
+            route = attempt.route
+            if route and route.id not in route_map:
+                route_map[route.id] = {
+                    "route_id": route.id,
+                    "name": route.name,
+                    "grade": route.grade,
+                    "type": route.type,
+                    "attempt_count": 0,
+                }
+            if route:
+                route_map[route.id]["attempt_count"] += 1
+
+        result.append(
+            {
+                "id": s.id,
+                "name": s.name,
+                "date": s.date.isoformat() if s.date else None,
+                "location": s.location,
+                "notes": s.notes,
+                "total_videos": s.total_videos or len(s.attempts),
+                "routes": list(route_map.values()),
+            }
+        )
+
+    return result
 
 
 @router.get("/sessions/{session_id}", response_model=ClimbSessionResponse)

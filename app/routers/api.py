@@ -117,15 +117,51 @@ def _run_analysis_pipeline(
 
         # Link attempt to route if route_id was provided
         if route_id:
-            from climb_sensei.database.models import Attempt
+            from climb_sensei.database.models import Attempt, ClimbSession
             from datetime import datetime, timezone
+            from sqlalchemy import and_
+
+            now = datetime.now(timezone.utc)
+            today = now.date()
+
+            # Auto-find or create a session for today
+            if not session_id:
+                # Look for an existing session for this user on this date
+                start_of_day = datetime(
+                    today.year, today.month, today.day, tzinfo=timezone.utc
+                )
+                end_of_day = datetime(
+                    today.year, today.month, today.day, 23, 59, 59, tzinfo=timezone.utc
+                )
+                existing_session = (
+                    db.query(ClimbSession)
+                    .filter(
+                        and_(
+                            ClimbSession.user_id == user_id,
+                            ClimbSession.date >= start_of_day,
+                            ClimbSession.date <= end_of_day,
+                        )
+                    )
+                    .first()
+                )
+                if existing_session:
+                    session_id = existing_session.id
+                else:
+                    new_session = ClimbSession(
+                        user_id=user_id,
+                        name=today.strftime("%b %d session"),
+                        date=now,
+                    )
+                    db.add(new_session)
+                    db.flush()
+                    session_id = new_session.id
 
             attempt = Attempt(
                 route_id=route_id,
                 video_id=video_id,
                 session_id=session_id,
                 analysis_id=db_analysis_id,
-                date=datetime.now(timezone.utc),
+                date=now,
             )
             db.add(attempt)
             db.commit()
