@@ -1010,6 +1010,12 @@
       .fade-up-delay-4 {
         animation-delay: 0.2s;
       }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
     </style>
     {% block extra_css %}{% endblock %}
   </head>
@@ -1080,6 +1086,63 @@
 
     <div class="main-content">
       <div class="container">
+        <!-- Persistent analysis banner (visible on all pages while analysis runs) -->
+        <div
+          id="analysis-banner"
+          style="
+            display: none;
+            background: var(--bg-raised);
+            border: 1px solid var(--accent-dim);
+            border-radius: var(--radius);
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            cursor: pointer;
+          "
+          onclick="window.location.href='/upload'"
+        >
+          <div style="display: flex; align-items: center; gap: 12px">
+            <div
+              id="analysis-banner-spinner"
+              style="
+                width: 20px;
+                height: 20px;
+                border: 2px solid var(--border);
+                border-top-color: var(--accent);
+                border-radius: 50%;
+                animation: spin 0.8s linear infinite;
+                flex-shrink: 0;
+              "
+            ></div>
+            <div style="flex: 1; min-width: 0">
+              <div
+                style="
+                  font-family: var(--font-display);
+                  font-size: 0.82rem;
+                  font-weight: 600;
+                  color: var(--text-primary);
+                "
+                id="analysis-banner-title"
+              >
+                Analyzing your climb...
+              </div>
+              <div
+                style="font-size: 0.72rem; color: var(--text-muted)"
+                id="analysis-banner-sub"
+              >
+                Tap to view progress
+              </div>
+            </div>
+            <div id="analysis-banner-done" style="display: none">
+              <a
+                href="#"
+                id="analysis-banner-link"
+                class="btn btn-sm"
+                onclick="event.stopPropagation();"
+                >View Results</a
+              >
+            </div>
+          </div>
+        </div>
         <div id="alert-container"></div>
         {% block content %}{% endblock %}
       </div>
@@ -1157,9 +1220,80 @@
         return null;
       }
 
+      // ─── Global analysis tracker (survives navigation) ───────────
+      function startGlobalPoll(videoId, routeId) {
+        localStorage.setItem(
+          "pendingAnalysis",
+          JSON.stringify({ videoId, routeId, startedAt: Date.now() }),
+        );
+        checkPendingAnalysis();
+      }
+
+      function checkPendingAnalysis() {
+        const raw = localStorage.getItem("pendingAnalysis");
+        if (!raw || !authToken) return;
+        const pending = JSON.parse(raw);
+        // Expire after 10 minutes
+        if (Date.now() - pending.startedAt > 600000) {
+          localStorage.removeItem("pendingAnalysis");
+          return;
+        }
+        const banner = document.getElementById("analysis-banner");
+        if (banner) banner.style.display = "block";
+        globalPoll(pending.videoId, pending.routeId);
+      }
+
+      function globalPoll(videoId, routeId) {
+        fetch(`/api/videos/${videoId}/status`, {
+          headers: { Authorization: `Bearer ${authToken}` },
+        })
+          .then((r) =>
+            r.ok ? r.json() : Promise.reject("status check failed"),
+          )
+          .then((status) => {
+            if (status.status === "completed" && status.analysis_id) {
+              localStorage.removeItem("pendingAnalysis");
+              const banner = document.getElementById("analysis-banner");
+              const spinner = document.getElementById(
+                "analysis-banner-spinner",
+              );
+              const title = document.getElementById("analysis-banner-title");
+              const sub = document.getElementById("analysis-banner-sub");
+              const done = document.getElementById("analysis-banner-done");
+              const link = document.getElementById("analysis-banner-link");
+              if (spinner) spinner.style.display = "none";
+              if (title) title.textContent = "Analysis complete!";
+              if (sub) sub.textContent = "";
+              if (done) done.style.display = "block";
+              if (link) link.href = routeId ? `/routes/${routeId}` : `/upload`;
+              if (banner) {
+                banner.style.borderColor = "var(--success-dim)";
+                banner.style.cursor = "default";
+                banner.onclick = null;
+              }
+              showAlert("Analysis complete!", "success");
+              // Auto-hide after 30s
+              setTimeout(() => {
+                if (banner) banner.style.display = "none";
+              }, 30000);
+            } else if (status.status === "failed") {
+              localStorage.removeItem("pendingAnalysis");
+              const banner = document.getElementById("analysis-banner");
+              if (banner) banner.style.display = "none";
+              showAlert("Analysis failed", "error");
+            } else {
+              setTimeout(() => globalPoll(videoId, routeId), 3000);
+            }
+          })
+          .catch(() => {
+            setTimeout(() => globalPoll(videoId, routeId), 5000);
+          });
+      }
+
       document.addEventListener("DOMContentLoaded", async () => {
         if (authToken) {
           await loadCurrentUser();
+          checkPendingAnalysis();
         }
       });
     </script>

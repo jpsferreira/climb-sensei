@@ -443,7 +443,7 @@ endblock %} {% block extra_css %}
   </div>
 
   <div class="flex gap-2 justify-between" style="margin-top: 1rem">
-    <a href="/dashboard" class="btn btn-secondary">View Dashboard</a>
+    <a href="/" class="btn btn-secondary">View Routes</a>
     <button onclick="location.reload()" class="btn btn-outline">
       Analyze Another
     </button>
@@ -478,12 +478,10 @@ endblock %} {% block extra_css %}
       <div class="form-group">
         <label for="modal-route-grade-system">Grade System</label>
         <select id="modal-route-grade-system" name="grade_system">
-          <option value="v_scale">V Scale (Bouldering)</option>
+          <option value="hueco">V Scale (Bouldering)</option>
           <option value="font">Font (Bouldering)</option>
           <option value="yds">YDS (Rope)</option>
           <option value="french">French (Rope)</option>
-          <option value="uiaa">UIAA</option>
-          <option value="ewbank">Ewbank</option>
         </select>
       </div>
       <div class="form-group">
@@ -768,6 +766,12 @@ endblock %} {% block extra_css %}
       const form = e.target;
       const formData = new FormData(form);
 
+      // Checkboxes: explicitly set false for unchecked (backend defaults to true)
+      ["run_metrics", "run_video", "run_quality"].forEach((name) => {
+        const cb = document.getElementById(name);
+        formData.set(name, cb.checked ? "true" : "false");
+      });
+
       // Resolve route_id: hidden input (prefilled) wins over dropdown
       const routeIdHidden = document.getElementById("route_id_hidden").value;
       const routeIdSelect = document.getElementById("route_id").value;
@@ -810,6 +814,9 @@ endblock %} {% block extra_css %}
         progressFill.style.width = "30%";
         progressFill.textContent = "30%";
         progressText.textContent = "Processing…";
+
+        // Register global analysis tracker (survives navigation)
+        startGlobalPoll(data.video_id, submittedRouteId);
         pollStatus(data.video_id);
       } catch (error) {
         uploadProgress.classList.add("hidden");
