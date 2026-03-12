@@ -35,7 +35,7 @@ if SECRET_KEY is None:
         "Set SECRET_KEY env var in production.",
         stacklevel=2,
     )
-    SECRET_KEY = "insecure-dev-only-key"
+    SECRET_KEY = "your-secret-key-change-this-in-production"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 
