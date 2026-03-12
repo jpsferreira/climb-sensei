@@ -20,24 +20,46 @@ from app.services.upload import OUTPUT_DIR
 
 BASE_DIR = Path(__file__).parent
 
-app = FastAPI(
-    title="ClimbingSensei Web App",
-    description="Upload climbing videos and analyze performance",
-    version="1.0.0",
-)
 
-# Initialize database
-init_db()
+def create_app() -> FastAPI:
+    """Create and configure the FastAPI application instance.
 
-# Routers
-app.include_router(auth_router, prefix="/api")
-app.include_router(progress_router)
-app.include_router(api_router)
-app.include_router(pages_router)
+    Returns:
+        FastAPI: Configured application with routers, static files,
+            and database initialised.
+    """
+    application = FastAPI(
+        title="ClimbingSensei Web App",
+        description="Upload climbing videos and analyze performance",
+        version="1.0.0",
+    )
 
-# Static files
-app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
-app.mount("/outputs", StaticFiles(directory=str(OUTPUT_DIR)), name="outputs")
+    # Initialize database
+    init_db()
+
+    # Routers
+    application.include_router(auth_router, prefix="/api")
+    application.include_router(progress_router)
+    application.include_router(api_router)
+    application.include_router(pages_router)
+
+    # Static files
+    application.mount(
+        "/static",
+        StaticFiles(directory=str(BASE_DIR / "static")),
+        name="static",
+    )
+    application.mount(
+        "/outputs",
+        StaticFiles(directory=str(OUTPUT_DIR)),
+        name="outputs",
+    )
+
+    return application
+
+
+# Module-level instance for backward compatibility with run_app.py and uvicorn
+app = create_app()
 
 
 if __name__ == "__main__":
