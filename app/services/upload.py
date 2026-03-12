@@ -561,7 +561,7 @@ def persist_results(
         summary=results,
         history={
             k: [float(v) if isinstance(v, (int, float)) else v for v in vals]
-            for k, vals in (analysis.history.items() if analysis else {}).items()
+            for k, vals in (analysis.history if analysis else {}).items()
         },
         video_quality=results.get("video_quality") if run_quality else None,
         tracking_quality=results.get("tracking_quality") if run_quality else None,
