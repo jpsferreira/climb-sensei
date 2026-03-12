@@ -47,7 +47,7 @@ Auth pages (login/register) are outside the tab structure — visual refresh onl
   - Grade badge (color-coded by grade range)
   - Route name
   - Location + attempt count + last attempt date
-  - Mini sparkline showing trend of primary tracked metric
+  - Mini sparkline showing trend of `avg_velocity` (default metric; if a goal is active on the route, show that goal's metric instead)
   - Green left border for sent routes
 - **"+ New Route" card** — at bottom of list or empty state CTA
 - **Route count** — "12 routes" subtle header
@@ -97,7 +97,7 @@ Auth pages (login/register) are outside the tab structure — visual refresh onl
 **Components:**
 - Video player (annotated video if available, original otherwise)
 - Full metrics display organized by category (same categories as current analysis)
-- Comparison with previous attempt: delta values (↑/↓/→) for each metric
+- Comparison with the chronologically previous attempt for the same route: delta values (↑/↓/→) for each metric
 - Notes field (editable)
 - Navigation: previous/next attempt arrows
 
@@ -149,7 +149,7 @@ Auth pages (login/register) are outside the tab structure — visual refresh onl
 
 **Overall Stats Section:**
 - Total routes | Total sessions | Total attempts
-- Grade pyramid or grade distribution chart (visual)
+- Grade pyramid chart grouped by type (boulder grades and sport grades shown separately, since they are incomparable systems)
 - Member since date
 - Climbing frequency (e.g., "2.3 sessions/week")
 
@@ -174,13 +174,16 @@ Route:
   id: int (PK)
   user_id: int (FK → User)
   name: str
-  grade: str (e.g., "V4", "6b+", "5.11a")
+  grade: str (e.g., "V4", "6b+", "5.11a") — free-form string, stored as-is
+  grade_system: str (hueco | font | yds | french) — determines sort order
   type: str (boulder | sport | trad)
   location: str (optional)
   status: str (projecting | sent)
   created_at: datetime
   updated_at: datetime
 ```
+
+**Grade sorting:** Each grade system has a known ordering (e.g., V0 < V1 < ... V16; 5a < 5b < ... 9a+). A utility function maps grade strings to a numeric sort key within their system. Routes with different grade systems sort by system first, then by grade within system. This is display-layer logic, not stored in the DB.
 
 ### New Entity: Attempt
 
@@ -189,45 +192,77 @@ Attempt:
   id: int (PK)
   route_id: int (FK → Route)
   session_id: int (FK → Session, optional)
+  video_id: int (FK → Video) — references existing Video model
   analysis_id: int (FK → Analysis, optional — linked after analysis completes)
-  video_path: str
   notes: str (optional)
   date: datetime
   created_at: datetime
 ```
 
-### Updated: Session
+**Relationship to Video:** Attempt references the existing `Video` model via `video_id` FK. The Video model continues to own file metadata (`file_path`, `filename`, `duration_seconds`, `fps`, etc.). Attempt does not duplicate video storage — it wraps a Video with route/session context.
 
-Existing session model stays, but gains relationship to Attempts instead of directly to Analyses:
+### Updated: Session (ClimbSession)
+
+Existing `ClimbSession` model stays. The `name` field becomes optional (nullable) with auto-generation: when a session is auto-created during upload, name defaults to the date string (e.g., "Mar 12, 2026"). Users can edit the name later. The existing `analyses` relationship remains for backward compatibility; a new `attempts` relationship is added.
 
 ```
-Session (existing, updated):
+ClimbSession (existing, updated):
   id, user_id, date, location, notes (existing fields)
+  name: str (make nullable, auto-generate from date if not provided)
+  total_videos: int (existing)
+  avg_performance_score: float (existing)
+  → has many Analyses (existing relationship, kept)
   → has many Attempts (new relationship)
 ```
 
 ### Updated: Goal
 
-Goals now belong to a Route instead of being standalone:
+Goals now belong to a Route instead of being standalone. All existing fields are preserved.
 
 ```
 Goal (existing, updated):
   id, user_id (existing)
-  route_id: int (FK → Route, new)
-  metric: str (existing)
+  route_id: int (FK → Route, new, nullable for migration)
+  metric_name: str (existing)
   target_value: float (existing)
-  deadline: date (optional, existing)
+  current_value: float (existing, nullable) — auto-updated from latest attempt's analysis
+  deadline: datetime (optional, existing)
+  achieved: bool (existing)
+  achieved_at: datetime (existing, nullable)
+  notes: str (existing, nullable)
+  created_at, updated_at (existing)
 ```
 
-### Updated: Analysis
+**Goal current_value auto-update:** When a new attempt's analysis completes for a route, any active goals on that route have their `current_value` updated from the analysis's denormalized metrics (e.g., `avg_velocity`, `avg_movement_economy`). If `current_value >= target_value`, mark `achieved = True` and set `achieved_at`.
 
-The existing Analysis model is now linked through Attempt rather than being a top-level entity:
+### Existing: Video (unchanged)
+
+The Video model is unchanged. Attempts reference it via FK.
 
 ```
-Analysis (existing):
-  → accessed via Attempt.analysis_id
-  (no structural changes to analysis data itself)
+Video (existing, no changes):
+  id, user_id, filename, file_path, uploaded_at
+  duration_seconds, fps, width, height, file_size_bytes, status
+  → has many Analyses
 ```
+
+### Existing: Analysis (unchanged structure)
+
+The Analysis model structure is unchanged. It is now also reachable via Attempt → Analysis in addition to the existing Video → Analysis path.
+
+```
+Analysis (existing, no structural changes):
+  id, video_id, session_id, created_at
+  run_metrics, run_video, run_quality, dashboard_position
+  summary (JSON), history (JSON), video_quality (JSON), tracking_quality (JSON)
+  denormalized metrics (avg_velocity, max_velocity, etc.)
+  output_video_path, output_json_path
+  → has many ProgressMetrics
+```
+
+### Existing: ProgressMetric (kept, extended)
+
+The `ProgressMetric` model is kept for time-series queries. It continues to be created when an analysis completes. The route context is now available by traversing Attempt: `ProgressMetric → Analysis → Attempt → Route`. No schema changes needed, but the `/api/routes/{id}/progress/{metric}` endpoint joins through this chain to filter by route.
 
 ## Visual Design
 
@@ -252,7 +287,6 @@ Analysis (existing):
 - **Grade-colored badges** — consistent color coding by grade range throughout
 - **Sparkline micro-charts** — on route list items for quick trend visibility
 - **Empty states** — every list/page has a helpful empty state with CTA
-- **Pull-to-refresh** — on list pages (routes, sessions)
 - **Skeleton loading states** — instead of spinners where possible
 
 ### Remove
@@ -286,16 +320,28 @@ GET    /api/sessions                     — list sessions (calendar data)
 GET    /api/sessions/{id}                — session detail with attempts
 ```
 
-Existing endpoints (`/api/analyses`, `/api/goals`, `/upload`) will need migration paths or deprecation.
+### Existing Endpoints — Migration Plan
+
+| Existing Endpoint | Action | Notes |
+|---|---|---|
+| `POST /upload` | Keep, extend | Add optional `route_id` and `session_id` params. Creates Attempt record linking Video → Route → Session. Without `route_id`, behaves as before. |
+| `GET /api/videos/{id}/status` | Keep | No changes needed — still polls video processing status. |
+| `GET /analysis/{id}` | Keep | Still returns analysis detail. |
+| `GET /api/analyses` | Keep during migration | Frontend migrates to route-based queries. Deprecate after all pages updated. |
+| `GET /api/sessions` | Keep, extend | Add calendar-friendly response format (list of dates with session IDs). |
+| `POST/PATCH /api/sessions` | Keep, update | Make `name` optional in POST (auto-generate from date). |
+| `GET /api/goals` | Keep, extend | Add optional `route_id` filter param. |
+| `POST/PATCH /api/goals` | Keep, update | Accept `route_id` in POST. |
+| `GET /api/progress/{metric}` | Keep | Still works globally. New route-scoped endpoint added alongside. |
 
 ## Migration Strategy
 
 This is a significant restructure. Recommended approach:
 
-1. **Backend first** — add Route and Attempt models, new API endpoints. Keep existing endpoints working.
-2. **Frontend page by page** — rebuild each template against the new API. Start with Routes (landing) since it's the core.
-3. **Data migration** — existing analyses become attempts under an "Uncategorized" route, allowing users to reorganize.
-4. **Deprecate old endpoints** — once all templates use new API.
+1. **Backend first** — add Route and Attempt models with Alembic migrations. Add new API endpoints. Keep all existing endpoints working unchanged.
+2. **Data migration** — create an "Uncategorized" route per user. For each existing Analysis, create an Attempt record linking: `Attempt.video_id = Analysis.video_id`, `Attempt.analysis_id = Analysis.id`, `Attempt.session_id = Analysis.session_id`, `Attempt.route_id = uncategorized_route.id`, `Attempt.date = Analysis.created_at`. This preserves all existing data.
+3. **Frontend page by page** — rebuild each template against the new API. Start with Routes (landing) since it's the core.
+4. **Deprecate old endpoints** — once all templates use new API, remove unused endpoints.
 
 ## Scope Boundaries
 
