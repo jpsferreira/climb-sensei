@@ -47,7 +47,10 @@ def create_app() -> FastAPI:
     application.include_router(api_router)
     application.include_router(pages_router)
 
-    # Static files
+    # Static files — ensure directories exist (CI may not have them)
+    for dir_path in [BASE_DIR / "static", OUTPUT_DIR, UPLOAD_DIR]:
+        dir_path.mkdir(parents=True, exist_ok=True)
+
     application.mount(
         "/static",
         StaticFiles(directory=str(BASE_DIR / "static")),
