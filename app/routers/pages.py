@@ -26,6 +26,20 @@ async def route_detail(request: Request, route_id: int):
     )
 
 
+@router.get("/routes/{route_id}/attempts/{attempt_id}", response_class=HTMLResponse)
+async def attempt_detail(request: Request, route_id: int, attempt_id: int):
+    """Render the attempt detail page."""
+    return templates.TemplateResponse(
+        "attempt_detail.html",
+        {
+            "request": request,
+            "active_tab": "routes",
+            "route_id": route_id,
+            "attempt_id": attempt_id,
+        },
+    )
+
+
 @router.get("/upload", response_class=HTMLResponse)
 async def upload_page(request: Request):
     """Render the upload page."""

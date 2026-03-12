@@ -1,0 +1,631 @@
+{% extends "base.html" %} {% block title %}Route Detail - ClimbSensei{% endblock
+%} {% block extra_css %}
+<style>
+  .back-link {
+    display: inline-block;
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 0.82rem;
+    font-family: var(--font-display);
+    margin-bottom: 10px;
+    transition: color 0.2s;
+  }
+  .back-link:hover {
+    color: var(--accent);
+  }
+
+  .route-header {
+    padding: 20px 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 20px;
+  }
+  .route-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .route-title {
+    font-size: 1.3rem;
+    font-weight: 700;
+    font-family: var(--font-display);
+  }
+  .route-subtitle {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+  .quick-stats {
+    display: flex;
+    gap: 20px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+  }
+  .quick-stat-label {
+    font-size: 0.6rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .quick-stat-value {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-top: 2px;
+    font-family: var(--font-display);
+  }
+  .status-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    font-family: var(--font-display);
+  }
+  .status-projecting {
+    background: var(--accent);
+    color: #000;
+  }
+  .status-sent {
+    background: var(--success);
+    color: #000;
+  }
+
+  .chart-section {
+    margin-bottom: 24px;
+  }
+  .chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .chart-header h2 {
+    font-family: var(--font-display);
+    font-size: 1rem;
+    font-weight: 600;
+    border: none;
+    padding: 0;
+    margin: 0;
+  }
+  .metric-select {
+    background: var(--bg-raised);
+    color: var(--teal);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 0.75rem;
+    font-family: "DM Sans", sans-serif;
+  }
+  .chart-container {
+    background: var(--bg-raised);
+    border-radius: 12px;
+    padding: 16px;
+    height: 220px;
+  }
+
+  .section-title {
+    font-family: var(--font-display);
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+
+  .timeline {
+    position: relative;
+    padding-left: 24px;
+    margin-left: 8px;
+  }
+  .timeline::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--border);
+  }
+  .timeline-item {
+    position: relative;
+    margin-bottom: 14px;
+  }
+  .timeline-dot {
+    position: absolute;
+    left: -29px;
+    top: 8px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--border);
+  }
+  .timeline-item:first-child .timeline-dot {
+    background: var(--accent);
+  }
+  .timeline-card {
+    background: var(--bg-raised);
+    border-radius: 10px;
+    padding: 12px;
+  }
+  .timeline-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .attempt-num {
+    font-size: 0.85rem;
+    font-weight: 600;
+    font-family: var(--font-display);
+  }
+  .attempt-date {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+  }
+  .attempt-metrics {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 6px;
+  }
+  .attempt-video-link {
+    font-size: 0.7rem;
+    color: var(--teal);
+    margin-top: 6px;
+    display: inline-block;
+    text-decoration: none;
+  }
+  .attempt-video-link:hover {
+    text-decoration: underline;
+  }
+
+  .action-bar {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+  }
+
+  .goals-section {
+    margin-top: 24px;
+  }
+  .goal-item {
+    background: var(--bg-raised);
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 10px;
+  }
+  .goal-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.82rem;
+    font-family: var(--font-display);
+    font-weight: 500;
+    margin-bottom: 6px;
+  }
+  .goal-item-target {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+  }
+
+  @media (max-width: 768px) {
+    .route-title-row {
+      flex-direction: column;
+    }
+    .quick-stats {
+      gap: 14px;
+    }
+    .chart-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+    }
+  }
+</style>
+{% endblock %} {% block content %}
+<a href="/" class="back-link">&larr; Routes</a>
+
+<div id="route-header-section" class="route-header fade-up">
+  <p class="loading">Loading route...</p>
+</div>
+
+<div class="chart-section fade-up fade-up-delay-1">
+  <div class="chart-header">
+    <h2>Progress</h2>
+    <select
+      id="metric-select"
+      class="metric-select"
+      onchange="onMetricChange(this.value)"
+    >
+      <option value="avg_velocity">Avg Velocity</option>
+      <option value="max_velocity">Max Velocity</option>
+      <option value="avg_sway">Avg Sway</option>
+      <option value="avg_movement_economy">Avg Movement Economy</option>
+      <option value="max_height">Max Height</option>
+      <option value="total_vertical_progress">Total Vertical Progress</option>
+      <option value="lock_off_count">Lock-off Count</option>
+      <option value="rest_count">Rest Count</option>
+      <option value="fatigue_score">Fatigue Score</option>
+    </select>
+  </div>
+  <div class="chart-container">
+    <canvas id="metric-chart"></canvas>
+  </div>
+</div>
+
+<div class="fade-up fade-up-delay-2">
+  <h2 class="section-title">Attempts</h2>
+  <div id="timeline" class="timeline">
+    <p class="loading">Loading attempts...</p>
+  </div>
+</div>
+
+<div class="goals-section fade-up fade-up-delay-3">
+  <div class="flex justify-between items-center" style="margin-bottom: 12px">
+    <h2 class="section-title" style="margin-bottom: 0">Goals</h2>
+    <button
+      class="btn btn-sm btn-outline"
+      onclick="document.getElementById('goal-modal').classList.remove('hidden')"
+    >
+      Set Goal
+    </button>
+  </div>
+  <div id="goals-list"></div>
+</div>
+
+<!-- Edit Route Modal -->
+<div id="edit-route-modal" class="modal hidden">
+  <div class="modal-content">
+    <h2>Edit Route</h2>
+    <form id="edit-route-form" onsubmit="editRoute(event)">
+      <div class="form-group">
+        <label for="edit-name">Name</label>
+        <input type="text" id="edit-name" name="name" required />
+      </div>
+      <div class="grid grid-2" style="gap: 1rem">
+        <div class="form-group">
+          <label for="edit-grade">Grade</label>
+          <input
+            type="text"
+            id="edit-grade"
+            name="grade"
+            placeholder="e.g. V5, 7a+"
+          />
+        </div>
+        <div class="form-group">
+          <label for="edit-grade-system">Grade System</label>
+          <select id="edit-grade-system" name="grade_system">
+            <option value="V">V-scale</option>
+            <option value="Font">Font</option>
+            <option value="YDS">YDS</option>
+            <option value="French">French</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid grid-2" style="gap: 1rem">
+        <div class="form-group">
+          <label for="edit-type">Type</label>
+          <select id="edit-type" name="type">
+            <option value="boulder">Boulder</option>
+            <option value="sport">Sport</option>
+            <option value="trad">Trad</option>
+            <option value="top_rope">Top Rope</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="edit-status">Status</label>
+          <select id="edit-status" name="status">
+            <option value="projecting">Projecting</option>
+            <option value="sent">Sent</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="edit-location">Location</label>
+        <input
+          type="text"
+          id="edit-location"
+          name="location"
+          placeholder="Gym or crag name"
+        />
+      </div>
+      <div class="modal-actions">
+        <button
+          type="button"
+          class="btn btn-secondary"
+          onclick="document.getElementById('edit-route-modal').classList.add('hidden')"
+        >
+          Cancel
+        </button>
+        <button type="submit" class="btn">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Goal Modal -->
+<div id="goal-modal" class="modal hidden">
+  <div class="modal-content">
+    <h2>Set Goal</h2>
+    <form id="goal-form" onsubmit="createGoal(event)">
+      <div class="form-group">
+        <label for="goal-metric">Metric</label>
+        <select id="goal-metric" name="metric_name" required>
+          <option value="">Select a metric...</option>
+          <option value="avg_velocity">Average Velocity</option>
+          <option value="max_velocity">Max Velocity</option>
+          <option value="avg_sway">Average Sway</option>
+          <option value="avg_movement_economy">Movement Economy</option>
+          <option value="max_height">Max Height</option>
+          <option value="total_vertical_progress">Vertical Progress</option>
+          <option value="lock_off_count">Lock-off Count</option>
+          <option value="rest_count">Rest Count</option>
+          <option value="fatigue_score">Fatigue Score</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="goal-target">Target Value</label>
+        <input
+          type="number"
+          id="goal-target"
+          name="target_value"
+          step="0.001"
+          required
+          placeholder="0.000"
+        />
+      </div>
+      <div class="form-group">
+        <label for="goal-deadline">Deadline (optional)</label>
+        <input type="date" id="goal-deadline" name="deadline" />
+      </div>
+      <div class="modal-actions">
+        <button
+          type="button"
+          class="btn btn-secondary"
+          onclick="document.getElementById('goal-modal').classList.add('hidden')"
+        >
+          Cancel
+        </button>
+        <button type="submit" class="btn">Create</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %} {% block extra_js %}
+<script>
+  const routeId = {{ route_id }};
+  let routeData = null;
+  let chart = null;
+  let currentMetric = 'avg_velocity';
+
+  if (!authToken) {
+      window.location.href = '/login';
+  }
+
+  async function loadRoute() {
+      const res = await apiRequest(`/api/routes/${routeId}`);
+      if (!res.ok) { window.location.href = '/'; return; }
+      routeData = await res.json();
+      renderRouteHeader();
+      loadAttempts();
+      loadChart();
+      loadGoals();
+  }
+
+  function renderRouteHeader() {
+      const r = routeData;
+      const statusClass = r.status === 'sent' ? 'status-sent' : 'status-projecting';
+      const statusLabel = r.status === 'sent' ? 'Sent' : 'Projecting';
+      const firstAttempt = r.first_attempt_date ? new Date(r.first_attempt_date).toLocaleDateString() : '-';
+      const lastAttempt = r.last_attempt_date ? new Date(r.last_attempt_date).toLocaleDateString() : '-';
+      const typeLabel = r.type ? r.type.charAt(0).toUpperCase() + r.type.slice(1).replace('_', ' ') : '';
+
+      const container = document.getElementById('route-header-section');
+      container.innerHTML = `
+          <div class="route-title-row">
+              <div>
+                  <div class="flex items-center" style="gap: 10px;">
+                      <span class="route-title">${r.name}</span>
+                      ${r.grade ? `<span class="badge badge-warning">${r.grade}</span>` : ''}
+                  </div>
+                  <div class="route-subtitle">
+                      ${r.location ? r.location : ''}${r.location && typeLabel ? ' &middot; ' : ''}${typeLabel}
+                  </div>
+              </div>
+              <span class="status-badge ${statusClass}">${statusLabel}</span>
+          </div>
+          <div class="quick-stats">
+              <div>
+                  <div class="quick-stat-label">Attempts</div>
+                  <div class="quick-stat-value">${r.attempt_count || 0}</div>
+              </div>
+              <div>
+                  <div class="quick-stat-label">First attempt</div>
+                  <div class="quick-stat-value">${firstAttempt}</div>
+              </div>
+              <div>
+                  <div class="quick-stat-label">Last attempt</div>
+                  <div class="quick-stat-value">${lastAttempt}</div>
+              </div>
+          </div>
+          <div class="action-bar">
+              <a href="/upload?route_id=${r.id}" class="btn btn-sm">Add Attempt</a>
+              <button class="btn btn-sm btn-secondary" onclick="openEditModal()">Edit</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteRoute()">Delete</button>
+          </div>
+      `;
+  }
+
+  async function loadAttempts() {
+      const res = await apiRequest(`/api/routes/${routeId}/attempts`);
+      if (!res.ok) return;
+      const attempts = await res.json();
+      renderTimeline(attempts);
+  }
+
+  function renderTimeline(attempts) {
+      const container = document.getElementById('timeline');
+      if (attempts.length === 0) {
+          container.innerHTML = '<div class="empty-state"><p>No attempts yet</p><a href="/upload?route_id=' + routeId + '" class="btn btn-sm">Upload your first attempt</a></div>';
+          container.classList.remove('timeline');
+          return;
+      }
+      container.classList.add('timeline');
+      container.innerHTML = attempts.map((a, i) => `
+          <div class="timeline-item">
+              <div class="timeline-dot"></div>
+              <div class="timeline-card">
+                  <div class="timeline-header">
+                      <span class="attempt-num">Attempt #${attempts.length - i}</span>
+                      <span class="attempt-date">${new Date(a.date).toLocaleDateString()}</span>
+                  </div>
+                  <div class="attempt-metrics">
+                      ${a.avg_velocity != null ? 'Vel: ' + a.avg_velocity.toFixed(2) : ''}
+                      ${a.avg_sway != null ? ' &middot; Sway: ' + a.avg_sway.toFixed(2) : ''}
+                      ${a.avg_movement_economy != null ? ' &middot; Economy: ' + a.avg_movement_economy.toFixed(2) : ''}
+                  </div>
+                  ${a.has_video ? `<a href="/routes/${routeId}/attempts/${a.id}" class="attempt-video-link">&#9654; View details</a>` : `<a href="/routes/${routeId}/attempts/${a.id}" class="attempt-video-link">View details</a>`}
+              </div>
+          </div>
+      `).join('');
+  }
+
+  async function loadChart() {
+      const res = await apiRequest(`/api/routes/${routeId}/progress/${currentMetric}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      renderChart(data);
+  }
+
+  function renderChart(data) {
+      const ctx = document.getElementById('metric-chart').getContext('2d');
+      if (chart) chart.destroy();
+      if (!data.data || data.data.length === 0) {
+          ctx.canvas.parentElement.innerHTML = '<div class="empty-state" style="padding: 2rem 0;"><p style="font-size: 0.85rem;">No data for this metric yet</p></div>';
+          return;
+      }
+      chart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+              labels: data.data.map(d => new Date(d.date).toLocaleDateString()),
+              datasets: [{
+                  data: data.data.map(d => d.value),
+                  backgroundColor: 'rgba(245, 158, 11, 0.6)',
+                  borderRadius: 4,
+              }]
+          },
+          options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: { legend: { display: false } },
+              scales: {
+                  x: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 10 } } },
+                  y: { grid: { color: '#1a2332' }, ticks: { color: '#64748b', font: { size: 10 } } },
+              }
+          }
+      });
+  }
+
+  function onMetricChange(value) {
+      currentMetric = value;
+      // Re-create canvas if it was replaced by empty state
+      const container = document.querySelector('.chart-container');
+      if (!container.querySelector('canvas')) {
+          container.innerHTML = '<canvas id="metric-chart"></canvas>';
+      }
+      loadChart();
+  }
+
+  async function loadGoals() {
+      const res = await apiRequest(`/api/goals?route_id=${routeId}`);
+      if (!res.ok) return;
+      const goals = await res.json();
+      renderGoals(goals.filter(g => !g.achieved));
+  }
+
+  function renderGoals(goals) {
+      const container = document.getElementById('goals-list');
+      if (goals.length === 0) {
+          container.innerHTML = '<div class="empty-state" style="padding: 1.5rem 0;"><p style="font-size: 0.85rem;">No active goals for this route</p></div>';
+          return;
+      }
+      container.innerHTML = goals.map(g => {
+          const pct = g.target_value > 0 ? Math.min(100, Math.round((g.current_value / g.target_value) * 100)) : 0;
+          const name = g.metric_name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+          return `
+              <div class="goal-item">
+                  <div class="goal-item-header">
+                      <span>${name}</span>
+                      <span class="goal-item-target">${g.current_value || 0} / ${g.target_value}</span>
+                  </div>
+                  <div class="progress-bar">
+                      <div class="progress-fill" style="width: ${pct}%;"></div>
+                  </div>
+              </div>
+          `;
+      }).join('');
+  }
+
+  async function deleteRoute() {
+      if (!confirm('Delete this route and all its attempts?')) return;
+      const res = await apiRequest(`/api/routes/${routeId}`, { method: 'DELETE' });
+      if (res.ok) { window.location.href = '/'; }
+  }
+
+  function openEditModal() {
+      if (!routeData) return;
+      document.getElementById('edit-name').value = routeData.name || '';
+      document.getElementById('edit-grade').value = routeData.grade || '';
+      document.getElementById('edit-grade-system').value = routeData.grade_system || 'V';
+      document.getElementById('edit-type').value = routeData.type || 'boulder';
+      document.getElementById('edit-status').value = routeData.status || 'projecting';
+      document.getElementById('edit-location').value = routeData.location || '';
+      document.getElementById('edit-route-modal').classList.remove('hidden');
+  }
+
+  async function editRoute(e) {
+      e.preventDefault();
+      const form = e.target;
+      const data = {};
+      ['name', 'grade', 'grade_system', 'type', 'location', 'status'].forEach(f => {
+          if (form[f].value) data[f] = form[f].value;
+      });
+      const res = await apiRequest(`/api/routes/${routeId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+      });
+      if (res.ok) {
+          showAlert('Route updated', 'success');
+          document.getElementById('edit-route-modal').classList.add('hidden');
+          loadRoute();
+      } else {
+          const err = await res.json().catch(() => ({}));
+          showAlert(err.detail || 'Failed to update route', 'error');
+      }
+  }
+
+  async function createGoal(e) {
+      e.preventDefault();
+      const form = e.target;
+      const data = {
+          metric_name: form.metric_name.value,
+          target_value: parseFloat(form.target_value.value),
+          route_id: routeId,
+      };
+      if (form.deadline.value) data.deadline = new Date(form.deadline.value).toISOString();
+      const res = await apiRequest('/api/goals', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+      });
+      if (res.ok) {
+          showAlert('Goal created', 'success');
+          document.getElementById('goal-modal').classList.add('hidden');
+          form.reset();
+          loadGoals();
+      } else {
+          const err = await res.json().catch(() => ({}));
+          showAlert(err.detail || 'Failed to create goal', 'error');
+      }
+  }
+
+  loadRoute();
+</script>
+{% endblock %}
