@@ -362,11 +362,13 @@ async def serve_output(
         raise HTTPException(status_code=404, detail="File not found")
 
     # Verify user owns the analysis that generated this output
+    # Use endswith for exact filename match (not substring) to prevent over-matching
+    expected_path = f"/outputs/{filename}"
     analysis = (
         db.query(Analysis)
         .join(Video)
         .filter(
-            Analysis.output_video_path.contains(filename),
+            Analysis.output_video_path == expected_path,
             Video.user_id == current_user.id,
         )
         .first()

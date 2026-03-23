@@ -31,7 +31,7 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 if SECRET_KEY is None:
     raise RuntimeError(
         "SECRET_KEY environment variable is not set. "
-        "Generate one with: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
+        'Generate one with: python -c "import secrets; print(secrets.token_urlsafe(32))"'
     )
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
@@ -89,7 +89,11 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return encoded_jwt
 
 
-_auth_disabled_requested = os.getenv("AUTH_DISABLED", "").lower() in ("1", "true", "yes")
+_auth_disabled_requested = os.getenv("AUTH_DISABLED", "").lower() in (
+    "1",
+    "true",
+    "yes",
+)
 _environment = os.getenv("ENVIRONMENT", "production").lower()
 AUTH_DISABLED = _auth_disabled_requested and _environment in ("development", "testing")
 if _auth_disabled_requested and not AUTH_DISABLED:

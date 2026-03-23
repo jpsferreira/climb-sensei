@@ -102,9 +102,7 @@ def create_app() -> FastAPI:
 
     # CORS — only if explicit origins are configured
     cors_origins = [
-        o.strip()
-        for o in os.getenv("CORS_ORIGINS", "").split(",")
-        if o.strip()
+        o.strip() for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip()
     ]
     if cors_origins:
         application.add_middleware(
@@ -130,7 +128,9 @@ def create_app() -> FastAPI:
                 )
             gid = os.getenv("GOOGLE_CLIENT_ID", "")
             if not gid or gid.startswith("YOUR_"):
-                logger.warning("Google OAuth is not configured (GOOGLE_CLIENT_ID missing)")
+                logger.warning(
+                    "Google OAuth is not configured (GOOGLE_CLIENT_ID missing)"
+                )
 
     # Routers
     application.include_router(auth_router, prefix="/api")
