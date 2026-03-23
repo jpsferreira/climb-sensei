@@ -16,6 +16,7 @@ dependencies = [
     "fastapi-users[sqlalchemy]>=13.0.0",
     "httpx-oauth>=0.14.0",
     "aiosqlite>=0.22.1",
+    "slowapi>=0.1.9",
 ]
 
 [project.optional-dependencies]

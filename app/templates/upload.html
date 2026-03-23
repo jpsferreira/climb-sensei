@@ -570,6 +570,19 @@ endblock %} {% block extra_css %}
     .addEventListener("submit", async (e) => {
       e.preventDefault();
       const form = e.target;
+
+      // Client-side file size validation
+      const MAX_SIZE_MB = {{ max_upload_mb | default(500) }};
+      const fileInput = form.querySelector('input[type="file"]');
+      if (
+        fileInput &&
+        fileInput.files[0] &&
+        fileInput.files[0].size > MAX_SIZE_MB * 1024 * 1024
+      ) {
+        showAlert(`File too large. Maximum size is ${MAX_SIZE_MB}MB.`, "error");
+        return;
+      }
+
       const formData = new FormData(form);
 
       // All analysis options always active
@@ -638,11 +651,11 @@ endblock %} {% block extra_css %}
       document.getElementById("videoQualityContent").innerHTML = `
         <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
           <div class="metric-item" style="flex-direction: column;"><span class="label">Status</span><span class="badge badge-${vq.is_valid ? "success" : "error"}" style="margin-top: 0.25rem; width: fit-content;">${vq.is_valid ? "Valid" : "Invalid"}</span></div>
-          <div class="metric-item" style="flex-direction: column;"><span class="label">Resolution</span><span class="value">${vq.resolution}</span></div>
-          <div class="metric-item" style="flex-direction: column;"><span class="label">FPS Quality</span><span class="value">${vq.fps_quality}</span></div>
-          <div class="metric-item" style="flex-direction: column;"><span class="label">Duration</span><span class="value">${vq.duration}</span></div>
+          <div class="metric-item" style="flex-direction: column;"><span class="label">Resolution</span><span class="value">${escapeHtml(vq.resolution)}</span></div>
+          <div class="metric-item" style="flex-direction: column;"><span class="label">FPS Quality</span><span class="value">${escapeHtml(vq.fps_quality)}</span></div>
+          <div class="metric-item" style="flex-direction: column;"><span class="label">Duration</span><span class="value">${escapeHtml(vq.duration)}</span></div>
         </div>
-        ${vq.warnings && vq.warnings.length > 0 ? `<div class="alert alert-warning" style="margin-top: 1rem;">${vq.warnings.map((w) => `<div style="font-size: 0.85rem;">&#x26A0; ${w}</div>`).join("")}</div>` : ""}
+        ${vq.warnings && vq.warnings.length > 0 ? `<div class="alert alert-warning" style="margin-top: 1rem;">${vq.warnings.map((w) => `<div style="font-size: 0.85rem;">&#x26A0; ${escapeHtml(w)}</div>`).join("")}</div>` : ""}
       `;
     }
 
@@ -651,14 +664,14 @@ endblock %} {% block extra_css %}
       document.getElementById("trackingQuality").classList.remove("hidden");
       document.getElementById("trackingQualityContent").innerHTML = `
         <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));">
-          <div class="metric-item" style="flex-direction: column;"><span class="label">Quality</span><span class="badge badge-${tq.quality_level.toLowerCase() === "excellent" ? "success" : tq.quality_level.toLowerCase() === "poor" ? "error" : "warning"}" style="margin-top: 0.25rem; width: fit-content;">${tq.quality_level}</span></div>
+          <div class="metric-item" style="flex-direction: column;"><span class="label">Quality</span><span class="badge badge-${tq.quality_level.toLowerCase() === "excellent" ? "success" : tq.quality_level.toLowerCase() === "poor" ? "error" : "warning"}" style="margin-top: 0.25rem; width: fit-content;">${escapeHtml(tq.quality_level)}</span></div>
           <div class="metric-item" style="flex-direction: column;"><span class="label">Detection Rate</span><span class="value">${tq.detection_rate}%</span></div>
           <div class="metric-item" style="flex-direction: column;"><span class="label">Smoothness</span><span class="value">${tq.tracking_smoothness.toFixed(4)}</span></div>
           <div class="metric-item" style="flex-direction: column;"><span class="label">Avg Confidence</span><span class="value">${tq.avg_confidence.toFixed(4)}</span></div>
           <div class="metric-item" style="flex-direction: column;"><span class="label">Loss Events</span><span class="value">${tq.tracking_loss_events}</span></div>
           <div class="metric-item" style="flex-direction: column;"><span class="label">Trackable</span><span class="badge badge-${tq.is_trackable ? "success" : "error"}" style="margin-top: 0.25rem; width: fit-content;">${tq.is_trackable ? "Yes" : "No"}</span></div>
         </div>
-        ${tq.warnings && tq.warnings.length > 0 ? `<div class="alert alert-warning" style="margin-top: 1rem;">${tq.warnings.map((w) => `<div style="font-size: 0.85rem;">&#x26A0; ${w}</div>`).join("")}</div>` : ""}
+        ${tq.warnings && tq.warnings.length > 0 ? `<div class="alert alert-warning" style="margin-top: 1rem;">${tq.warnings.map((w) => `<div style="font-size: 0.85rem;">&#x26A0; ${escapeHtml(w)}</div>`).join("")}</div>` : ""}
       `;
     }
 
@@ -667,12 +680,12 @@ endblock %} {% block extra_css %}
       document.getElementById("metrics").classList.remove("hidden");
       let html = "";
       Object.entries(categories).forEach(([catKey, catData]) => {
-        html += `<div class="metric-category"><h4>${catData.title}</h4><div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.25rem 2rem;">`;
+        html += `<div class="metric-category"><h4>${escapeHtml(catData.title)}</h4><div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.25rem 2rem;">`;
         Object.entries(catData.metrics).forEach(([metricKey, metricData]) => {
           const displayValue = metricData.unit
-            ? `${metricData.value}${metricData.unit}`
+            ? `${metricData.value}${escapeHtml(metricData.unit)}`
             : metricData.value;
-          html += `<div class="metric-item"><span class="label">${metricData.label}</span><span class="value">${displayValue}</span></div>`;
+          html += `<div class="metric-item"><span class="label">${escapeHtml(metricData.label)}</span><span class="value">${displayValue}</span></div>`;
         });
         html += `</div></div>`;
       });

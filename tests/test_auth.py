@@ -216,7 +216,7 @@ class TestRegistrationEndpoint:
         )
 
         assert response.status_code == 400
-        assert "already registered" in response.json()["detail"].lower()
+        assert "registration failed" in response.json()["detail"].lower()
 
     def test_register_invalid_email(self, client):
         """Should reject invalid email format."""

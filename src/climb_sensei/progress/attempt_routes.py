@@ -11,6 +11,7 @@ Provides:
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
 
@@ -18,6 +19,13 @@ from ..database.config import get_db
 from ..database.models import User, Route, Attempt, Analysis
 from ..auth import get_current_active_user
 from .route_schemas import AttemptResponse, AttemptDetailResponse
+
+
+class AttemptUpdate(BaseModel):
+    """Schema for updating attempt fields."""
+
+    notes: str | None = None
+
 
 router = APIRouter(prefix="/api/routes", tags=["attempts"])
 
@@ -212,18 +220,16 @@ async def get_attempt(
 async def update_attempt(
     route_id: int,
     attempt_id: int,
-    payload: dict,
+    payload: AttemptUpdate,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ):
     """Update attempt notes.
 
-    Only the ``notes`` field may be updated; all other fields are ignored.
-
     Args:
         route_id: Route ID
         attempt_id: Attempt ID
-        payload: JSON body — only ``notes`` is applied
+        payload: JSON body with optional ``notes`` field
         current_user: Authenticated user
         db: Database session
 
@@ -240,8 +246,8 @@ async def update_attempt(
     if not attempt:
         raise HTTPException(status_code=404, detail="Attempt not found")
 
-    if "notes" in payload:
-        attempt.notes = payload["notes"]
+    if payload.notes is not None:
+        attempt.notes = payload.notes
         db.commit()
         db.refresh(attempt)
 

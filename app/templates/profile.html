@@ -679,11 +679,11 @@
           <div class="goal-card-header">
             <div>
               <div class="goal-name">
-                ${metricLabel}
+                ${escapeHtml(metricLabel)}
                 ${achieved ? '<span class="badge badge-success" style="margin-left: 6px;">Achieved</span>' : ""}
                 ${overdue ? '<span class="badge badge-error" style="margin-left: 6px;">Overdue</span>' : ""}
               </div>
-              ${g.route_name ? `<div class="goal-route">${g.route_name}</div>` : ""}
+              ${g.route_name ? `<div class="goal-route">${escapeHtml(g.route_name)}</div>` : ""}
             </div>
           </div>
           <div class="goal-meta">

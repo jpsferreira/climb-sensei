@@ -10,6 +10,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy.orm import Session
 from starlette.requests import Request
 
+from app.rate_limit import limiter
 from climb_sensei.auth import get_current_active_user
 from climb_sensei.database.config import SessionLocal, get_db
 from climb_sensei.database.models import Analysis, User, Video
@@ -183,6 +184,7 @@ def _run_analysis_pipeline(
 
 
 @router.post("/upload")
+@limiter.limit("10/minute")
 async def upload_video(
     request: Request,
     file: UploadFile = File(...),
@@ -200,13 +202,11 @@ async def upload_video(
     Returns immediately with the video ID. The client should poll
     GET /api/videos/{id}/status to track progress.
     """
-    if not file.filename.lower().endswith((".mp4", ".avi", ".mov", ".mkv")):
-        raise HTTPException(
-            status_code=400, detail="Invalid file type. Please upload a video file."
-        )
-
     analysis_id = str(uuid.uuid4())
-    upload_path = save_upload(file, analysis_id)
+    try:
+        upload_path = save_upload(file, analysis_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
     video_record = create_video_record(
         db,
@@ -232,7 +232,7 @@ async def upload_video(
             "session_id": session_id,
             "route_id": route_id,
         },
-        daemon=True,
+        daemon=False,
     )
     thread.start()
 
@@ -345,6 +345,38 @@ async def download_json(
         filename=f"analysis_{analysis_id}.json",
         media_type="application/json",
     )
+
+
+@router.get("/outputs/{filename}")
+async def serve_output(
+    filename: str,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Serve analysis output files with authentication."""
+    file_path = OUTPUT_DIR / filename
+    # Prevent path traversal
+    if not file_path.resolve().is_relative_to(OUTPUT_DIR.resolve()):
+        raise HTTPException(status_code=404, detail="File not found")
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+
+    # Verify user owns the analysis that generated this output
+    # Use endswith for exact filename match (not substring) to prevent over-matching
+    expected_path = f"/outputs/{filename}"
+    analysis = (
+        db.query(Analysis)
+        .join(Video)
+        .filter(
+            Analysis.output_video_path == expected_path,
+            Video.user_id == current_user.id,
+        )
+        .first()
+    )
+    if not analysis:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    return FileResponse(path=str(file_path))
 
 
 # ============================================================================

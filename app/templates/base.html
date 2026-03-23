@@ -1153,6 +1153,13 @@
       let currentUser = null;
       const API_BASE = "/api";
 
+      function escapeHtml(str) {
+        if (str == null) return "";
+        const div = document.createElement("div");
+        div.appendChild(document.createTextNode(String(str)));
+        return div.innerHTML;
+      }
+
       function showAlert(message, type = "info") {
         const alertContainer = document.getElementById("alert-container");
         const alert = document.createElement("div");
