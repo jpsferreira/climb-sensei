@@ -5,8 +5,8 @@ Each step takes explicit parameters and returns explicit results.
 """
 
 import logging
-import shutil
-from pathlib import Path
+import os
+from pathlib import Path, PurePosixPath
 from typing import Any, Dict, List, Optional, Tuple
 
 from sqlalchemy.orm import Session
@@ -37,9 +37,35 @@ OUTPUT_DIR.mkdir(exist_ok=True)
 # Documentation base URL
 BASE_DOC_URL = "https://jpsferreira.github.io/climb-sensei/metrics/"
 
+# Maximum upload size (default 500MB)
+MAX_UPLOAD_SIZE = int(os.getenv("MAX_UPLOAD_MB", "500")) * 1024 * 1024
+
+ALLOWED_EXTENSIONS = {".mp4", ".avi", ".mov", ".mkv"}
+
+# Magic byte signatures for video formats
+_VIDEO_SIGNATURES = [
+    (b"ftyp", 4),  # MP4/MOV (ftyp box at offset 4)
+    (b"\x1a\x45\xdf\xa3", 0),  # MKV/WebM (EBML header)
+    (b"RIFF", 0),  # AVI (RIFF container)
+]
+
+
+def validate_video_magic_bytes(file_path: Path) -> bool:
+    """Validate that a file's magic bytes match a known video format."""
+    try:
+        with open(file_path, "rb") as f:
+            header = f.read(12)
+        for signature, offset in _VIDEO_SIGNATURES:
+            end = offset + len(signature)
+            if len(header) >= end and header[offset:end] == signature:
+                return True
+    except OSError:
+        pass
+    return False
+
 
 def save_upload(file, analysis_id: str) -> Path:
-    """Save uploaded file to disk.
+    """Save uploaded file to disk with sanitized filename and size limit.
 
     Args:
         file: FastAPI UploadFile
@@ -47,10 +73,51 @@ def save_upload(file, analysis_id: str) -> Path:
 
     Returns:
         Path to the saved file
+
+    Raises:
+        ValueError: If file extension is not allowed or path is invalid
+        HTTPException: If file exceeds size limit
     """
-    upload_path = UPLOAD_DIR / f"{analysis_id}_{file.filename}"
+    from fastapi import HTTPException
+
+    # Sanitize: extract only the extension from the original filename
+    original_name = PurePosixPath(file.filename or "video.mp4").name
+    suffix = PurePosixPath(original_name).suffix.lower()
+    if suffix not in ALLOWED_EXTENSIONS:
+        raise ValueError("Invalid file type. Please upload a video file.")
+
+    safe_name = f"{analysis_id}{suffix}"
+    upload_path = UPLOAD_DIR / safe_name
+
+    # Belt-and-suspenders: verify resolved path is inside UPLOAD_DIR
+    if not upload_path.resolve().is_relative_to(UPLOAD_DIR.resolve()):
+        raise ValueError("Invalid upload path")
+
+    # Write with size limit enforcement
+    bytes_written = 0
     with open(upload_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+        while True:
+            chunk = file.file.read(1024 * 1024)  # 1MB chunks
+            if not chunk:
+                break
+            bytes_written += len(chunk)
+            if bytes_written > MAX_UPLOAD_SIZE:
+                buffer.close()
+                upload_path.unlink(missing_ok=True)
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"File too large. Maximum size is {MAX_UPLOAD_SIZE // (1024 * 1024)}MB.",
+                )
+            buffer.write(chunk)
+
+    # Validate magic bytes
+    if not validate_video_magic_bytes(upload_path):
+        upload_path.unlink(missing_ok=True)
+        raise HTTPException(
+            status_code=400,
+            detail="File does not appear to be a valid video. Upload a real video file.",
+        )
+
     return upload_path
 
 

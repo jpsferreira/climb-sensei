@@ -6,7 +6,6 @@ Also provides sync wrappers for compatibility with sync database code.
 
 import logging
 import os
-import warnings
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -30,12 +29,10 @@ logger = logging.getLogger(__name__)
 # Configuration from environment variables
 SECRET_KEY = os.getenv("SECRET_KEY")
 if SECRET_KEY is None:
-    warnings.warn(
-        "SECRET_KEY not set! Using insecure default. "
-        "Set SECRET_KEY env var in production.",
-        stacklevel=2,
+    raise RuntimeError(
+        "SECRET_KEY environment variable is not set. "
+        "Generate one with: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
     )
-    SECRET_KEY = "your-secret-key-change-this-in-production"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 
@@ -92,7 +89,15 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return encoded_jwt
 
 
-AUTH_DISABLED = os.getenv("AUTH_DISABLED", "").lower() in ("1", "true", "yes")
+_auth_disabled_requested = os.getenv("AUTH_DISABLED", "").lower() in ("1", "true", "yes")
+_environment = os.getenv("ENVIRONMENT", "production").lower()
+AUTH_DISABLED = _auth_disabled_requested and _environment in ("development", "testing")
+if _auth_disabled_requested and not AUTH_DISABLED:
+    logger.critical(
+        "AUTH_DISABLED ignored because ENVIRONMENT=%s. "
+        "AUTH_DISABLED only works in development/testing environments.",
+        _environment,
+    )
 
 
 def _get_or_create_dev_user(db: Session) -> User:

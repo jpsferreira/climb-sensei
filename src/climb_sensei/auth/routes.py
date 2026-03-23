@@ -52,7 +52,7 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered",
+            detail="Registration failed. Please check your input and try again.",
         )
 
     # Create new user
@@ -143,7 +143,7 @@ async def update_current_user(
         if existing:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email already registered",
+                detail="Email update failed. Please try a different email.",
             )
         current_user.email = user_update.email
 

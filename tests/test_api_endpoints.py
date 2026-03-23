@@ -357,10 +357,10 @@ class TestStaticFiles:
         response = client.get("/static/style.css")
         assert response.status_code in [200, 404]
 
-    def test_outputs_directory_accessible(self, client):
-        """Outputs directory should be accessible."""
+    def test_outputs_require_authentication(self, client):
+        """Output files should require authentication."""
         response = client.get("/outputs/nonexistent.mp4")
-        assert response.status_code in [200, 404]
+        assert response.status_code in [401, 404]
 
 
 class TestDBAPIEndpoints:

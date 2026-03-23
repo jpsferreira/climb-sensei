@@ -3,6 +3,7 @@
 Sets up user management, authentication backend, and OAuth providers.
 """
 
+import logging
 import os
 from typing import Optional
 from fastapi import Depends, Request
@@ -19,10 +20,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from climb_sensei.database.models import User
 from climb_sensei.database.config import get_async_db
 
-# Environment variables for OAuth (you'll need to set these)
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "YOUR_GOOGLE_CLIENT_ID")
-GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "YOUR_GOOGLE_CLIENT_SECRET")
-SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-this-in-production")
+logger = logging.getLogger(__name__)
+
+# Environment variables for OAuth
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
+SECRET_KEY = os.getenv("SECRET_KEY", "")
 
 # Google OAuth client
 google_oauth_client = GoogleOAuth2(
@@ -39,19 +42,19 @@ class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
 
     async def on_after_register(self, user: User, request: Optional[Request] = None):
         """Hook called after user registration."""
-        print(f"User {user.id} has registered.")
+        logger.info("User %s has registered.", user.id)
 
     async def on_after_forgot_password(
         self, user: User, token: str, request: Optional[Request] = None
     ):
         """Hook called after password reset request."""
-        print(f"User {user.id} has forgot their password. Reset token: {token}")
+        logger.info("User %s requested a password reset.", user.id)
 
     async def on_after_request_verify(
         self, user: User, token: str, request: Optional[Request] = None
     ):
         """Hook called after email verification request."""
-        print(f"Verification requested for user {user.id}. Verification token: {token}")
+        logger.info("Verification requested for user %s.", user.id)
 
 
 async def get_user_db(session: AsyncSession = Depends(get_async_db)):

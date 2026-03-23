@@ -421,11 +421,11 @@
           <div class="route-title-row">
               <div>
                   <div class="flex items-center" style="gap: 10px;">
-                      <span class="route-title">${r.name}</span>
-                      ${r.grade ? `<span class="badge badge-warning">${r.grade}</span>` : ''}
+                      <span class="route-title">${escapeHtml(r.name)}</span>
+                      ${r.grade ? `<span class="badge badge-warning">${escapeHtml(r.grade)}</span>` : ''}
                   </div>
                   <div class="route-subtitle">
-                      ${r.location ? r.location : ''}${r.location && typeLabel ? ' &middot; ' : ''}${typeLabel}
+                      ${r.location ? escapeHtml(r.location) : ''}${r.location && typeLabel ? ' &middot; ' : ''}${escapeHtml(typeLabel)}
                   </div>
               </div>
               <span class="status-badge ${statusClass}">${statusLabel}</span>
@@ -551,7 +551,7 @@
           return `
               <div class="goal-item">
                   <div class="goal-item-header">
-                      <span>${name}</span>
+                      <span>${escapeHtml(name)}</span>
                       <span class="goal-item-target">${g.current_value || 0} / ${g.target_value}</span>
                   </div>
                   <div class="progress-bar">

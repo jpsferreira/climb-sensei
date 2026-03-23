@@ -743,7 +743,7 @@ endblock %} {% block extra_css %}
     grid.innerHTML = `
       <div class="tracking-card" style="grid-column: span 2;">
         <div class="metric-name">Quality</div>
-        <span class="quality-badge quality-${level}">${tq.quality_level || '—'}</span>
+        <span class="quality-badge quality-${level}">${escapeHtml(tq.quality_level) || '—'}</span>
       </div>
       <div class="tracking-card">
         <div class="metric-name">Detection Rate</div>

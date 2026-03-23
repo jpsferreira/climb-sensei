@@ -386,10 +386,10 @@
       .map(
         (route) => `
         <a href="/routes/${route.id}" class="route-item ${route.status === "sent" ? "route-sent" : ""}">
-            <div class="grade-badge grade-${gradeColor(route.grade)}">${route.grade}</div>
+            <div class="grade-badge grade-${gradeColor(route.grade)}">${escapeHtml(route.grade)}</div>
             <div class="route-info">
-                <div class="route-name">${route.name}</div>
-                <div class="route-meta">${route.location || "No location"} · ${route.attempt_count} attempt${route.attempt_count !== 1 ? "s" : ""}${route.last_attempt_date ? " · " + timeAgo(route.last_attempt_date) : ""}</div>
+                <div class="route-name">${escapeHtml(route.name)}</div>
+                <div class="route-meta">${escapeHtml(route.location) || "No location"} · ${route.attempt_count} attempt${route.attempt_count !== 1 ? "s" : ""}${route.last_attempt_date ? " · " + timeAgo(route.last_attempt_date) : ""}</div>
             </div>
             <div class="route-sparkline">${renderSparkline(route.sparkline)}</div>
         </a>
