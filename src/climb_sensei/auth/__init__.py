@@ -27,10 +27,10 @@ from climb_sensei.auth.users import (  # noqa: F401
 logger = logging.getLogger(__name__)
 
 # Configuration from environment variables
-SECRET_KEY = os.getenv("SECRET_KEY")
-if SECRET_KEY is None:
+SECRET_KEY = os.getenv("SECRET_KEY", "").strip()
+if not SECRET_KEY or len(SECRET_KEY) < 32:
     raise RuntimeError(
-        "SECRET_KEY environment variable is not set. "
+        "SECRET_KEY environment variable is missing or too short (min 32 chars). "
         'Generate one with: python -c "import secrets; print(secrets.token_urlsafe(32))"'
     )
 ALGORITHM = "HS256"

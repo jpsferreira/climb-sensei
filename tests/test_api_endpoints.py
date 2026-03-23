@@ -360,7 +360,7 @@ class TestStaticFiles:
     def test_outputs_require_authentication(self, client):
         """Output files should require authentication."""
         response = client.get("/outputs/nonexistent.mp4")
-        assert response.status_code in [401, 404]
+        assert response.status_code == 401
 
 
 class TestDBAPIEndpoints:

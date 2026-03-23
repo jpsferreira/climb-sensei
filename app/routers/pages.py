@@ -43,8 +43,12 @@ async def attempt_detail(request: Request, route_id: int, attempt_id: int):
 @router.get("/upload", response_class=HTMLResponse)
 async def upload_page(request: Request):
     """Render the upload page."""
+    from app.services.upload import MAX_UPLOAD_SIZE
+
+    max_upload_mb = MAX_UPLOAD_SIZE // (1024 * 1024)
     return templates.TemplateResponse(
-        "upload.html", {"request": request, "active_tab": "upload"}
+        "upload.html",
+        {"request": request, "active_tab": "upload", "max_upload_mb": max_upload_mb},
     )
 
 

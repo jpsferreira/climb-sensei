@@ -572,7 +572,7 @@ endblock %} {% block extra_css %}
       const form = e.target;
 
       // Client-side file size validation
-      const MAX_SIZE_MB = 500;
+      const MAX_SIZE_MB = {{ max_upload_mb | default(500) }};
       const fileInput = form.querySelector('input[type="file"]');
       if (
         fileInput &&

@@ -42,23 +42,23 @@ MAX_UPLOAD_SIZE = int(os.getenv("MAX_UPLOAD_MB", "500")) * 1024 * 1024
 
 ALLOWED_EXTENSIONS = {".mp4", ".avi", ".mov", ".mkv"}
 
-# Magic byte signatures for video formats
-_VIDEO_SIGNATURES = [
-    (b"ftyp", 4),  # MP4/MOV (ftyp box at offset 4)
-    (b"\x1a\x45\xdf\xa3", 0),  # MKV/WebM (EBML header)
-    (b"RIFF", 0),  # AVI (RIFF container)
-]
-
 
 def validate_video_magic_bytes(file_path: Path) -> bool:
     """Validate that a file's magic bytes match a known video format."""
     try:
         with open(file_path, "rb") as f:
             header = f.read(12)
-        for signature, offset in _VIDEO_SIGNATURES:
-            end = offset + len(signature)
-            if len(header) >= end and header[offset:end] == signature:
-                return True
+        if len(header) < 12:
+            return False
+        # MP4/MOV: "ftyp" at offset 4
+        if header[4:8] == b"ftyp":
+            return True
+        # MKV/WebM: EBML header
+        if header[0:4] == b"\x1a\x45\xdf\xa3":
+            return True
+        # AVI: RIFF container with AVI marker at offset 8
+        if header[0:4] == b"RIFF" and header[8:12] == b"AVI ":
+            return True
     except OSError:
         pass
     return False

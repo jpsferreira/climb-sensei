@@ -25,7 +25,12 @@ logger = logging.getLogger(__name__)
 # Environment variables for OAuth
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
-SECRET_KEY = os.getenv("SECRET_KEY", "")
+SECRET_KEY = os.getenv("SECRET_KEY", "").strip()
+if not SECRET_KEY or len(SECRET_KEY) < 32:
+    raise RuntimeError(
+        "SECRET_KEY environment variable is missing or too short (min 32 chars). "
+        'Generate one with: python -c "import secrets; print(secrets.token_urlsafe(32))"'
+    )
 
 # Google OAuth client
 google_oauth_client = GoogleOAuth2(

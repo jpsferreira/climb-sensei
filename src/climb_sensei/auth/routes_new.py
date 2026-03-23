@@ -9,6 +9,8 @@ from fastapi import APIRouter, Depends
 from fastapi_users import schemas
 
 from climb_sensei.auth.users import (
+    GOOGLE_CLIENT_ID,
+    GOOGLE_CLIENT_SECRET,
     SECRET_KEY,
     auth_backend,
     fastapi_users,
@@ -53,20 +55,21 @@ router.include_router(
     prefix="/users",
 )
 
-# Google OAuth router
-router.include_router(
-    fastapi_users.get_oauth_router(
-        google_oauth_client,
-        auth_backend,
-        os.getenv("OAUTH_STATE_SECRET", SECRET_KEY),
-        redirect_url=os.getenv(
-            "OAUTH_REDIRECT_URL",
-            "http://localhost:8000/api/auth/google/callback",
+# Google OAuth router — only register when credentials are configured
+if GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET:
+    router.include_router(
+        fastapi_users.get_oauth_router(
+            google_oauth_client,
+            auth_backend,
+            os.getenv("OAUTH_STATE_SECRET", SECRET_KEY),
+            redirect_url=os.getenv(
+                "OAUTH_REDIRECT_URL",
+                "http://localhost:8000/api/auth/google/callback",
+            ),
         ),
-    ),
-    prefix="/google",
-    tags=["OAuth"],
-)
+        prefix="/google",
+        tags=["OAuth"],
+    )
 
 
 # Keep backward compatibility endpoint for /me

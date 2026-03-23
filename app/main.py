@@ -13,6 +13,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from slowapi import _rate_limit_exceeded_handler
+from slowapi.middleware import SlowAPIMiddleware
 from slowapi.errors import RateLimitExceeded
 from starlette.middleware.base import BaseHTTPMiddleware
 import uvicorn
@@ -93,14 +94,9 @@ def create_app() -> FastAPI:
     # Rate limiting
     application.state.limiter = limiter
     application.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    application.add_middleware(SlowAPIMiddleware)
 
-    # Security headers
-    application.add_middleware(SecurityHeadersMiddleware)
-
-    # Request logging
-    application.add_middleware(RequestLoggingMiddleware)
-
-    # CORS — only if explicit origins are configured
+    # CORS — only if explicit origins are configured (must be outermost middleware)
     cors_origins = [
         o.strip() for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip()
     ]
@@ -112,6 +108,12 @@ def create_app() -> FastAPI:
             allow_methods=["GET", "POST", "PATCH", "DELETE"],
             allow_headers=["Authorization", "Content-Type"],
         )
+
+    # Security headers (runs after CORS so preflight responses also get headers)
+    application.add_middleware(SecurityHeadersMiddleware)
+
+    # Request logging
+    application.add_middleware(RequestLoggingMiddleware)
 
     # Initialize database
     init_db()

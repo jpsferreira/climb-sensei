@@ -7,7 +7,8 @@ import os
 def configure_logging():
     """Configure logging based on environment.
 
-    Uses structured format for production, human-readable for development.
+    Uses a concise format for production and a detailed format (with
+    filename and line number) for development.
     Configurable via LOG_LEVEL and ENVIRONMENT env vars.
     """
     env = os.getenv("ENVIRONMENT", "production").lower()
