@@ -7,7 +7,7 @@ This module provides endpoints for:
 - Climbing session management
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
@@ -53,7 +53,7 @@ async def get_metric_progress(
     Returns:
         ProgressHistory with data points, statistics
     """
-    cutoff = datetime.utcnow() - timedelta(days=days)
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
 
     metrics = (
         db.query(ProgressMetric)
@@ -98,7 +98,7 @@ async def get_all_metrics_progress(
 
     Returns a dictionary with metric names as keys and their progress data.
     """
-    cutoff = datetime.utcnow() - timedelta(days=days)
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
 
     metrics = (
         db.query(ProgressMetric)
@@ -378,7 +378,7 @@ async def update_goal(
 
     # Auto-set achieved_at if marking as achieved
     if "achieved" in update_data and update_data["achieved"] and not goal.achieved_at:
-        goal.achieved_at = datetime.utcnow()
+        goal.achieved_at = datetime.now(timezone.utc)
 
     db.commit()
     db.refresh(goal)

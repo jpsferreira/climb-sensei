@@ -9,7 +9,7 @@ Tests cover:
 """
 
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -186,8 +186,8 @@ class TestProgressMetrics:
     ):
         """Should filter metrics by days parameter."""
         # Create old and recent metrics
-        old_date = datetime.utcnow() - timedelta(days=45)
-        recent_date = datetime.utcnow() - timedelta(days=5)
+        old_date = datetime.now(timezone.utc) - timedelta(days=45)
+        recent_date = datetime.now(timezone.utc) - timedelta(days=5)
 
         old_metric = ProgressMetric(
             user_id=test_user.id,
@@ -327,7 +327,9 @@ class TestAnalysisComparison:
         """Should include session names in comparisons."""
         # Create session
         session = ClimbSession(
-            user_id=test_user.id, name="Morning Session", date=datetime.utcnow()
+            user_id=test_user.id,
+            name="Morning Session",
+            date=datetime.now(timezone.utc),
         )
         db_session.add(session)
         db_session.commit()
@@ -413,7 +415,7 @@ class TestGoalManagement:
 
     def test_create_goal(self, client, test_user_token):
         """Should create a new goal."""
-        deadline = (datetime.utcnow() + timedelta(days=30)).isoformat()
+        deadline = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
         response = client.post(
             "/api/goals",
             json={
@@ -602,7 +604,7 @@ class TestSessionManagement:
 
     def test_create_session(self, client, test_user_token):
         """Should create a new climbing session."""
-        session_date = datetime.utcnow().isoformat()
+        session_date = datetime.now(timezone.utc).isoformat()
         response = client.post(
             "/api/sessions",
             json={
@@ -622,12 +624,12 @@ class TestSessionManagement:
     def test_list_sessions(self, client, test_user_token, db_session, test_user):
         """Should list all sessions for user."""
         session1 = ClimbSession(
-            user_id=test_user.id, name="Session 1", date=datetime.utcnow()
+            user_id=test_user.id, name="Session 1", date=datetime.now(timezone.utc)
         )
         session2 = ClimbSession(
             user_id=test_user.id,
             name="Session 2",
-            date=datetime.utcnow() - timedelta(days=1),
+            date=datetime.now(timezone.utc) - timedelta(days=1),
         )
         db_session.add_all([session1, session2])
         db_session.commit()
@@ -647,7 +649,7 @@ class TestSessionManagement:
             session = ClimbSession(
                 user_id=test_user.id,
                 name=f"Session {i}",
-                date=datetime.utcnow() - timedelta(days=i),
+                date=datetime.now(timezone.utc) - timedelta(days=i),
             )
             db_session.add(session)
         db_session.commit()
@@ -664,7 +666,7 @@ class TestSessionManagement:
         session = ClimbSession(
             user_id=test_user.id,
             name="Test Session",
-            date=datetime.utcnow(),
+            date=datetime.now(timezone.utc),
             location="Gym A",
         )
         db_session.add(session)
@@ -682,7 +684,7 @@ class TestSessionManagement:
     def test_update_session(self, client, test_user_token, db_session, test_user):
         """Should update session fields."""
         session = ClimbSession(
-            user_id=test_user.id, name="Original Name", date=datetime.utcnow()
+            user_id=test_user.id, name="Original Name", date=datetime.now(timezone.utc)
         )
         db_session.add(session)
         db_session.commit()
@@ -700,7 +702,7 @@ class TestSessionManagement:
     def test_delete_session(self, client, test_user_token, db_session, test_user):
         """Should delete session without deleting analyses."""
         session = ClimbSession(
-            user_id=test_user.id, name="To Delete", date=datetime.utcnow()
+            user_id=test_user.id, name="To Delete", date=datetime.now(timezone.utc)
         )
         db_session.add(session)
         db_session.commit()
@@ -739,7 +741,7 @@ class TestSessionManagement:
     ):
         """Should get all analysis IDs for a session."""
         session = ClimbSession(
-            user_id=test_user.id, name="Test Session", date=datetime.utcnow()
+            user_id=test_user.id, name="Test Session", date=datetime.now(timezone.utc)
         )
         db_session.add(session)
         db_session.commit()
@@ -772,7 +774,7 @@ class TestSessionManagement:
         db_session.commit()
 
         other_session = ClimbSession(
-            user_id=other_user.id, name="Other Session", date=datetime.utcnow()
+            user_id=other_user.id, name="Other Session", date=datetime.now(timezone.utc)
         )
         db_session.add(other_session)
         db_session.commit()

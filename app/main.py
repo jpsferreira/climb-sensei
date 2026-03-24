@@ -7,6 +7,7 @@ configures static files and middleware.
 import logging
 import os
 import time
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -76,6 +77,27 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         return response
 
 
+def _validate_config():
+    """Log warnings for questionable production configuration."""
+    env = os.getenv("ENVIRONMENT", "production").lower()
+    if env == "production":
+        db_url = os.getenv("DATABASE_URL", "")
+        if db_url.startswith("sqlite") or not db_url:
+            logger.warning(
+                "Using SQLite in production is not recommended for concurrent access"
+            )
+        gid = os.getenv("GOOGLE_CLIENT_ID", "")
+        if not gid or gid.startswith("YOUR_"):
+            logger.warning("Google OAuth is not configured (GOOGLE_CLIENT_ID missing)")
+
+
+@asynccontextmanager
+async def lifespan(app):
+    """Application lifespan: run startup validation."""
+    _validate_config()
+    yield
+
+
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application instance.
 
@@ -89,6 +111,7 @@ def create_app() -> FastAPI:
         title="ClimbingSensei Web App",
         description="Upload climbing videos and analyze performance",
         version="1.0.0",
+        lifespan=lifespan,
     )
 
     # Rate limiting
@@ -117,22 +140,6 @@ def create_app() -> FastAPI:
 
     # Initialize database
     init_db()
-
-    # Startup validation
-    @application.on_event("startup")
-    def validate_config():
-        env = os.getenv("ENVIRONMENT", "production").lower()
-        if env == "production":
-            db_url = os.getenv("DATABASE_URL", "")
-            if db_url.startswith("sqlite") or not db_url:
-                logger.warning(
-                    "Using SQLite in production is not recommended for concurrent access"
-                )
-            gid = os.getenv("GOOGLE_CLIENT_ID", "")
-            if not gid or gid.startswith("YOUR_"):
-                logger.warning(
-                    "Google OAuth is not configured (GOOGLE_CLIENT_ID missing)"
-                )
 
     # Routers
     application.include_router(auth_router, prefix="/api")
