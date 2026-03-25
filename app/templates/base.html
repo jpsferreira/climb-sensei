@@ -1527,13 +1527,11 @@
         modal._focusTrapHandler = handler;
         modal.addEventListener("keydown", handler);
 
-        // Close on Escape
+        // Close on Escape — route through closeModal for consistent state
         function escHandler(e) {
           if (e.key === "Escape") {
-            modal.classList.add("hidden");
-            modal.removeEventListener("keydown", handler);
-            modal.removeEventListener("keydown", escHandler);
-            if (modal._previousFocus) modal._previousFocus.focus();
+            e.preventDefault();
+            closeModal(modal);
           }
         }
         modal._escHandler = escHandler;
