@@ -281,7 +281,25 @@
       <canvas id="chart-boulder"></canvas>
     </div>
     <div id="pyramid-boulder-empty" class="empty-state hidden">
-      <p>No boulder routes recorded yet</p>
+      <div class="empty-state-icon">
+        <svg
+          width="40"
+          height="40"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <rect x="3" y="12" width="4" height="9" rx="1" />
+          <rect x="10" y="7" width="4" height="14" rx="1" />
+          <rect x="17" y="3" width="4" height="18" rx="1" />
+        </svg>
+      </div>
+      <div class="empty-state-desc">
+        Create some boulder routes and log attempts to build your grade pyramid.
+      </div>
     </div>
   </div>
 
@@ -290,7 +308,26 @@
       <canvas id="chart-sport"></canvas>
     </div>
     <div id="pyramid-sport-empty" class="empty-state hidden">
-      <p>No sport / trad routes recorded yet</p>
+      <div class="empty-state-icon">
+        <svg
+          width="40"
+          height="40"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <rect x="3" y="12" width="4" height="9" rx="1" />
+          <rect x="10" y="7" width="4" height="14" rx="1" />
+          <rect x="17" y="3" width="4" height="18" rx="1" />
+        </svg>
+      </div>
+      <div class="empty-state-desc">
+        Create some sport or trad routes and log attempts to build your grade
+        pyramid.
+      </div>
     </div>
   </div>
 </div>
@@ -648,7 +685,13 @@
     const container = document.getElementById(`goals-${tab}`);
 
     if (goals.length === 0) {
-      container.innerHTML = `<div class="empty-state"><p>${tab === "active" ? "No active goals right now." : "No achieved goals yet."}</p></div>`;
+      const icon =
+        '<div class="empty-state-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></div>';
+      const desc =
+        tab === "active"
+          ? "Set targets for specific metrics to stay motivated and track your improvement."
+          : "Completed goals will appear here as you hit your targets.";
+      container.innerHTML = `<div class="empty-state">${icon}<div class="empty-state-desc">${desc}</div></div>`;
       return;
     }
 
