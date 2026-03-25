@@ -1205,17 +1205,11 @@
 
     {% if hide_nav is not defined or not hide_nav %}
     <nav class="bottom-nav" id="bottom-nav" aria-label="Main navigation">
+      <!-- prettier-ignore -->
       <a
         href="/"
         class="nav-tab {% if active_tab == 'routes' %}active{% endif %}"
-        {%
-        if
-        active_tab=""
-        ="routes"
-        %}aria-current="page"
-        {%
-        endif
-        %}
+        {% if active_tab == 'routes' %}aria-current="page"{% endif %}
       >
         <svg
           width="24"
@@ -1229,32 +1223,20 @@
         </svg>
         <span>Routes</span>
       </a>
+      <!-- prettier-ignore -->
       <a
         href="/upload"
         class="nav-tab {% if active_tab == 'upload' %}active{% endif %}"
-        {%
-        if
-        active_tab=""
-        ="upload"
-        %}aria-current="page"
-        {%
-        endif
-        %}
+        {% if active_tab == 'upload' %}aria-current="page"{% endif %}
       >
         <div class="fab" aria-hidden="true">+</div>
         <span>Upload</span>
       </a>
+      <!-- prettier-ignore -->
       <a
         href="/sessions"
         class="nav-tab {% if active_tab == 'sessions' %}active{% endif %}"
-        {%
-        if
-        active_tab=""
-        ="sessions"
-        %}aria-current="page"
-        {%
-        endif
-        %}
+        {% if active_tab == 'sessions' %}aria-current="page"{% endif %}
       >
         <svg
           width="24"
@@ -1271,17 +1253,11 @@
         </svg>
         <span>Sessions</span>
       </a>
+      <!-- prettier-ignore -->
       <a
         href="/profile"
         class="nav-tab {% if active_tab == 'profile' %}active{% endif %}"
-        {%
-        if
-        active_tab=""
-        ="profile"
-        %}aria-current="page"
-        {%
-        endif
-        %}
+        {% if active_tab == 'profile' %}aria-current="page"{% endif %}
       >
         <svg
           width="24"
