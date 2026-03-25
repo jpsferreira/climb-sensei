@@ -662,17 +662,16 @@ endblock %} {% block extra_css %}
   }
 
   // ─── Create route modal ───────────────────────────────────────────────────
+  const _uploadCreateModal = document.getElementById("create-route-modal");
   function openCreateRouteModal() {
-    document.getElementById("create-route-modal").classList.remove("hidden");
+    openModal(_uploadCreateModal);
   }
   function closeCreateRouteModal() {
-    document.getElementById("create-route-modal").classList.add("hidden");
+    closeModal(_uploadCreateModal);
   }
-  document
-    .getElementById("create-route-modal")
-    .addEventListener("click", (e) => {
-      if (e.target === e.currentTarget) closeCreateRouteModal();
-    });
+  _uploadCreateModal.addEventListener("click", (e) => {
+    if (e.target === e.currentTarget) closeCreateRouteModal();
+  });
   document
     .getElementById("open-create-route")
     .addEventListener("click", (e) => {

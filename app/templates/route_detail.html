@@ -334,7 +334,7 @@
     <h2 class="section-title" style="margin-bottom: 0">Goals</h2>
     <button
       class="btn btn-sm btn-outline"
-      onclick="document.getElementById('goal-modal').classList.remove('hidden')"
+      onclick="openModal(document.getElementById('goal-modal'))"
     >
       Set Goal
     </button>
@@ -402,7 +402,7 @@
         <button
           type="button"
           class="btn btn-secondary"
-          onclick="document.getElementById('edit-route-modal').classList.add('hidden')"
+          onclick="closeModal(document.getElementById('edit-route-modal'))"
         >
           Cancel
         </button>
@@ -451,7 +451,7 @@
         <button
           type="button"
           class="btn btn-secondary"
-          onclick="document.getElementById('goal-modal').classList.add('hidden')"
+          onclick="closeModal(document.getElementById('goal-modal'))"
         >
           Cancel
         </button>
@@ -746,7 +746,7 @@
       document.getElementById('edit-type').value = routeData.type || 'boulder';
       document.getElementById('edit-status').value = routeData.status || 'projecting';
       document.getElementById('edit-location').value = routeData.location || '';
-      document.getElementById('edit-route-modal').classList.remove('hidden');
+      openModal(document.getElementById('edit-route-modal'));
   }
 
   async function editRoute(e) {
@@ -763,7 +763,7 @@
       });
       if (res.ok) {
           showAlert('Route updated', 'success');
-          document.getElementById('edit-route-modal').classList.add('hidden');
+          closeModal(document.getElementById('edit-route-modal'));
           loadRoute();
       } else {
           const err = await res.json().catch(() => ({}));
@@ -789,7 +789,7 @@
       });
       if (res.ok) {
           showAlert('Goal created', 'success');
-          document.getElementById('goal-modal').classList.add('hidden');
+          closeModal(document.getElementById('goal-modal'));
           form.reset();
           loadGoals();
       } else {

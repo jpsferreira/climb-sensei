@@ -29,3 +29,12 @@
 - [x] Add insights summary panel below chart (last attempt %, overall trend, best, average)
 - [x] Color-code trends green/red with direction-aware logic (lower-is-better for sway/fatigue)
 - [x] Add delta badges to timeline attempt cards showing change from previous attempt
+
+## #13 Accessibility Improvements
+
+- [x] Add visible :focus-visible indicators for keyboard navigation on all interactive elements
+- [x] Add skip-to-content link for keyboard users
+- [x] Add modal focus trapping (Tab cycles within modal, Escape closes)
+- [x] Add ARIA roles/attributes: aria-current on nav, aria-live on alerts, role=dialog on modals
+- [x] Use semantic `<main>` landmark instead of `<div>` for main content
+- [x] Add prefers-reduced-motion media query to disable animations
