@@ -38,3 +38,10 @@
 - [x] Add ARIA roles/attributes: aria-current on nav, aria-live on alerts, role=dialog on modals
 - [x] Use semantic `<main>` landmark instead of `<div>` for main content
 - [x] Add prefers-reduced-motion media query to disable animations
+
+## #10 Toast Notification Positioning
+
+- [x] Reposition toasts to bottom-center on mobile (above nav bar)
+- [x] Add slide-up animation on mobile instead of slide-from-right
+- [x] Add swipe-to-dismiss touch gesture for toasts
+- [x] Add close/dismiss button on each toast for accessibility
