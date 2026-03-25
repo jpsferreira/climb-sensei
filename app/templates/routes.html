@@ -492,20 +492,20 @@
   });
 
   // Create route modal
+  const _createModal = document.getElementById("create-route-modal");
+
   function openCreateModal() {
-    document.getElementById("create-route-modal").classList.remove("hidden");
+    openModal(_createModal);
   }
 
   function closeCreateModal() {
-    document.getElementById("create-route-modal").classList.add("hidden");
+    closeModal(_createModal);
   }
 
   // Close modal on backdrop click
-  document
-    .getElementById("create-route-modal")
-    .addEventListener("click", (e) => {
-      if (e.target === e.currentTarget) closeCreateModal();
-    });
+  _createModal.addEventListener("click", (e) => {
+    if (e.target === e.currentTarget) closeCreateModal();
+  });
 
   async function createRoute(e) {
     e.preventDefault();
