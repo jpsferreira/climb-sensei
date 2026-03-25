@@ -181,6 +181,78 @@
     margin-top: 14px;
   }
 
+  /* ─── Metric Insights Panel ──────────────────────────── */
+  .insights-panel {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+  }
+  .insight-card {
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    flex: 1;
+    min-width: 140px;
+  }
+  .insight-label {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-family: var(--font-display);
+    margin-bottom: 4px;
+  }
+  .insight-value {
+    font-size: 1.05rem;
+    font-weight: 700;
+    font-family: var(--font-display);
+  }
+  .insight-sub {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+  .trend-up {
+    color: var(--success);
+  }
+  .trend-down {
+    color: var(--error);
+  }
+  .trend-flat {
+    color: var(--text-muted);
+  }
+  .trend-arrow {
+    font-size: 0.85em;
+    margin-right: 2px;
+  }
+
+  /* ─── Attempt delta badges ───────────────────────────── */
+  .attempt-delta {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    font-family: var(--font-display);
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 6px;
+  }
+  .delta-positive {
+    background: var(--success-bg);
+    color: var(--success);
+  }
+  .delta-negative {
+    background: var(--error-bg);
+    color: var(--error);
+  }
+  .delta-neutral {
+    background: var(--bg-surface);
+    color: var(--text-muted);
+  }
+
   .goals-section {
     margin-top: 24px;
   }
@@ -247,6 +319,7 @@
   <div class="chart-container">
     <canvas id="metric-chart"></canvas>
   </div>
+  <div id="insights-panel" class="insights-panel" style="display: none"></div>
 </div>
 
 <div class="fade-up fade-up-delay-2">
@@ -459,6 +532,16 @@
       renderTimeline(attempts);
   }
 
+  function formatDelta(curr, prev, lowerBetter) {
+      if (curr == null || prev == null) return '';
+      const d = curr - prev;
+      if (Math.abs(d) < 0.001) return '<span class="attempt-delta delta-neutral">→ 0</span>';
+      const improved = lowerBetter ? d < 0 : d > 0;
+      const cls = improved ? 'delta-positive' : 'delta-negative';
+      const arrow = improved ? '↑' : '↓';
+      return `<span class="attempt-delta ${cls}">${arrow} ${Math.abs(d).toFixed(2)}</span>`;
+  }
+
   function renderTimeline(attempts) {
       const container = document.getElementById('timeline');
       if (attempts.length === 0) {
@@ -471,7 +554,13 @@
           return;
       }
       container.classList.add('timeline');
-      container.innerHTML = attempts.map((a, i) => `
+      // attempts are newest-first; the "previous" for display is the next element
+      container.innerHTML = attempts.map((a, i) => {
+          const prev = i < attempts.length - 1 ? attempts[i + 1] : null;
+          const velDelta = prev ? formatDelta(a.avg_velocity, prev.avg_velocity, false) : '';
+          const swayDelta = prev ? formatDelta(a.avg_sway, prev.avg_sway, true) : '';
+          const econDelta = prev ? formatDelta(a.avg_movement_economy, prev.avg_movement_economy, false) : '';
+          return `
           <div class="timeline-item">
               <div class="timeline-dot"></div>
               <div class="timeline-card">
@@ -480,14 +569,14 @@
                       <span class="attempt-date">${new Date(a.date).toLocaleDateString()}</span>
                   </div>
                   <div class="attempt-metrics">
-                      ${a.avg_velocity != null ? 'Vel: ' + a.avg_velocity.toFixed(2) : ''}
-                      ${a.avg_sway != null ? ' &middot; Sway: ' + a.avg_sway.toFixed(2) : ''}
-                      ${a.avg_movement_economy != null ? ' &middot; Economy: ' + a.avg_movement_economy.toFixed(2) : ''}
+                      ${a.avg_velocity != null ? 'Vel: ' + a.avg_velocity.toFixed(2) + velDelta : ''}
+                      ${a.avg_sway != null ? ' &middot; Sway: ' + a.avg_sway.toFixed(2) + swayDelta : ''}
+                      ${a.avg_movement_economy != null ? ' &middot; Economy: ' + a.avg_movement_economy.toFixed(2) + econDelta : ''}
                   </div>
                   ${a.has_video ? `<a href="/routes/${routeId}/attempts/${a.id}" class="attempt-video-link">&#9654; View details</a>` : `<a href="/routes/${routeId}/attempts/${a.id}" class="attempt-video-link">View details</a>`}
               </div>
-          </div>
-      `).join('');
+          </div>`;
+      }).join('');
   }
 
   async function loadChart() {
@@ -497,6 +586,77 @@
       renderChart(data);
   }
 
+  // Metrics where lower is better (used for trend direction coloring)
+  const LOWER_IS_BETTER = new Set(['avg_sway', 'fatigue_score']);
+
+  function metricDisplayName(key) {
+      return key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  }
+
+  function renderInsights(data) {
+      const panel = document.getElementById('insights-panel');
+      if (!data.data || data.data.length < 2) {
+          panel.style.display = 'none';
+          return;
+      }
+
+      const values = data.data.map(d => d.value);
+      const latest = values[values.length - 1];
+      const prev = values[values.length - 2];
+      const first = values[0];
+      const lowerBetter = LOWER_IS_BETTER.has(data.metric);
+
+      // Last attempt change
+      const lastDelta = latest - prev;
+      const lastPct = prev !== 0 ? ((lastDelta / Math.abs(prev)) * 100) : 0;
+      const lastImproved = lowerBetter ? lastDelta < 0 : lastDelta > 0;
+      const lastClass = Math.abs(lastPct) < 1 ? 'trend-flat' : (lastImproved ? 'trend-up' : 'trend-down');
+      const lastArrow = Math.abs(lastPct) < 1 ? '→' : (lastImproved ? '↑' : '↓');
+
+      // Overall change (first → last)
+      const overallDelta = latest - first;
+      const overallPct = first !== 0 ? ((overallDelta / Math.abs(first)) * 100) : 0;
+      const overallImproved = lowerBetter ? overallDelta < 0 : overallDelta > 0;
+      const overallClass = Math.abs(overallPct) < 1 ? 'trend-flat' : (overallImproved ? 'trend-up' : 'trend-down');
+      const overallArrow = Math.abs(overallPct) < 1 ? '→' : (overallImproved ? '↑' : '↓');
+
+      // Best value
+      const best = lowerBetter ? Math.min(...values) : Math.max(...values);
+      const bestIdx = values.indexOf(best);
+      const bestDate = new Date(data.data[bestIdx].date).toLocaleDateString();
+
+      // Average
+      const avg = values.reduce((a, b) => a + b, 0) / values.length;
+
+      panel.style.display = 'flex';
+      panel.innerHTML = `
+          <div class="insight-card">
+              <div class="insight-label">Last attempt</div>
+              <div class="insight-value ${lastClass}">
+                  <span class="trend-arrow">${lastArrow}</span>${Math.abs(lastPct).toFixed(1)}%
+              </div>
+              <div class="insight-sub">${lastDelta >= 0 ? '+' : ''}${lastDelta.toFixed(3)} vs previous</div>
+          </div>
+          <div class="insight-card">
+              <div class="insight-label">Overall (${values.length} attempts)</div>
+              <div class="insight-value ${overallClass}">
+                  <span class="trend-arrow">${overallArrow}</span>${Math.abs(overallPct).toFixed(1)}%
+              </div>
+              <div class="insight-sub">${overallDelta >= 0 ? '+' : ''}${overallDelta.toFixed(3)} since first</div>
+          </div>
+          <div class="insight-card">
+              <div class="insight-label">Best</div>
+              <div class="insight-value" style="color: var(--accent);">${best.toFixed(3)}</div>
+              <div class="insight-sub">${bestDate}</div>
+          </div>
+          <div class="insight-card">
+              <div class="insight-label">Average</div>
+              <div class="insight-value">${avg.toFixed(3)}</div>
+              <div class="insight-sub">${metricDisplayName(data.metric)}</div>
+          </div>
+      `;
+  }
+
   function renderChart(data) {
       const ctx = document.getElementById('metric-chart').getContext('2d');
       if (chart) chart.destroy();
@@ -504,6 +664,7 @@
           ctx.canvas.parentElement.innerHTML = '<div class="empty-state" style="padding: 2rem 0;">' +
               '<div class="empty-state-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>' +
               '<div class="empty-state-desc" style="margin-bottom: 0;">Upload more attempts to see trends for this metric.</div></div>';
+          document.getElementById('insights-panel').style.display = 'none';
           return;
       }
       chart = new Chart(ctx, {
@@ -526,6 +687,7 @@
               }
           }
       });
+      renderInsights(data);
   }
 
   function onMetricChange(value) {
