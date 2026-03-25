@@ -981,6 +981,87 @@
         }
       }
 
+      /* ─── Skeleton Loading ─────────────────────────────────── */
+      .skeleton {
+        background: var(--bg-raised);
+        border-radius: var(--radius);
+        position: relative;
+        overflow: hidden;
+      }
+
+      .skeleton::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          90deg,
+          transparent 0%,
+          rgba(255, 255, 255, 0.04) 40%,
+          rgba(255, 255, 255, 0.04) 60%,
+          transparent 100%
+        );
+        animation: shimmer 1.5s ease-in-out infinite;
+      }
+
+      @keyframes shimmer {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(100%); }
+      }
+
+      .skeleton-text {
+        height: 14px;
+        border-radius: 4px;
+        background: var(--bg-surface);
+      }
+
+      .skeleton-text.sm { height: 10px; width: 60%; }
+      .skeleton-text.md { height: 14px; width: 80%; }
+      .skeleton-text.lg { height: 18px; width: 50%; }
+
+      .skeleton-circle {
+        border-radius: 50%;
+        background: var(--bg-surface);
+      }
+
+      .skeleton-badge {
+        width: 36px;
+        height: 28px;
+        border-radius: 6px;
+        background: var(--bg-surface);
+      }
+
+      .skeleton-route-item {
+        background: var(--bg-raised);
+        border-radius: 10px;
+        padding: 12px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .skeleton-route-item::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          90deg,
+          transparent 0%,
+          rgba(255, 255, 255, 0.04) 40%,
+          rgba(255, 255, 255, 0.04) 60%,
+          transparent 100%
+        );
+        animation: shimmer 1.5s ease-in-out infinite;
+      }
+
+      .skeleton-route-info {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
       /* ─── Animations ──────────────────────────────────────── */
       @keyframes fadeUp {
         from {

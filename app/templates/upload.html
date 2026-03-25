@@ -122,6 +122,116 @@ endblock %} {% block extra_css %}
     font-family: var(--font-display);
     margin-bottom: 0.5rem;
   }
+
+  /* ─── Drag & Drop Zone (#4) ───────────────────────── */
+  .drop-zone {
+    position: relative;
+    border: 2px dashed var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--bg-base);
+    transition: all 0.25s ease;
+    cursor: pointer;
+  }
+  .drop-zone input[type="file"] {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+    z-index: 2;
+  }
+  .drop-zone.drag-over {
+    border-color: var(--accent);
+    background: var(--accent-glow);
+  }
+  .drop-zone.drag-over .drop-zone-prompt svg {
+    color: var(--accent);
+  }
+  .drop-zone:hover {
+    border-color: var(--accent-dim);
+    background: var(--accent-glow);
+  }
+  .drop-zone-prompt {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 2.5rem 1.5rem;
+    color: var(--text-muted);
+    text-align: center;
+  }
+  .drop-zone-prompt svg {
+    transition: color 0.2s;
+  }
+  .drop-zone-text {
+    font-size: 0.9rem;
+  }
+  .drop-zone-text strong {
+    color: var(--accent);
+  }
+  .drop-zone-hint {
+    font-size: 0.75rem;
+    color: var(--text-faint);
+  }
+  .drop-zone-preview {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+  }
+  .drop-zone-preview video {
+    width: 80px;
+    height: 56px;
+    object-fit: cover;
+    border-radius: var(--radius-sm);
+    background: var(--bg-deep);
+    flex-shrink: 0;
+  }
+  .drop-zone-file-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .drop-zone-file-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .drop-zone-file-size {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+  }
+  .drop-zone-remove {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    font-size: 1.1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    z-index: 3;
+    transition: all 0.2s;
+  }
+  .drop-zone-remove:hover {
+    background: var(--error-bg);
+    border-color: var(--error-dim);
+    color: var(--error);
+  }
+  .drop-zone.has-file {
+    border-style: solid;
+    border-color: var(--accent-dim);
+  }
 </style>
 {% endblock %} {% block content %}
 <!-- Upload form -->
@@ -170,28 +280,37 @@ endblock %} {% block extra_css %}
         </div>
       </div>
 
-      <!-- Video picker -->
+      <!-- Video picker — drag & drop zone (#4) -->
       <div class="form-group">
-        <label for="file">Video file</label>
-        <div class="file-input-wrapper">
+        <label for="file" class="section-label">Video file</label>
+        <div class="drop-zone" id="dropZone">
           <input type="file" id="file" name="file" accept="video/*" required />
-          <label for="file" class="file-label">
+          <div class="drop-zone-prompt" id="dropPrompt">
             <svg
-              width="20"
-              height="20"
+              width="32"
+              height="32"
               fill="none"
               stroke="currentColor"
-              stroke-width="2"
+              stroke-width="1.5"
               viewBox="0 0 24 24"
             >
               <path
                 d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"
               />
             </svg>
-            <span id="fileName">Choose a climbing video…</span>
-          </label>
+            <span class="drop-zone-text">Drag & drop a video here, or <strong>browse</strong></span>
+            <span class="drop-zone-hint">MP4, MOV, AVI, MKV</span>
+          </div>
+          <!-- File preview (shown after selection) -->
+          <div class="drop-zone-preview hidden" id="dropPreview">
+            <video id="videoThumb" muted></video>
+            <div class="drop-zone-file-info">
+              <span class="drop-zone-file-name" id="fileName"></span>
+              <span class="drop-zone-file-size" id="fileSize"></span>
+            </div>
+            <button type="button" class="drop-zone-remove" id="removeFile" title="Remove file">&times;</button>
+          </div>
         </div>
-        <small>Supported: MP4, MOV, AVI, MKV</small>
       </div>
 
       <button type="submit" class="btn" style="width: 100%">
@@ -392,10 +511,105 @@ endblock %} {% block extra_css %}
     return "red";
   }
 
-  // ─── File picker ──────────────────────────────────────────────────────────
+  // ─── Drag & Drop + File Preview (#4) ──────────────────────────────────────
+  const ALLOWED_TYPES = ["video/mp4", "video/quicktime", "video/x-msvideo", "video/x-matroska", "video/webm"];
+  const ALLOWED_EXTS = [".mp4", ".mov", ".avi", ".mkv", ".webm"];
+
+  function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + " KB";
+    if (bytes < 1073741824) return (bytes / 1048576).toFixed(1) + " MB";
+    return (bytes / 1073741824).toFixed(2) + " GB";
+  }
+
+  function validateVideoFile(file) {
+    const ext = "." + file.name.split(".").pop().toLowerCase();
+    if (!ALLOWED_TYPES.includes(file.type) && !ALLOWED_EXTS.includes(ext)) {
+      showAlert("Unsupported format. Please use MP4, MOV, AVI, MKV, or WebM.", "error");
+      return false;
+    }
+    return true;
+  }
+
+  function applyFileToPreview(file) {
+    if (!validateVideoFile(file)) return false;
+
+    const dropZone = document.getElementById("dropZone");
+    const prompt = document.getElementById("dropPrompt");
+    const preview = document.getElementById("dropPreview");
+    const thumb = document.getElementById("videoThumb");
+
+    document.getElementById("fileName").textContent = file.name;
+    document.getElementById("fileSize").textContent = formatFileSize(file.size);
+
+    // Generate video thumbnail
+    const url = URL.createObjectURL(file);
+    thumb.src = url;
+    thumb.currentTime = 0.5;
+    thumb.onloadeddata = () => thumb.pause();
+
+    prompt.classList.add("hidden");
+    preview.classList.remove("hidden");
+    dropZone.classList.add("has-file");
+    return true;
+  }
+
+  function clearFileSelection() {
+    const fileInput = document.getElementById("file");
+    const dropZone = document.getElementById("dropZone");
+    const prompt = document.getElementById("dropPrompt");
+    const preview = document.getElementById("dropPreview");
+    const thumb = document.getElementById("videoThumb");
+
+    fileInput.value = "";
+    if (thumb.src) URL.revokeObjectURL(thumb.src);
+    thumb.src = "";
+    prompt.classList.remove("hidden");
+    preview.classList.add("hidden");
+    dropZone.classList.remove("has-file");
+  }
+
+  // File input change
   document.getElementById("file").addEventListener("change", function (e) {
-    const name = e.target.files[0]?.name || "Choose a climbing video…";
-    document.getElementById("fileName").textContent = name;
+    if (e.target.files[0]) {
+      if (!applyFileToPreview(e.target.files[0])) {
+        e.target.value = "";
+      }
+    }
+  });
+
+  // Remove file button
+  document.getElementById("removeFile").addEventListener("click", (e) => {
+    e.stopPropagation();
+    clearFileSelection();
+  });
+
+  // Drag events on drop zone
+  const dropZone = document.getElementById("dropZone");
+  ["dragenter", "dragover"].forEach(evt => {
+    dropZone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropZone.classList.add("drag-over");
+    });
+  });
+  ["dragleave", "drop"].forEach(evt => {
+    dropZone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropZone.classList.remove("drag-over");
+    });
+  });
+  dropZone.addEventListener("drop", (e) => {
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      const fileInput = document.getElementById("file");
+      // Set files via DataTransfer
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      fileInput.files = dt.files;
+      applyFileToPreview(file);
+    }
   });
 
   // ─── Route prefill ────────────────────────────────────────────────────────
