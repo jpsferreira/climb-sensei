@@ -147,16 +147,29 @@
 
   .routes-empty-state {
     text-align: center;
-    padding: 60px 20px;
+    padding: 48px 20px;
     color: var(--text-muted);
   }
-  .empty-state-icon {
-    font-size: 3rem;
-    margin-bottom: 12px;
-  }
-  .empty-state-text {
-    font-size: 0.9rem;
+  .routes-empty-state .empty-state-icon {
     margin-bottom: 16px;
+    color: var(--text-faint);
+    opacity: 0.7;
+  }
+  .routes-empty-state .empty-state-title {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 1.05rem;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+  }
+  .routes-empty-state .empty-state-desc {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-bottom: 20px;
+    max-width: 260px;
+    margin-left: auto;
+    margin-right: auto;
+    line-height: 1.5;
   }
 
   .add-route-btn {
@@ -224,18 +237,41 @@
 <div class="routes-empty-state" id="empty-state" style="display: none">
   <div class="empty-state-icon">
     <svg
-      width="64"
-      height="64"
+      width="56"
+      height="56"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      stroke-width="1.5"
+      stroke-width="1.2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
     >
-      <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+      <path d="M4 20L8 4l4 10 4-6 4 12" />
+      <circle
+        cx="8"
+        cy="4"
+        r="1.5"
+        fill="currentColor"
+        stroke="none"
+        opacity="0.4"
+      />
+      <circle
+        cx="16"
+        cy="8"
+        r="1.5"
+        fill="currentColor"
+        stroke="none"
+        opacity="0.4"
+      />
     </svg>
   </div>
-  <div class="empty-state-text">No routes yet</div>
-  <button class="btn" onclick="openCreateModal()">Add your first route</button>
+  <div class="empty-state-title">No routes yet</div>
+  <div class="empty-state-desc">
+    Create your first route and start tracking your climbing progress over time.
+  </div>
+  <button class="btn" onclick="openCreateModal()">
+    Create your first route
+  </button>
 </div>
 
 <button class="add-route-btn" onclick="openCreateModal()">+ New Route</button>

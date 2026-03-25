@@ -462,7 +462,11 @@
   function renderTimeline(attempts) {
       const container = document.getElementById('timeline');
       if (attempts.length === 0) {
-          container.innerHTML = '<div class="empty-state"><p>No attempts yet</p><a href="/upload?route_id=' + routeId + '" class="btn btn-sm">Upload your first attempt</a></div>';
+          container.innerHTML = '<div class="empty-state">' +
+              '<div class="empty-state-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg></div>' +
+              '<div class="empty-state-title">No attempts yet</div>' +
+              '<div class="empty-state-desc">Upload a climbing video to analyze your technique and track progress.</div>' +
+              '<a href="/upload?route_id=' + routeId + '" class="btn btn-sm">Upload first attempt</a></div>';
           container.classList.remove('timeline');
           return;
       }
@@ -497,7 +501,9 @@
       const ctx = document.getElementById('metric-chart').getContext('2d');
       if (chart) chart.destroy();
       if (!data.data || data.data.length === 0) {
-          ctx.canvas.parentElement.innerHTML = '<div class="empty-state" style="padding: 2rem 0;"><p style="font-size: 0.85rem;">No data for this metric yet</p></div>';
+          ctx.canvas.parentElement.innerHTML = '<div class="empty-state" style="padding: 2rem 0;">' +
+              '<div class="empty-state-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>' +
+              '<div class="empty-state-desc" style="margin-bottom: 0;">Upload more attempts to see trends for this metric.</div></div>';
           return;
       }
       chart = new Chart(ctx, {
@@ -542,7 +548,9 @@
   function renderGoals(goals) {
       const container = document.getElementById('goals-list');
       if (goals.length === 0) {
-          container.innerHTML = '<div class="empty-state" style="padding: 1.5rem 0;"><p style="font-size: 0.85rem;">No active goals for this route</p></div>';
+          container.innerHTML = '<div class="empty-state" style="padding: 1.5rem 0;">' +
+              '<div class="empty-state-icon"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></div>' +
+              '<div class="empty-state-desc" style="margin-bottom: 0;">Set a goal from your profile to track progress on this route.</div></div>';
           return;
       }
       container.innerHTML = goals.map(g => {
