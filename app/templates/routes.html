@@ -365,7 +365,9 @@
   // Skeleton loading (#6)
   function showSkeletons() {
     const container = document.getElementById("route-list");
-    container.innerHTML = Array(4).fill(`
+    container.innerHTML = Array(4)
+      .fill(
+        `
       <div class="skeleton-route-item">
         <div class="skeleton-badge"></div>
         <div class="skeleton-route-info">
@@ -373,7 +375,9 @@
           <div class="skeleton-text sm"></div>
         </div>
       </div>
-    `).join("");
+    `,
+      )
+      .join("");
   }
 
   // Fetch and render
@@ -517,7 +521,9 @@
     if (activeFilter !== "all") {
       const prev = document.querySelector(".filter-chip.active");
       if (prev) prev.classList.remove("active");
-      const target = document.querySelector(`.filter-chip[data-type="${activeFilter}"]`);
+      const target = document.querySelector(
+        `.filter-chip[data-type="${activeFilter}"]`,
+      );
       if (target) target.classList.add("active");
     }
 

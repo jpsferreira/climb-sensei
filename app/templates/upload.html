@@ -298,7 +298,9 @@ endblock %} {% block extra_css %}
                 d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"
               />
             </svg>
-            <span class="drop-zone-text">Drag & drop a video here, or <strong>browse</strong></span>
+            <span class="drop-zone-text"
+              >Drag & drop a video here, or <strong>browse</strong></span
+            >
             <span class="drop-zone-hint">MP4, MOV, AVI, MKV</span>
           </div>
           <!-- File preview (shown after selection) -->
@@ -308,7 +310,14 @@ endblock %} {% block extra_css %}
               <span class="drop-zone-file-name" id="fileName"></span>
               <span class="drop-zone-file-size" id="fileSize"></span>
             </div>
-            <button type="button" class="drop-zone-remove" id="removeFile" title="Remove file">&times;</button>
+            <button
+              type="button"
+              class="drop-zone-remove"
+              id="removeFile"
+              title="Remove file"
+            >
+              &times;
+            </button>
           </div>
         </div>
       </div>

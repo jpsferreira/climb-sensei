@@ -1004,8 +1004,12 @@
       }
 
       @keyframes shimmer {
-        0% { transform: translateX(-100%); }
-        100% { transform: translateX(100%); }
+        0% {
+          transform: translateX(-100%);
+        }
+        100% {
+          transform: translateX(100%);
+        }
       }
 
       .skeleton-text {
@@ -1014,9 +1018,18 @@
         background: var(--bg-surface);
       }
 
-      .skeleton-text.sm { height: 10px; width: 60%; }
-      .skeleton-text.md { height: 14px; width: 80%; }
-      .skeleton-text.lg { height: 18px; width: 50%; }
+      .skeleton-text.sm {
+        height: 10px;
+        width: 60%;
+      }
+      .skeleton-text.md {
+        height: 14px;
+        width: 80%;
+      }
+      .skeleton-text.lg {
+        height: 18px;
+        width: 50%;
+      }
 
       .skeleton-circle {
         border-radius: 50%;
