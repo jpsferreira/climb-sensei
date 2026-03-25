@@ -18,3 +18,14 @@
 - [x] Persist search query, filter type, and sort order in URL params
 - [x] Restore filter state from URL params on page load
 - [x] Update URL without full page reload on filter/search changes
+
+## #9 Empty State Improvements
+
+- [x] Add SVG icons and contextual descriptions to all empty states
+- [x] Improve routes, route detail, profile, and sessions empty states
+
+## #7 Route Detail - Metric Insights
+
+- [x] Add insights summary panel below chart (last attempt %, overall trend, best, average)
+- [x] Color-code trends green/red with direction-aware logic (lower-is-better for sway/fatigue)
+- [x] Add delta badges to timeline attempt cards showing change from previous attempt
