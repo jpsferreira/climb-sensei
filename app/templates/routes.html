@@ -343,14 +343,48 @@
     return d.toLocaleDateString();
   }
 
-  // State
+  // State — restore from URL params (#8 persistence)
+  const _params = new URLSearchParams(window.location.search);
   let allRoutes = [];
-  let activeFilter = "all";
-  let currentSort = "recent";
-  let searchQuery = "";
+  let activeFilter = _params.get("type") || "all";
+  let currentSort = _params.get("sort") || "recent";
+  let searchQuery = _params.get("q") || "";
+
+  // Persist filters to URL (#8)
+  function syncFiltersToUrl() {
+    const url = new URL(window.location);
+    if (activeFilter !== "all") url.searchParams.set("type", activeFilter);
+    else url.searchParams.delete("type");
+    if (currentSort !== "recent") url.searchParams.set("sort", currentSort);
+    else url.searchParams.delete("sort");
+    if (searchQuery) url.searchParams.set("q", searchQuery);
+    else url.searchParams.delete("q");
+    history.replaceState(null, "", url);
+  }
+
+  // Skeleton loading (#6)
+  function showSkeletons() {
+    const container = document.getElementById("route-list");
+    container.innerHTML = Array(4)
+      .fill(
+        `
+      <div class="skeleton-route-item">
+        <div class="skeleton-badge"></div>
+        <div class="skeleton-route-info">
+          <div class="skeleton-text md"></div>
+          <div class="skeleton-text sm"></div>
+        </div>
+      </div>
+    `,
+      )
+      .join("");
+  }
 
   // Fetch and render
   async function loadRoutes() {
+    syncFiltersToUrl();
+    showSkeletons();
+
     const params = new URLSearchParams();
     if (activeFilter !== "all") params.set("type", activeFilter);
     if (searchQuery) params.set("search", searchQuery);
@@ -471,12 +505,33 @@
     }
   }
 
-  // Init
+  // Init — restore UI from persisted state (#8)
   document.addEventListener("DOMContentLoaded", () => {
     if (!authToken) {
       window.location.href = "/login";
       return;
     }
+
+    // Restore search field
+    if (searchQuery) {
+      document.getElementById("search-input").value = searchQuery;
+    }
+
+    // Restore active filter chip
+    if (activeFilter !== "all") {
+      const prev = document.querySelector(".filter-chip.active");
+      if (prev) prev.classList.remove("active");
+      const target = document.querySelector(
+        `.filter-chip[data-type="${activeFilter}"]`,
+      );
+      if (target) target.classList.add("active");
+    }
+
+    // Restore sort selection
+    if (currentSort !== "recent") {
+      document.getElementById("sort-select").value = currentSort;
+    }
+
     loadRoutes();
   });
 </script>
