@@ -707,31 +707,47 @@
     const card = document.getElementById("activity-card");
     card.style.display = "block";
 
-    // Weekly session counts (last 8 weeks)
     const now = new Date();
-    const weeklyData = [];
-    const weekLabels = [];
+
+    // Pre-parse all session dates once
+    const sessionDates = allSessions
+      .filter((s) => s.date)
+      .map((s) => new Date(s.date));
+
+    // Build week boundaries (Monday-based, last 8 weeks)
+    const weeks = [];
     for (let w = 7; w >= 0; w--) {
       const weekStart = new Date(now);
-      weekStart.setDate(weekStart.getDate() - w * 7 - weekStart.getDay() + 1);
+      const dayIdx = (weekStart.getDay() + 6) % 7; // 0=Mon, 6=Sun
+      weekStart.setDate(weekStart.getDate() - w * 7 - dayIdx);
       weekStart.setHours(0, 0, 0, 0);
       const weekEnd = new Date(weekStart);
       weekEnd.setDate(weekEnd.getDate() + 7);
-
-      const count = allSessions.filter((s) => {
-        if (!s.date) return false;
-        const d = new Date(s.date);
-        return d >= weekStart && d < weekEnd;
-      }).length;
-
-      weeklyData.push(count);
-      weekLabels.push(
-        weekStart.toLocaleDateString(undefined, {
-          month: "short",
-          day: "numeric",
-        }),
-      );
+      weeks.push({ start: weekStart, end: weekEnd, count: 0 });
     }
+
+    // This month boundary
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    let thisMonthCount = 0;
+
+    // Single pass: bucket each session into weeks and month
+    sessionDates.forEach((d) => {
+      if (d >= monthStart) thisMonthCount++;
+      for (const week of weeks) {
+        if (d >= week.start && d < week.end) {
+          week.count++;
+          break;
+        }
+      }
+    });
+
+    const weeklyData = weeks.map((w) => w.count);
+    const weekLabels = weeks.map((w) =>
+      w.start.toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+      }),
+    );
 
     // Render sparkline chart
     const ctx = document.getElementById("activity-sparkline").getContext("2d");
@@ -764,13 +780,6 @@
         },
       },
     });
-
-    // This month's sessions
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const thisMonthCount = allSessions.filter((s) => {
-      if (!s.date) return false;
-      return new Date(s.date) >= monthStart;
-    }).length;
 
     // Current streak (consecutive weeks with at least 1 session)
     let streak = 0;
