@@ -141,13 +141,18 @@
         min-width: 64px;
         min-height: 44px;
         justify-content: center;
-        transition: color 0.2s;
+        transition:
+          color 0.2s,
+          transform 0.15s ease;
         font-family: var(--font-display);
         font-weight: 500;
       }
       .nav-tab:hover,
       .nav-tab.active {
         color: var(--accent);
+      }
+      .nav-tab:active {
+        transform: scale(0.95);
       }
       .nav-tab .fab {
         width: 48px;
@@ -165,7 +170,13 @@
         transition: transform 0.2s;
       }
       .nav-tab .fab:hover {
-        transform: scale(1.05);
+        transform: scale(1.08);
+        box-shadow:
+          var(--shadow-lg),
+          0 0 20px rgba(245, 158, 11, 0.3);
+      }
+      .nav-tab:active .fab {
+        transform: scale(0.95);
       }
 
       .main-content {
@@ -508,7 +519,7 @@
       }
 
       .btn:active {
-        transform: translateY(0);
+        transform: translateY(0) scale(0.97);
       }
 
       .btn-secondary {
