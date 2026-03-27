@@ -853,7 +853,22 @@
     { key: 'fatigue_score',           label: 'Fatigue',           unit: '',     higherBetter: false },
   ];
 
-  function openCompareModal() {
+  let detailedAttemptCache = {}; // id → full attempt detail
+
+  async function fetchAttemptDetail(id) {
+    if (detailedAttemptCache[id]) return detailedAttemptCache[id];
+    try {
+      const res = await apiRequest(`/api/routes/${routeId}/attempts/${id}`);
+      if (res.ok) {
+        const detail = await res.json();
+        detailedAttemptCache[id] = detail;
+        return detail;
+      }
+    } catch (e) { /* fall through */ }
+    return null;
+  }
+
+  async function openCompareModal() {
     const modal = document.getElementById('compare-modal');
     const chipsEl = document.getElementById('compare-chips');
 
@@ -869,8 +884,8 @@
       return `<button class="compare-chip${sel}" data-id="${a.id}" onclick="toggleCompareChip(${a.id})">#${num} ${date}</button>`;
     }).join('');
 
-    renderCompareTable();
     openModal(modal);
+    await renderCompareTable();
   }
 
   function toggleCompareChip(id) {
@@ -878,6 +893,10 @@
       if (selectedCompareIds.size <= 2) return; // Min 2
       selectedCompareIds.delete(id);
     } else {
+      if (selectedCompareIds.size >= 10) {
+        showAlert('Maximum 10 attempts can be compared', 'warning');
+        return;
+      }
       selectedCompareIds.add(id);
     }
     // Update chip styles
@@ -887,19 +906,29 @@
     renderCompareTable();
   }
 
-  function renderCompareTable() {
+  async function renderCompareTable() {
     const content = document.getElementById('compare-content');
-    const selected = allAttempts.filter(a => selectedCompareIds.has(a.id));
+    const baseAttempts = allAttempts.filter(a => selectedCompareIds.has(a.id));
 
-    if (selected.length < 2) {
+    if (baseAttempts.length < 2) {
       content.innerHTML = '<p style="color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 2rem 0;">Select at least 2 attempts to compare.</p>';
       return;
     }
 
+    content.innerHTML = '<p style="color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 2rem 0;">Loading details...</p>';
+
+    // Fetch full detail for each selected attempt
+    const selected = await Promise.all(
+      baseAttempts.map(async (a) => {
+        const detail = await fetchAttemptDetail(a.id);
+        return detail ? { ...a, ...detail } : a;
+      })
+    );
+
     // Headers
     let headerHtml = '<th></th>';
-    selected.forEach((a, i) => {
-      const num = allAttempts.length - allAttempts.indexOf(a);
+    selected.forEach((a) => {
+      const num = allAttempts.length - allAttempts.indexOf(allAttempts.find(x => x.id === a.id));
       const date = new Date(a.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
       headerHtml += `<th>#${num}<br><span style="font-weight: 400; font-size: 0.65rem;">${date}</span></th>`;
     });
