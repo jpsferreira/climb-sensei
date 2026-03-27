@@ -641,6 +641,7 @@
 
       .alert {
         padding: 0.85rem 1.1rem;
+        padding-right: 2.5rem;
         border-radius: var(--radius);
         font-size: 0.88rem;
         font-family: var(--font-display);
@@ -648,6 +649,33 @@
         border: 1px solid;
         backdrop-filter: blur(12px);
         animation: alertSlideIn 0.3s ease;
+        position: relative;
+        touch-action: pan-y;
+        cursor: default;
+      }
+
+      .alert-dismiss {
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 2.2rem;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: none;
+        border: none;
+        color: inherit;
+        opacity: 0.5;
+        cursor: pointer;
+        font-size: 1.1rem;
+        line-height: 1;
+        padding: 0;
+        transition: opacity 0.2s;
+      }
+
+      .alert-dismiss:hover {
+        opacity: 1;
       }
 
       @keyframes alertSlideIn {
@@ -658,6 +686,35 @@
         to {
           opacity: 1;
           transform: translateX(0);
+        }
+      }
+
+      /* Mobile: reposition toasts above bottom nav */
+      @media (max-width: 767px) {
+        #alert-container {
+          top: auto;
+          right: 1rem;
+          left: 1rem;
+          bottom: calc(80px + env(safe-area-inset-bottom, 6px));
+          max-width: 400px;
+          left: 50%;
+          right: auto;
+          transform: translateX(-50%);
+        }
+
+        .alert {
+          animation: alertSlideUp 0.3s ease;
+        }
+
+        @keyframes alertSlideUp {
+          from {
+            opacity: 0;
+            transform: translateY(16px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
         }
       }
 
@@ -1485,17 +1542,99 @@
         return div.innerHTML;
       }
 
+      function dismissAlert(el) {
+        const isMobile = window.innerWidth < 768;
+        el.style.transition = "all 0.3s";
+        void el.offsetWidth;
+        requestAnimationFrame(() => {
+          el.style.opacity = "0";
+          el.style.transform = isMobile
+            ? "translateY(16px)"
+            : "translateX(20px)";
+        });
+        el.addEventListener(
+          "transitionend",
+          () => {
+            if (el.parentNode) el.remove();
+          },
+          { once: true },
+        );
+      }
+
       function showAlert(message, type = "info") {
         const alertContainer = document.getElementById("alert-container");
         const alert = document.createElement("div");
         alert.className = `alert alert-${type}`;
-        alert.textContent = message;
+
+        const text = document.createElement("span");
+        text.textContent = message;
+        alert.appendChild(text);
+
+        const btn = document.createElement("button");
+        btn.className = "alert-dismiss";
+        btn.setAttribute("type", "button");
+        btn.setAttribute("aria-label", "Dismiss");
+        btn.innerHTML = "&times;";
+        btn.addEventListener("click", () => dismissAlert(alert));
+        alert.appendChild(btn);
+
+        // Swipe-to-dismiss (touch)
+        let startX = 0;
+        let startY = 0;
+        let horizontalSwipe = false;
+        alert.addEventListener(
+          "touchstart",
+          (e) => {
+            startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
+            horizontalSwipe = false;
+          },
+          { passive: true },
+        );
+        alert.addEventListener(
+          "touchmove",
+          (e) => {
+            const dx = e.touches[0].clientX - startX;
+            const dy = e.touches[0].clientY - startY;
+            // Only engage horizontal swipe if primarily horizontal
+            if (
+              !horizontalSwipe &&
+              Math.abs(dx) > Math.abs(dy) &&
+              Math.abs(dx) > 10
+            ) {
+              horizontalSwipe = true;
+            }
+            if (horizontalSwipe) {
+              alert.style.transform = `translateX(${dx}px)`;
+              alert.style.opacity = String(Math.max(0, 1 - Math.abs(dx) / 200));
+              alert.style.transition = "none";
+            }
+          },
+          { passive: true },
+        );
+
+        function onTouchFinish(e) {
+          if (!horizontalSwipe) return;
+          horizontalSwipe = false;
+          const dx =
+            (e.changedTouches ? e.changedTouches[0].clientX : startX) - startX;
+          if (Math.abs(dx) > 80) {
+            alert.style.transform = `translateX(${dx > 0 ? 300 : -300}px)`;
+            alert.style.opacity = "0";
+            alert.style.transition = "all 0.25s ease";
+            setTimeout(() => alert.remove(), 250);
+          } else {
+            alert.style.transform = "";
+            alert.style.opacity = "";
+            alert.style.transition = "all 0.2s ease";
+          }
+        }
+        alert.addEventListener("touchend", onTouchFinish);
+        alert.addEventListener("touchcancel", onTouchFinish);
+
         alertContainer.appendChild(alert);
         setTimeout(() => {
-          alert.style.opacity = "0";
-          alert.style.transform = "translateX(20px)";
-          alert.style.transition = "all 0.3s";
-          setTimeout(() => alert.remove(), 300);
+          if (alert.parentNode) dismissAlert(alert);
         }, 4000);
       }
 
