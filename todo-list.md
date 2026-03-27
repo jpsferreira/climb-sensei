@@ -61,3 +61,11 @@
 - [x] Add activity overview card with weekly sessions bar chart (last 8 weeks)
 - [x] Add "this month" session count and "best week" stats
 - [x] Add week streak counter badge
+
+## #11 Dark/Light Theme Toggle
+
+- [x] Add light theme CSS variables under [data-theme="light"]
+- [x] Auto-detect system preference via prefers-color-scheme
+- [x] Persist theme choice in localStorage
+- [x] Apply theme before body render to prevent flash
+- [x] Add toggle button in profile settings page
