@@ -69,3 +69,8 @@
 - [x] Persist theme choice in localStorage
 - [x] Apply theme before body render to prevent flash
 - [x] Add toggle button in profile settings page
+
+## #5 Mobile Touch Gestures
+
+- [x] Add swipe-to-navigate between calendar months on sessions page
+- [x] Add slide transition animation for month changes
