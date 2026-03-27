@@ -74,3 +74,11 @@
 
 - [x] Add swipe-to-navigate between calendar months on sessions page
 - [x] Add slide transition animation for month changes
+
+## #1 Onboarding Flow
+
+- [x] Add 3-step guided walkthrough (Welcome, Create Route, Upload Video)
+- [x] Show onboarding only for new users with no routes (localStorage flag)
+- [x] Step indicators (dots) with active/done states
+- [x] Auto-advance after route creation, dismissible at any step
+- [x] Guard localStorage access with try/catch
