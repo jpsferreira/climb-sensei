@@ -503,7 +503,7 @@
       title: "Step 1: Create a Route",
       desc: "Add a climbing route you're working on — give it a name, grade, and type. You'll track all your attempts on it.",
       actions:
-        '<button class="btn" onclick="openCreateModal(); markOnboardingStep(1);">Create Route</button><button class="btn btn-secondary" onclick="advanceOnboarding()">Skip</button>',
+        '<button class="btn" onclick="openCreateModal()">Create Route</button><button class="btn btn-secondary" onclick="advanceOnboarding()">Skip</button>',
     },
     {
       icon: '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>',
@@ -563,21 +563,26 @@
     }
   }
 
+  let _onboardingDismissed = false; // In-memory fallback for private browsing
+
   function dismissOnboarding() {
     const el = document.getElementById("onboarding");
     if (el) el.style.display = "none";
+    _onboardingDismissed = true;
     try {
       localStorage.setItem("onboarding_complete", "true");
     } catch (e) {
-      // Ignore storage errors
+      // In-memory flag handles this session
     }
   }
 
   function shouldShowOnboarding() {
+    if (_onboardingDismissed) return false;
     try {
       return !localStorage.getItem("onboarding_complete");
     } catch (e) {
-      return false;
+      // Storage unavailable (private browsing) — show onboarding for new users
+      return true;
     }
   }
 
@@ -654,8 +659,11 @@
       return;
     }
 
-    // Hide onboarding once user has routes
-    document.getElementById("onboarding").style.display = "none";
+    // Only hide onboarding for returning users; keep visible mid-flow
+    const onboardingEl = document.getElementById("onboarding");
+    if (onboardingEl && !shouldShowOnboarding()) {
+      onboardingEl.style.display = "none";
+    }
     emptyState.style.display = "none";
     container.innerHTML = allRoutes
       .map(
