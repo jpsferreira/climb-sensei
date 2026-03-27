@@ -186,6 +186,7 @@ endblock %} {% block extra_css %}
     height: 100px;
     display: block;
     cursor: crosshair;
+    touch-action: none;
   }
   .plot-card .plot-value-badge {
     position: absolute;
@@ -453,12 +454,14 @@ endblock %} {% block extra_css %}
       <canvas id="plot-canvas"></canvas>
     </div>
     <div
+      id="plot-seek-hint"
       style="
         font-size: 0.68rem;
         color: var(--text-faint);
         margin-top: 6px;
         text-align: center;
         font-family: var(--font-display);
+        display: none;
       "
     >
       Click or drag on the chart to seek the video
@@ -692,7 +695,7 @@ endblock %} {% block extra_css %}
     const video = document.getElementById('attempt-video');
     if (video && video.duration) {
       video.currentTime = ratio * video.duration;
-      updatePlot(video.currentTime);
+      // Redraw is handled by the video's 'seeked' event listener
     }
   }
 
@@ -710,14 +713,18 @@ endblock %} {% block extra_css %}
     });
     document.addEventListener('mouseup', () => { plotDragging = false; });
 
-    // Touch support
+    // Touch support — non-passive to prevent scroll during scrub
     canvas.addEventListener('touchstart', (e) => {
       plotDragging = true;
+      e.preventDefault();
       seekVideoFromPlot(e.touches[0].clientX);
-    }, { passive: true });
+    }, { passive: false });
     canvas.addEventListener('touchmove', (e) => {
-      if (plotDragging) seekVideoFromPlot(e.touches[0].clientX);
-    }, { passive: true });
+      if (plotDragging) {
+        e.preventDefault();
+        seekVideoFromPlot(e.touches[0].clientX);
+      }
+    }, { passive: false });
     canvas.addEventListener('touchend', () => { plotDragging = false; });
   });
 
@@ -890,6 +897,9 @@ endblock %} {% block extra_css %}
       const video = document.getElementById('attempt-video');
       video.addEventListener('timeupdate', () => updatePlot(video.currentTime));
       video.addEventListener('seeked', () => updatePlot(video.currentTime));
+      // Show seek hint since video is available
+      const hint = document.getElementById('plot-seek-hint');
+      if (hint) hint.style.display = 'block';
     } else {
       wrapper.innerHTML = `
         <div class="video-placeholder">
