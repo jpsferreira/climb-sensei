@@ -89,3 +89,10 @@
 - [x] Add drag-to-scrub on the chart (drag to scrub video in real-time, mouse + touch)
 - [x] Add vertical playhead line on the chart showing current position
 - [x] Add hint text below chart ("Click or drag on the chart to seek the video")
+
+## #3 Comparison View
+
+- [x] Add "Compare" button on route detail page (visible when 2+ attempts)
+- [x] Add comparison modal with selectable attempt chips
+- [x] Build side-by-side metrics table with best/worst highlighting
+- [x] Support comparing 2-10 attempts with dynamic selection
