@@ -38,3 +38,20 @@
 - [x] Add ARIA roles/attributes: aria-current on nav, aria-live on alerts, role=dialog on modals
 - [x] Use semantic `<main>` landmark instead of `<div>` for main content
 - [x] Add prefers-reduced-motion media query to disable animations
+
+## #10 Toast Notification Positioning
+
+- [x] Reposition toasts to bottom-center on mobile (above nav bar)
+- [x] Add slide-up animation on mobile instead of slide-from-right
+- [x] Add swipe-to-dismiss touch gesture for toasts
+- [x] Add close/dismiss button on each toast for accessibility
+
+## #12 Micro-animations & Feedback
+
+- [x] Add button press scale feedback (tactile 0.97 scale on :active)
+- [x] Add route card hover lift with shadow and active press state
+- [x] Add staggered entrance animation for route list items
+- [x] Add timeline card entrance animation with stagger on route detail
+- [x] Add nav tab and FAB press feedback (scale bounce)
+- [x] Add filter chip press feedback
+- [x] Add insight card hover lift on route detail

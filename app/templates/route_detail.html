@@ -124,9 +124,21 @@
     width: 2px;
     background: var(--border);
   }
+  @keyframes timelineSlideIn {
+    from {
+      opacity: 0;
+      transform: translateX(-8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
   .timeline-item {
     position: relative;
     margin-bottom: 14px;
+    animation: timelineSlideIn 0.3s ease forwards;
+    opacity: 0;
   }
   .timeline-dot {
     position: absolute;
@@ -144,7 +156,14 @@
     background: var(--bg-raised);
     border-radius: 10px;
     padding: 12px;
+    transition:
+      background 0.2s,
+      transform 0.15s ease;
   }
+  .timeline-card:hover {
+    background: var(--bg-surface);
+  }
+
   .timeline-header {
     display: flex;
     justify-content: space-between;
@@ -195,6 +214,13 @@
     padding: 10px 14px;
     flex: 1;
     min-width: 140px;
+    transition:
+      border-color 0.2s,
+      transform 0.15s ease;
+  }
+  .insight-card:hover {
+    border-color: var(--border-light);
+    transform: translateY(-1px);
   }
   .insight-label {
     font-size: 0.65rem;
@@ -561,7 +587,7 @@
           const swayDelta = prev ? formatDelta(a.avg_sway, prev.avg_sway, true) : '';
           const econDelta = prev ? formatDelta(a.avg_movement_economy, prev.avg_movement_economy, false) : '';
           return `
-          <div class="timeline-item">
+          <div class="timeline-item" style="animation-delay: ${Math.min(i * 0.06, 0.5)}s">
               <div class="timeline-dot"></div>
               <div class="timeline-card">
                   <div class="timeline-header">
