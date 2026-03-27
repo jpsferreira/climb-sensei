@@ -254,6 +254,47 @@
   </div>
 </div>
 
+<!-- Activity Overview -->
+<div
+  class="card fade-up fade-up-delay-1"
+  id="activity-card"
+  style="display: none"
+>
+  <div class="section-header" style="margin-bottom: 0.75rem">
+    <h2>Activity</h2>
+    <span
+      id="streak-badge"
+      style="
+        display: none;
+        font-family: var(--font-display);
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--accent);
+      "
+    ></span>
+  </div>
+  <div style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap">
+    <div style="flex: 1; min-width: 200px">
+      <div
+        style="
+          font-size: 0.7rem;
+          color: var(--text-muted);
+          margin-bottom: 4px;
+          font-family: var(--font-display);
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        "
+      >
+        Sessions per week (last 8 weeks)
+      </div>
+      <div style="height: 60px">
+        <canvas id="activity-sparkline"></canvas>
+      </div>
+    </div>
+    <div id="activity-stats" style="display: flex; gap: 1.25rem"></div>
+  </div>
+</div>
+
 <!-- Grade Pyramid -->
 <div class="card fade-up fade-up-delay-2">
   <div class="section-header">
@@ -652,9 +693,120 @@
       const perWeek = (recent.length / 4).toFixed(1);
       document.getElementById("stat-freq").textContent =
         parseFloat(perWeek) > 0 ? perWeek : "—";
+
+      // Build activity overview
+      buildActivityOverview();
     } catch (err) {
       console.error("Failed to load sessions", err);
     }
+  }
+
+  function buildActivityOverview() {
+    if (allSessions.length === 0) return;
+
+    const card = document.getElementById("activity-card");
+    card.style.display = "block";
+
+    const now = new Date();
+
+    // Pre-parse all session dates once
+    const sessionDates = allSessions
+      .filter((s) => s.date)
+      .map((s) => new Date(s.date));
+
+    // Build week boundaries (Monday-based, last 8 weeks)
+    const weeks = [];
+    for (let w = 7; w >= 0; w--) {
+      const weekStart = new Date(now);
+      const dayIdx = (weekStart.getDay() + 6) % 7; // 0=Mon, 6=Sun
+      weekStart.setDate(weekStart.getDate() - w * 7 - dayIdx);
+      weekStart.setHours(0, 0, 0, 0);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 7);
+      weeks.push({ start: weekStart, end: weekEnd, count: 0 });
+    }
+
+    // This month boundary
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    let thisMonthCount = 0;
+
+    // Single pass: bucket each session into weeks and month
+    sessionDates.forEach((d) => {
+      if (d >= monthStart) thisMonthCount++;
+      for (const week of weeks) {
+        if (d >= week.start && d < week.end) {
+          week.count++;
+          break;
+        }
+      }
+    });
+
+    const weeklyData = weeks.map((w) => w.count);
+    const weekLabels = weeks.map((w) =>
+      w.start.toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+      }),
+    );
+
+    // Render sparkline chart
+    const ctx = document.getElementById("activity-sparkline").getContext("2d");
+    new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels: weekLabels,
+        datasets: [
+          {
+            data: weeklyData,
+            backgroundColor: "rgba(14, 165, 233, 0.5)",
+            borderRadius: 3,
+            barPercentage: 0.6,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { enabled: true } },
+        scales: {
+          x: {
+            grid: { display: false },
+            ticks: { color: "#64748b", font: { size: 9 }, maxRotation: 0 },
+          },
+          y: {
+            display: false,
+            beginAtZero: true,
+          },
+        },
+      },
+    });
+
+    // Current streak (consecutive weeks with at least 1 session)
+    let streak = 0;
+    for (let i = weeklyData.length - 1; i >= 0; i--) {
+      if (weeklyData[i] > 0) streak++;
+      else break;
+    }
+
+    // Show streak badge
+    if (streak > 1) {
+      const badge = document.getElementById("streak-badge");
+      badge.textContent = streak + " week streak";
+      badge.style.display = "inline";
+    }
+
+    // Show mini stats
+    const statsEl = document.getElementById("activity-stats");
+    statsEl.innerHTML = `
+      <div style="text-align: center;">
+        <div style="font-family: var(--font-display); font-size: 1.2rem; font-weight: 700; color: var(--accent);">${thisMonthCount}</div>
+        <div style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; font-family: var(--font-display);">This month</div>
+      </div>
+      <div style="text-align: center;">
+        <div style="font-family: var(--font-display); font-size: 1.2rem; font-weight: 700; color: var(--teal);">${Math.max(...weeklyData)}</div>
+        <div style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; font-family: var(--font-display);">Best week</div>
+      </div>
+    `;
   }
 
   // ── Goals ────────────────────────────────────────────────
