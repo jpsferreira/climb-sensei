@@ -82,3 +82,10 @@
 - [x] Step indicators (dots) with active/done states
 - [x] Auto-advance after route creation, dismissible at any step
 - [x] Guard localStorage access with try/catch
+
+## #2 Video Player + Metrics Synchronization
+
+- [x] Add click-to-seek on the metric plot chart (click anywhere to jump video to that timestamp)
+- [x] Add drag-to-scrub on the chart (drag to scrub video in real-time, mouse + touch)
+- [x] Add vertical playhead line on the chart showing current position
+- [x] Add hint text below chart ("Click or drag on the chart to seek the video")

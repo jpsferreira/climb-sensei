@@ -185,6 +185,8 @@ endblock %} {% block extra_css %}
     width: 100%;
     height: 100px;
     display: block;
+    cursor: crosshair;
+    touch-action: none;
   }
   .plot-card .plot-value-badge {
     position: absolute;
@@ -451,6 +453,19 @@ endblock %} {% block extra_css %}
       <div class="plot-value-badge" id="plot-value-badge">—</div>
       <canvas id="plot-canvas"></canvas>
     </div>
+    <div
+      id="plot-seek-hint"
+      style="
+        font-size: 0.68rem;
+        color: var(--text-faint);
+        margin-top: 6px;
+        text-align: center;
+        font-family: var(--font-display);
+        display: none;
+      "
+    >
+      Click or drag on the chart to seek the video
+    </div>
   </div>
 </div>
 
@@ -651,8 +666,67 @@ endblock %} {% block extra_css %}
     ctx.lineWidth = 2;
     ctx.stroke();
 
+    // Vertical playhead line
+    const xPos = xAt(fi);
+    ctx.beginPath();
+    ctx.moveTo(xPos, pad.top);
+    ctx.lineTo(xPos, h - pad.bottom);
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
     return numericData[fi];
   }
+
+  // ── Click/drag-to-seek on the plot canvas ──────────────────────
+  let plotDragging = false;
+
+  function seekVideoFromPlot(clientX) {
+    if (!plotCanvas || !activeMetricKey) return;
+    const data = activePlotData[activeMetricKey];
+    if (!data || !data.length) return;
+
+    const rect = plotCanvas.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const ratio = Math.max(0, Math.min(1, x / rect.width));
+
+    const video = document.getElementById('attempt-video');
+    if (video && video.duration) {
+      video.currentTime = ratio * video.duration;
+      // Redraw is handled by the video's 'seeked' event listener
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    // Defer binding until canvas exists
+    const canvas = document.getElementById('plot-canvas');
+    if (!canvas) return;
+
+    canvas.addEventListener('mousedown', (e) => {
+      plotDragging = true;
+      seekVideoFromPlot(e.clientX);
+    });
+    canvas.addEventListener('mousemove', (e) => {
+      if (plotDragging) seekVideoFromPlot(e.clientX);
+    });
+    document.addEventListener('mouseup', () => { plotDragging = false; });
+
+    // Touch support — non-passive to prevent scroll during scrub
+    canvas.addEventListener('touchstart', (e) => {
+      plotDragging = true;
+      e.preventDefault();
+      seekVideoFromPlot(e.touches[0].clientX);
+    }, { passive: false });
+    canvas.addEventListener('touchmove', (e) => {
+      if (plotDragging) {
+        e.preventDefault();
+        seekVideoFromPlot(e.touches[0].clientX);
+      }
+    }, { passive: false });
+    canvas.addEventListener('touchend', () => { plotDragging = false; });
+  });
 
   function updatePlot(currentTime) {
     if (!plotVisible || !activeMetricKey || !plotCtx) return;
@@ -823,6 +897,9 @@ endblock %} {% block extra_css %}
       const video = document.getElementById('attempt-video');
       video.addEventListener('timeupdate', () => updatePlot(video.currentTime));
       video.addEventListener('seeked', () => updatePlot(video.currentTime));
+      // Show seek hint since video is available
+      const hint = document.getElementById('plot-seek-hint');
+      if (hint) hint.style.display = 'block';
     } else {
       wrapper.innerHTML = `
         <div class="video-placeholder">
