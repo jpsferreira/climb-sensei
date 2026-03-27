@@ -1290,10 +1290,20 @@
     <script>
       // Apply theme before render to prevent flash
       (function () {
-        const stored = localStorage.getItem("theme");
-        if (stored === "light" || stored === "dark") {
-          document.documentElement.setAttribute("data-theme", stored);
-        } else if (window.matchMedia("(prefers-color-scheme: light)").matches) {
+        try {
+          var stored =
+            window.localStorage && window.localStorage.getItem("theme");
+          if (stored === "light" || stored === "dark") {
+            document.documentElement.setAttribute("data-theme", stored);
+            return;
+          }
+        } catch (e) {
+          // Ignore storage errors (e.g., Safari private mode)
+        }
+        if (
+          window.matchMedia &&
+          window.matchMedia("(prefers-color-scheme: light)").matches
+        ) {
           document.documentElement.setAttribute("data-theme", "light");
         }
       })();
@@ -1447,8 +1457,19 @@
       }
 
       function setTheme(theme) {
+        if (theme !== "light" && theme !== "dark") return;
         document.documentElement.setAttribute("data-theme", theme);
-        localStorage.setItem("theme", theme);
+        try {
+          localStorage.setItem("theme", theme);
+        } catch (e) {
+          // Ignore storage errors to keep UI functional
+        }
+      }
+
+      function cssVar(name) {
+        return getComputedStyle(document.documentElement)
+          .getPropertyValue(name)
+          .trim();
       }
 
       function toggleTheme() {

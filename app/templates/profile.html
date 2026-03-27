@@ -440,7 +440,8 @@
         class="theme-toggle-btn"
         id="theme-toggle"
         onclick="toggleTheme(); updateThemeToggle();"
-        aria-label="Toggle theme"
+        role="switch"
+        aria-checked="false"
       >
         <span class="theme-toggle-icon" id="theme-toggle-icon"></span>
         <span id="theme-toggle-label"></span>
@@ -648,15 +649,15 @@
           x: {
             beginAtZero: true,
             ticks: {
-              color: "#64748b",
+              color: cssVar("--chart-tick"),
               font: { size: 10 },
               stepSize: 1,
               precision: 0,
             },
-            grid: { color: "#1a2332" },
+            grid: { color: cssVar("--chart-grid") },
           },
           y: {
-            ticks: { color: "#94a3b8", font: { size: 11 } },
+            ticks: { color: cssVar("--text-secondary"), font: { size: 11 } },
             grid: { display: false },
           },
         },
@@ -811,7 +812,11 @@
         scales: {
           x: {
             grid: { display: false },
-            ticks: { color: "#64748b", font: { size: 9 }, maxRotation: 0 },
+            ticks: {
+              color: cssVar("--chart-tick"),
+              font: { size: 9 },
+              maxRotation: 0,
+            },
           },
           y: {
             display: false,
@@ -972,13 +977,16 @@
   function updateThemeToggle() {
     const icon = document.getElementById("theme-toggle-icon");
     const label = document.getElementById("theme-toggle-label");
-    if (getTheme() === "light") {
+    const btn = document.getElementById("theme-toggle");
+    const isLight = getTheme() === "light";
+    if (isLight) {
       icon.textContent = "\u2600\uFE0F";
       label.textContent = "Light";
     } else {
       icon.textContent = "\uD83C\uDF19";
       label.textContent = "Dark";
     }
+    if (btn) btn.setAttribute("aria-checked", String(!isLight));
   }
   updateThemeToggle();
 
