@@ -151,7 +151,7 @@
       .nav-tab.active {
         color: var(--accent);
       }
-      .nav-tab:active {
+      .nav-tab:active:not(:has(.fab)) {
         transform: scale(0.95);
       }
       .nav-tab .fab {
@@ -167,7 +167,9 @@
         color: #000;
         margin-top: -16px;
         box-shadow: var(--shadow-lg);
-        transition: transform 0.2s;
+        transition:
+          transform 0.2s,
+          box-shadow 0.2s;
       }
       .nav-tab .fab:hover {
         transform: scale(1.08);
@@ -1198,7 +1200,7 @@
         top: 1rem;
       }
 
-      /* Reduced motion */
+      /* Reduced motion — disable animations, transitions, and interactive transforms */
       @media (prefers-reduced-motion: reduce) {
         *,
         *::before,
@@ -1206,6 +1208,19 @@
           animation-duration: 0.01ms !important;
           animation-iteration-count: 1 !important;
           transition-duration: 0.01ms !important;
+          scroll-behavior: auto !important;
+        }
+
+        .btn:hover,
+        .btn:active,
+        .nav-tab:active,
+        .nav-tab:active .fab,
+        .route-item:hover,
+        .route-item:active,
+        .filter-chip:active,
+        .insight-card:hover,
+        .timeline-card:hover {
+          transform: none !important;
         }
       }
     </style>

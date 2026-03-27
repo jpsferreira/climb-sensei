@@ -124,9 +124,21 @@
     width: 2px;
     background: var(--border);
   }
+  @keyframes timelineSlideIn {
+    from {
+      opacity: 0;
+      transform: translateX(-8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
   .timeline-item {
     position: relative;
     margin-bottom: 14px;
+    animation: timelineSlideIn 0.3s ease forwards;
+    opacity: 0;
   }
   .timeline-dot {
     position: absolute;
@@ -152,20 +164,6 @@
     background: var(--bg-surface);
   }
 
-  @keyframes timelineSlideIn {
-    from {
-      opacity: 0;
-      transform: translateX(-8px);
-    }
-    to {
-      opacity: 1;
-      transform: translateX(0);
-    }
-  }
-  .timeline-item {
-    animation: timelineSlideIn 0.3s ease forwards;
-    opacity: 0;
-  }
   .timeline-header {
     display: flex;
     justify-content: space-between;

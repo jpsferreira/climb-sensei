@@ -79,6 +79,16 @@
     gap: 8px;
   }
 
+  @keyframes routeSlideIn {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
   .route-item {
     background: var(--bg-raised);
     border-radius: 10px;
@@ -92,6 +102,8 @@
       background 0.2s,
       transform 0.15s ease,
       box-shadow 0.2s ease;
+    animation: routeSlideIn 0.3s ease forwards;
+    opacity: 0;
   }
   .route-item:hover {
     background: var(--bg-surface);
@@ -104,22 +116,6 @@
   }
   .route-sent {
     border-left: 3px solid var(--success);
-  }
-
-  /* Route list entrance animation */
-  @keyframes routeSlideIn {
-    from {
-      opacity: 0;
-      transform: translateY(8px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-  .route-item {
-    animation: routeSlideIn 0.3s ease forwards;
-    opacity: 0;
   }
 
   .grade-badge {
