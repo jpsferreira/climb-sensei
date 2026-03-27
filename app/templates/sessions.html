@@ -244,6 +244,20 @@
     align-items: center;
     gap: 4px;
   }
+  /* ── Calendar swipe transition ────────────────────────── */
+  .calendar-grid {
+    transition:
+      opacity 0.2s ease,
+      transform 0.2s ease;
+  }
+  .calendar-grid.swipe-left {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  .calendar-grid.swipe-right {
+    opacity: 0;
+    transform: translateX(30px);
+  }
 </style>
 {% endblock %} {% block extra_js %}
 <script>
@@ -481,6 +495,61 @@
     }
     renderCalendar();
   }
+
+  // ── Swipe gesture for calendar month navigation ──────────
+  (function () {
+    const grid = document.getElementById("calendarGrid");
+    let startX = 0;
+    let startY = 0;
+    let swiping = false;
+
+    grid.addEventListener(
+      "touchstart",
+      (e) => {
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+        swiping = true;
+      },
+      { passive: true },
+    );
+
+    grid.addEventListener(
+      "touchend",
+      (e) => {
+        if (!swiping) return;
+        swiping = false;
+        const dx = e.changedTouches[0].clientX - startX;
+        const dy = e.changedTouches[0].clientY - startY;
+
+        // Only trigger on primarily horizontal swipes > 60px
+        if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+          const direction = dx < 0 ? "left" : "right";
+
+          // Animate out
+          grid.classList.add("swipe-" + direction);
+
+          setTimeout(() => {
+            if (direction === "left") {
+              nextMonth();
+            } else {
+              prevMonth();
+            }
+
+            // Animate in from opposite side
+            grid.classList.remove("swipe-" + direction);
+            grid.classList.add(
+              "swipe-" + (direction === "left" ? "right" : "left"),
+            );
+
+            // Force reflow then remove class to trigger transition
+            void grid.offsetWidth;
+            grid.classList.remove("swipe-right", "swipe-left");
+          }, 200);
+        }
+      },
+      { passive: true },
+    );
+  })();
 
   loadSessions();
 </script>
