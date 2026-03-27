@@ -45,3 +45,54 @@
 - [x] Add slide-up animation on mobile instead of slide-from-right
 - [x] Add swipe-to-dismiss touch gesture for toasts
 - [x] Add close/dismiss button on each toast for accessibility
+
+## #12 Micro-animations & Feedback
+
+- [x] Add button press scale feedback (tactile 0.97 scale on :active)
+- [x] Add route card hover lift with shadow and active press state
+- [x] Add staggered entrance animation for route list items
+- [x] Add timeline card entrance animation with stagger on route detail
+- [x] Add nav tab and FAB press feedback (scale bounce)
+- [x] Add filter chip press feedback
+- [x] Add insight card hover lift on route detail
+
+## #14 Profile Data Visualization
+
+- [x] Add activity overview card with weekly sessions bar chart (last 8 weeks)
+- [x] Add "this month" session count and "best week" stats
+- [x] Add week streak counter badge
+
+## #11 Dark/Light Theme Toggle
+
+- [x] Add light theme CSS variables under [data-theme="light"]
+- [x] Auto-detect system preference via prefers-color-scheme
+- [x] Persist theme choice in localStorage
+- [x] Apply theme before body render to prevent flash
+- [x] Add toggle button in profile settings page
+
+## #5 Mobile Touch Gestures
+
+- [x] Add swipe-to-navigate between calendar months on sessions page
+- [x] Add slide transition animation for month changes
+
+## #1 Onboarding Flow
+
+- [x] Add 3-step guided walkthrough (Welcome, Create Route, Upload Video)
+- [x] Show onboarding only for new users with no routes (localStorage flag)
+- [x] Step indicators (dots) with active/done states
+- [x] Auto-advance after route creation, dismissible at any step
+- [x] Guard localStorage access with try/catch
+
+## #2 Video Player + Metrics Synchronization
+
+- [x] Add click-to-seek on the metric plot chart (click anywhere to jump video to that timestamp)
+- [x] Add drag-to-scrub on the chart (drag to scrub video in real-time, mouse + touch)
+- [x] Add vertical playhead line on the chart showing current position
+- [x] Add hint text below chart ("Click or drag on the chart to seek the video")
+
+## #3 Comparison View
+
+- [x] Add "Compare" button on route detail page (visible when 2+ attempts)
+- [x] Add comparison modal with selectable attempt chips
+- [x] Build side-by-side metrics table with best/worst highlighting
+- [x] Support comparing 2-10 attempts with dynamic selection

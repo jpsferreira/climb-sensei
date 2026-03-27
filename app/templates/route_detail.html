@@ -124,9 +124,21 @@
     width: 2px;
     background: var(--border);
   }
+  @keyframes timelineSlideIn {
+    from {
+      opacity: 0;
+      transform: translateX(-8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
   .timeline-item {
     position: relative;
     margin-bottom: 14px;
+    animation: timelineSlideIn 0.3s ease forwards;
+    opacity: 0;
   }
   .timeline-dot {
     position: absolute;
@@ -144,7 +156,14 @@
     background: var(--bg-raised);
     border-radius: 10px;
     padding: 12px;
+    transition:
+      background 0.2s,
+      transform 0.15s ease;
   }
+  .timeline-card:hover {
+    background: var(--bg-surface);
+  }
+
   .timeline-header {
     display: flex;
     justify-content: space-between;
@@ -195,6 +214,13 @@
     padding: 10px 14px;
     flex: 1;
     min-width: 140px;
+    transition:
+      border-color 0.2s,
+      transform 0.15s ease;
+  }
+  .insight-card:hover {
+    border-color: var(--border-light);
+    transform: translateY(-1px);
   }
   .insight-label {
     font-size: 0.65rem;
@@ -256,6 +282,83 @@
   .goals-section {
     margin-top: 24px;
   }
+
+  /* ─── Comparison View ──────────────────────────────── */
+  .compare-table-wrap {
+    overflow-x: auto;
+    margin: 0 -1rem;
+    padding: 0 1rem;
+  }
+  .compare-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+    min-width: 400px;
+  }
+  .compare-table th,
+  .compare-table td {
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  .compare-table th {
+    font-family: var(--font-display);
+    font-weight: 600;
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    position: sticky;
+    top: 0;
+    background: var(--bg-raised);
+    z-index: 1;
+  }
+  .compare-table td {
+    font-family: var(--font-display);
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+  .compare-table .metric-label {
+    color: var(--text-secondary);
+    font-weight: 400;
+    font-size: 0.78rem;
+    white-space: nowrap;
+  }
+  .compare-best {
+    color: var(--success);
+    font-weight: 700;
+  }
+  .compare-worst {
+    color: var(--text-faint);
+  }
+  .compare-select-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+  }
+  .compare-chip {
+    padding: 5px 12px;
+    border-radius: 16px;
+    font-size: 0.72rem;
+    font-family: var(--font-display);
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--bg-base);
+    color: var(--text-muted);
+    transition: all 0.2s;
+  }
+  .compare-chip.selected {
+    border-color: var(--accent-dim);
+    background: var(--accent-glow);
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .compare-chip:hover {
+    border-color: var(--border-light);
+  }
+
   .goal-item {
     background: var(--bg-raised);
     border-radius: 10px;
@@ -323,7 +426,17 @@
 </div>
 
 <div class="fade-up fade-up-delay-2">
-  <h2 class="section-title">Attempts</h2>
+  <div class="flex justify-between items-center" style="margin-bottom: 12px">
+    <h2 class="section-title" style="margin-bottom: 0">Attempts</h2>
+    <button
+      class="btn btn-sm btn-outline"
+      id="compare-btn"
+      style="display: none"
+      onclick="openCompareModal()"
+    >
+      Compare
+    </button>
+  </div>
   <div id="timeline" class="timeline">
     <p class="loading">Loading attempts...</p>
   </div>
@@ -340,6 +453,26 @@
     </button>
   </div>
   <div id="goals-list"></div>
+</div>
+
+<!-- Compare Attempts Modal -->
+<div id="compare-modal" class="modal hidden">
+  <div class="modal-content" style="max-width: 700px">
+    <h2>Compare Attempts</h2>
+    <div class="compare-select-row" id="compare-chips"></div>
+    <div class="compare-table-wrap">
+      <div id="compare-content"></div>
+    </div>
+    <div class="modal-actions">
+      <button
+        type="button"
+        class="btn btn-secondary"
+        onclick="closeModal(document.getElementById('compare-modal'))"
+      >
+        Close
+      </button>
+    </div>
+  </div>
 </div>
 
 <!-- Edit Route Modal -->
@@ -529,7 +662,11 @@
       const res = await apiRequest(`/api/routes/${routeId}/attempts`);
       if (!res.ok) return;
       const attempts = await res.json();
+      allAttempts = attempts;
       renderTimeline(attempts);
+      // Show compare button when 2+ attempts exist
+      const compareBtn = document.getElementById('compare-btn');
+      if (compareBtn) compareBtn.style.display = attempts.length >= 2 ? 'inline-flex' : 'none';
   }
 
   function formatDelta(curr, prev, lowerBetter) {
@@ -561,7 +698,7 @@
           const swayDelta = prev ? formatDelta(a.avg_sway, prev.avg_sway, true) : '';
           const econDelta = prev ? formatDelta(a.avg_movement_economy, prev.avg_movement_economy, false) : '';
           return `
-          <div class="timeline-item">
+          <div class="timeline-item" style="animation-delay: ${Math.min(i * 0.06, 0.5)}s">
               <div class="timeline-dot"></div>
               <div class="timeline-card">
                   <div class="timeline-header">
@@ -682,8 +819,8 @@
               maintainAspectRatio: false,
               plugins: { legend: { display: false } },
               scales: {
-                  x: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 10 } } },
-                  y: { grid: { color: '#1a2332' }, ticks: { color: '#64748b', font: { size: 10 } } },
+                  x: { grid: { display: false }, ticks: { color: cssVar('--chart-tick'), font: { size: 10 } } },
+                  y: { grid: { color: cssVar('--chart-grid') }, ticks: { color: cssVar('--chart-tick'), font: { size: 10 } } },
               }
           }
       });
@@ -698,6 +835,136 @@
           container.innerHTML = '<canvas id="metric-chart"></canvas>';
       }
       loadChart();
+  }
+
+  // ── Compare Attempts ──────────────────────────────────────────
+  let allAttempts = [];
+  let selectedCompareIds = new Set();
+
+  const COMPARE_METRICS = [
+    { key: 'avg_velocity',            label: 'Avg Velocity',      unit: 'm/s',  higherBetter: true  },
+    { key: 'avg_sway',                label: 'Avg Sway',          unit: '',     higherBetter: false },
+    { key: 'avg_movement_economy',    label: 'Movement Economy',  unit: '',     higherBetter: true  },
+    { key: 'max_velocity',            label: 'Max Velocity',      unit: 'm/s',  higherBetter: true  },
+    { key: 'max_height',              label: 'Max Height',        unit: 'm',    higherBetter: true  },
+    { key: 'total_vertical_progress', label: 'Vertical Progress', unit: 'm',    higherBetter: true  },
+    { key: 'lock_off_count',          label: 'Lock-offs',         unit: '',     higherBetter: null  },
+    { key: 'rest_count',              label: 'Rests',             unit: '',     higherBetter: null  },
+    { key: 'fatigue_score',           label: 'Fatigue',           unit: '',     higherBetter: false },
+  ];
+
+  let detailedAttemptCache = {}; // id → full attempt detail
+
+  async function fetchAttemptDetail(id) {
+    if (detailedAttemptCache[id]) return detailedAttemptCache[id];
+    try {
+      const res = await apiRequest(`/api/routes/${routeId}/attempts/${id}`);
+      if (res.ok) {
+        const detail = await res.json();
+        detailedAttemptCache[id] = detail;
+        return detail;
+      }
+    } catch (e) { /* fall through */ }
+    return null;
+  }
+
+  async function openCompareModal() {
+    const modal = document.getElementById('compare-modal');
+    const chipsEl = document.getElementById('compare-chips');
+
+    // Default: select the 2 most recent attempts
+    selectedCompareIds = new Set();
+    allAttempts.slice(0, 2).forEach(a => selectedCompareIds.add(a.id));
+
+    // Build selectable attempt chips
+    chipsEl.innerHTML = allAttempts.map((a, i) => {
+      const num = allAttempts.length - i;
+      const date = new Date(a.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      const sel = selectedCompareIds.has(a.id) ? ' selected' : '';
+      return `<button class="compare-chip${sel}" data-id="${a.id}" onclick="toggleCompareChip(${a.id})">#${num} ${date}</button>`;
+    }).join('');
+
+    openModal(modal);
+    await renderCompareTable();
+  }
+
+  function toggleCompareChip(id) {
+    if (selectedCompareIds.has(id)) {
+      if (selectedCompareIds.size <= 2) return; // Min 2
+      selectedCompareIds.delete(id);
+    } else {
+      if (selectedCompareIds.size >= 10) {
+        showAlert('Maximum 10 attempts can be compared', 'warning');
+        return;
+      }
+      selectedCompareIds.add(id);
+    }
+    // Update chip styles
+    document.querySelectorAll('.compare-chip').forEach(c => {
+      c.classList.toggle('selected', selectedCompareIds.has(Number(c.dataset.id)));
+    });
+    renderCompareTable();
+  }
+
+  async function renderCompareTable() {
+    const content = document.getElementById('compare-content');
+    const baseAttempts = allAttempts.filter(a => selectedCompareIds.has(a.id));
+
+    if (baseAttempts.length < 2) {
+      content.innerHTML = '<p style="color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 2rem 0;">Select at least 2 attempts to compare.</p>';
+      return;
+    }
+
+    content.innerHTML = '<p style="color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 2rem 0;">Loading details...</p>';
+
+    // Fetch full detail for each selected attempt
+    const selected = await Promise.all(
+      baseAttempts.map(async (a) => {
+        const detail = await fetchAttemptDetail(a.id);
+        return detail ? { ...a, ...detail } : a;
+      })
+    );
+
+    // Headers
+    let headerHtml = '<th></th>';
+    selected.forEach((a) => {
+      const num = allAttempts.length - allAttempts.indexOf(allAttempts.find(x => x.id === a.id));
+      const date = new Date(a.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      headerHtml += `<th>#${num}<br><span style="font-weight: 400; font-size: 0.65rem;">${date}</span></th>`;
+    });
+
+    // Rows
+    let rowsHtml = '';
+    COMPARE_METRICS.forEach(metric => {
+      const values = selected.map(a => a[metric.key]);
+      const numericValues = values.filter(v => v != null && isFinite(v));
+      let bestVal = null;
+      let worstVal = null;
+      if (numericValues.length > 0 && metric.higherBetter !== null) {
+        bestVal = metric.higherBetter ? Math.max(...numericValues) : Math.min(...numericValues);
+        worstVal = metric.higherBetter ? Math.min(...numericValues) : Math.max(...numericValues);
+      }
+
+      let cells = `<td class="metric-label">${metric.label}${metric.unit ? ' <span style="color: var(--text-faint);">(' + metric.unit + ')</span>' : ''}</td>`;
+      values.forEach(v => {
+        if (v == null) {
+          cells += '<td style="color: var(--text-faint);">—</td>';
+        } else {
+          const formatted = Number.isInteger(v) ? v : v.toFixed(3);
+          const cls = v === bestVal ? ' compare-best' : (v === worstVal && numericValues.length > 1 ? ' compare-worst' : '');
+          cells += `<td class="${cls}">${formatted}</td>`;
+        }
+      });
+
+      rowsHtml += `<tr>${cells}</tr>`;
+    });
+
+    content.innerHTML = `
+      <table class="compare-table">
+        <thead><tr>${headerHtml}</tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    `;
   }
 
   async function loadGoals() {
