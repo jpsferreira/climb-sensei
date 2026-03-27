@@ -55,3 +55,9 @@
 - [x] Add nav tab and FAB press feedback (scale bounce)
 - [x] Add filter chip press feedback
 - [x] Add insight card hover lift on route detail
+
+## #14 Profile Data Visualization
+
+- [x] Add activity overview card with weekly sessions bar chart (last 8 weeks)
+- [x] Add "this month" session count and "best week" stats
+- [x] Add week streak counter badge
