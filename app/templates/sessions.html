@@ -502,10 +502,12 @@
     let startX = 0;
     let startY = 0;
     let swiping = false;
+    let animating = false;
 
     grid.addEventListener(
       "touchstart",
       (e) => {
+        if (animating) return;
         startX = e.touches[0].clientX;
         startY = e.touches[0].clientY;
         swiping = true;
@@ -516,7 +518,7 @@
     grid.addEventListener(
       "touchend",
       (e) => {
-        if (!swiping) return;
+        if (!swiping || animating) return;
         swiping = false;
         const dx = e.changedTouches[0].clientX - startX;
         const dy = e.changedTouches[0].clientY - startY;
@@ -524,11 +526,14 @@
         // Only trigger on primarily horizontal swipes > 60px
         if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
           const direction = dx < 0 ? "left" : "right";
+          animating = true;
 
-          // Animate out
+          // Animate out, then swap month on transitionend
           grid.classList.add("swipe-" + direction);
 
-          setTimeout(() => {
+          function onOut() {
+            grid.removeEventListener("transitionend", onOut);
+
             if (direction === "left") {
               nextMonth();
             } else {
@@ -537,14 +542,20 @@
 
             // Animate in from opposite side
             grid.classList.remove("swipe-" + direction);
-            grid.classList.add(
-              "swipe-" + (direction === "left" ? "right" : "left"),
-            );
+            const opposite = direction === "left" ? "right" : "left";
+            grid.classList.add("swipe-" + opposite);
 
-            // Force reflow then remove class to trigger transition
+            // Force reflow then remove class to trigger transition in
             void grid.offsetWidth;
             grid.classList.remove("swipe-right", "swipe-left");
-          }, 200);
+
+            function onIn() {
+              grid.removeEventListener("transitionend", onIn);
+              animating = false;
+            }
+            grid.addEventListener("transitionend", onIn, { once: true });
+          }
+          grid.addEventListener("transitionend", onOut, { once: true });
         }
       },
       { passive: true },
