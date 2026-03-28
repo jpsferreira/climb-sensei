@@ -605,7 +605,7 @@
   }
 
   async function loadRoute() {
-      const res = await apiRequest(`/api/routes/${routeId}`);
+      const res = await apiRequest(`/api/v1/routes/${routeId}`);
       if (!res.ok) { window.location.href = '/'; return; }
       routeData = await res.json();
       renderRouteHeader();
@@ -659,7 +659,7 @@
   }
 
   async function loadAttempts() {
-      const res = await apiRequest(`/api/routes/${routeId}/attempts`);
+      const res = await apiRequest(`/api/v1/routes/${routeId}/attempts`);
       if (!res.ok) return;
       const attempts = await res.json();
       allAttempts = attempts;
@@ -717,7 +717,7 @@
   }
 
   async function loadChart() {
-      const res = await apiRequest(`/api/routes/${routeId}/progress/${currentMetric}`);
+      const res = await apiRequest(`/api/v1/routes/${routeId}/progress/${currentMetric}`);
       if (!res.ok) return;
       const data = await res.json();
       renderChart(data);
@@ -858,7 +858,7 @@
   async function fetchAttemptDetail(id) {
     if (detailedAttemptCache[id]) return detailedAttemptCache[id];
     try {
-      const res = await apiRequest(`/api/routes/${routeId}/attempts/${id}`);
+      const res = await apiRequest(`/api/v1/routes/${routeId}/attempts/${id}`);
       if (res.ok) {
         const detail = await res.json();
         detailedAttemptCache[id] = detail;
@@ -968,7 +968,7 @@
   }
 
   async function loadGoals() {
-      const res = await apiRequest(`/api/goals?route_id=${routeId}`);
+      const res = await apiRequest(`/api/v1/goals?route_id=${routeId}`);
       if (!res.ok) return;
       const goals = await res.json();
       renderGoals(goals.filter(g => !g.achieved));
@@ -1001,7 +1001,7 @@
 
   async function deleteRoute() {
       if (!confirm('Delete this route and all its attempts?')) return;
-      const res = await apiRequest(`/api/routes/${routeId}`, { method: 'DELETE' });
+      const res = await apiRequest(`/api/v1/routes/${routeId}`, { method: 'DELETE' });
       if (res.ok) { window.location.href = '/'; }
   }
 
@@ -1023,7 +1023,7 @@
       ['name', 'grade', 'grade_system', 'type', 'location', 'status'].forEach(f => {
           if (form[f].value) data[f] = form[f].value;
       });
-      const res = await apiRequest(`/api/routes/${routeId}`, {
+      const res = await apiRequest(`/api/v1/routes/${routeId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(data),
@@ -1049,7 +1049,7 @@
           route_id: routeId,
       };
       if (form.deadline.value) data.deadline = new Date(form.deadline.value).toISOString();
-      const res = await apiRequest('/api/goals', {
+      const res = await apiRequest('/api/v1/goals', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(data),

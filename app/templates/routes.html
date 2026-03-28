@@ -634,7 +634,7 @@
     params.set("sort", currentSort);
 
     try {
-      const response = await apiRequest(`/api/routes?${params}`);
+      const response = await apiRequest(`/api/v1/routes?${params}`);
       if (response.ok) {
         allRoutes = await response.json();
         renderRoutes();
@@ -731,7 +731,7 @@
       location: form.location.value || null,
     };
     try {
-      const response = await apiRequest("/api/routes", {
+      const response = await apiRequest("/api/v1/routes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),

@@ -730,7 +730,7 @@ endblock %} {% block extra_css %}
 
     const poll = async () => {
       try {
-        const resp = await fetch(`/api/videos/${videoId}/status`, {
+        const resp = await fetch(`/api/v1/videos/${videoId}/status`, {
           headers: { Authorization: `Bearer ${authToken}` },
         });
         if (!resp.ok) throw new Error("Failed to check status");

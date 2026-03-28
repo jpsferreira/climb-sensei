@@ -870,7 +870,7 @@ endblock %} {% block extra_css %}
 
   async function loadRouteName() {
     try {
-      const res = await apiRequest(`/api/routes/${routeId}`);
+      const res = await apiRequest(`/api/v1/routes/${routeId}`);
       if (res.ok) {
         const route = await res.json();
         const nameEl = document.getElementById('route-name-label');
@@ -913,7 +913,7 @@ endblock %} {% block extra_css %}
   }
 
   async function loadAttempt() {
-    const res = await apiRequest(`/api/routes/${routeId}/attempts/${attemptId}`);
+    const res = await apiRequest(`/api/v1/routes/${routeId}/attempts/${attemptId}`);
     if (!res.ok) {
       document.getElementById('attempt-header').innerHTML =
         '<p style="color: var(--error)">Could not load attempt.</p>';
@@ -951,7 +951,7 @@ endblock %} {% block extra_css %}
   notesField.addEventListener('blur', async () => {
     const notes = notesField.value;
     try {
-      const res = await apiRequest(`/api/routes/${routeId}/attempts/${attemptId}`, {
+      const res = await apiRequest(`/api/v1/routes/${routeId}/attempts/${attemptId}`, {
         method: 'PATCH',
         body: JSON.stringify({ notes }),
       });

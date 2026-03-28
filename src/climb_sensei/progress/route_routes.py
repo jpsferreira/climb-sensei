@@ -15,7 +15,7 @@ from ..auth import get_current_active_user
 from ..grades import grade_sort_key
 from .route_schemas import RouteCreate, RouteUpdate, RouteListResponse, RouteResponse
 
-router = APIRouter(prefix="/api/routes", tags=["routes"])
+router = APIRouter(prefix="/api/v1/routes", tags=["routes"])
 
 
 def _route_to_list_response(

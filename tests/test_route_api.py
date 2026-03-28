@@ -143,13 +143,13 @@ def sample_video(db_session, test_user):
 class TestListRoutes:
     def test_list_routes_empty(self, client):
         """Should return empty list when user has no routes."""
-        response = client.get("/api/routes")
+        response = client.get("/api/v1/routes")
         assert response.status_code == 200
         assert response.json() == []
 
     def test_list_routes_returns_own_routes(self, client, sample_route):
         """Should return routes belonging to the current user."""
-        response = client.get("/api/routes")
+        response = client.get("/api/v1/routes")
         assert response.status_code == 200
         data = response.json()
         assert len(data) == 1
@@ -170,7 +170,7 @@ class TestListRoutes:
         db_session.add(other_route)
         db_session.commit()
 
-        response = client.get("/api/routes")
+        response = client.get("/api/v1/routes")
         assert response.status_code == 200
         ids = [r["id"] for r in response.json()]
         assert other_route.id not in ids
@@ -194,7 +194,7 @@ class TestListRoutes:
         db_session.add_all([boulder, sport])
         db_session.commit()
 
-        response = client.get("/api/routes?type=boulder")
+        response = client.get("/api/v1/routes?type=boulder")
         assert response.status_code == 200
         data = response.json()
         assert all(r["type"] == "boulder" for r in data)
@@ -221,7 +221,7 @@ class TestListRoutes:
         db_session.add_all([r1, r2])
         db_session.commit()
 
-        response = client.get("/api/routes?search=midnight")
+        response = client.get("/api/v1/routes?search=midnight")
         assert response.status_code == 200
         data = response.json()
         assert len(data) == 1
@@ -264,7 +264,7 @@ class TestListRoutes:
         db_session.add(single_attempt)
         db_session.commit()
 
-        response = client.get("/api/routes?sort=attempts")
+        response = client.get("/api/v1/routes?sort=attempts")
         assert response.status_code == 200
         data = response.json()
         counts = [r["attempt_count"] for r in data]
@@ -272,7 +272,7 @@ class TestListRoutes:
 
     def test_list_routes_includes_sparkline(self, client, sample_route):
         """Should include sparkline list (empty when no attempts with analyses)."""
-        response = client.get("/api/routes")
+        response = client.get("/api/v1/routes")
         assert response.status_code == 200
         data = response.json()
         assert "sparkline" in data[0]
@@ -292,7 +292,7 @@ class TestCreateRoute:
             "type": "boulder",
             "location": "Bishop",
         }
-        response = client.post("/api/routes", json=payload)
+        response = client.post("/api/v1/routes", json=payload)
         assert response.status_code == 201
         data = response.json()
         assert data["name"] == "New Problem"
@@ -312,7 +312,7 @@ class TestCreateRoute:
             "grade_system": "french",
             "type": "sport",
         }
-        response = client.post("/api/routes", json=payload)
+        response = client.post("/api/v1/routes", json=payload)
         assert response.status_code == 201
         data = response.json()
         assert data["location"] is None
@@ -325,7 +325,7 @@ class TestCreateRoute:
             "grade_system": "vscale",  # invalid
             "type": "boulder",
         }
-        response = client.post("/api/routes", json=payload)
+        response = client.post("/api/v1/routes", json=payload)
         assert response.status_code == 422
 
     def test_create_route_invalid_type(self, client):
@@ -336,7 +336,7 @@ class TestCreateRoute:
             "grade_system": "hueco",
             "type": "deepwater",  # invalid
         }
-        response = client.post("/api/routes", json=payload)
+        response = client.post("/api/v1/routes", json=payload)
         assert response.status_code == 422
 
 
@@ -346,7 +346,7 @@ class TestCreateRoute:
 class TestGetRoute:
     def test_get_route_success(self, client, sample_route):
         """Should return route detail for owned route."""
-        response = client.get(f"/api/routes/{sample_route.id}")
+        response = client.get(f"/api/v1/v1/routes/{sample_route.id}")
         assert response.status_code == 200
         data = response.json()
         assert data["id"] == sample_route.id
@@ -356,7 +356,7 @@ class TestGetRoute:
 
     def test_get_route_not_found(self, client):
         """Should return 404 for non-existent route."""
-        response = client.get("/api/routes/99999")
+        response = client.get("/api/v1/routes/99999")
         assert response.status_code == 404
 
     def test_get_route_other_user_not_found(self, client, db_session, other_user):
@@ -371,7 +371,7 @@ class TestGetRoute:
         db_session.add(other_route)
         db_session.commit()
 
-        response = client.get(f"/api/routes/{other_route.id}")
+        response = client.get(f"/api/v1/v1/routes/{other_route.id}")
         assert response.status_code == 404
 
 
@@ -382,7 +382,7 @@ class TestUpdateRoute:
     def test_update_route_name(self, client, sample_route):
         """Should update route name."""
         response = client.patch(
-            f"/api/routes/{sample_route.id}", json={"name": "Renamed Route"}
+            f"/api/v1/v1/routes/{sample_route.id}", json={"name": "Renamed Route"}
         )
         assert response.status_code == 200
         assert response.json()["name"] == "Renamed Route"
@@ -390,7 +390,7 @@ class TestUpdateRoute:
     def test_update_route_status_to_sent(self, client, sample_route):
         """Should update status to sent."""
         response = client.patch(
-            f"/api/routes/{sample_route.id}", json={"status": "sent"}
+            f"/api/v1/v1/routes/{sample_route.id}", json={"status": "sent"}
         )
         assert response.status_code == 200
         assert response.json()["status"] == "sent"
@@ -398,7 +398,7 @@ class TestUpdateRoute:
     def test_update_route_partial(self, client, sample_route):
         """Should update only the provided fields."""
         response = client.patch(
-            f"/api/routes/{sample_route.id}", json={"location": "Updated Crag"}
+            f"/api/v1/v1/routes/{sample_route.id}", json={"location": "Updated Crag"}
         )
         assert response.status_code == 200
         data = response.json()
@@ -408,13 +408,13 @@ class TestUpdateRoute:
     def test_update_route_invalid_status(self, client, sample_route):
         """Should reject invalid status value."""
         response = client.patch(
-            f"/api/routes/{sample_route.id}", json={"status": "climbed"}
+            f"/api/v1/v1/routes/{sample_route.id}", json={"status": "climbed"}
         )
         assert response.status_code == 422
 
     def test_update_route_not_found(self, client):
         """Should return 404 for non-existent route."""
-        response = client.patch("/api/routes/99999", json={"name": "Ghost"})
+        response = client.patch("/api/v1/routes/99999", json={"name": "Ghost"})
         assert response.status_code == 404
 
 
@@ -424,7 +424,7 @@ class TestUpdateRoute:
 class TestDeleteRoute:
     def test_delete_route_success(self, client, db_session, sample_route):
         """Should delete route and return 204."""
-        response = client.delete(f"/api/routes/{sample_route.id}")
+        response = client.delete(f"/api/v1/v1/routes/{sample_route.id}")
         assert response.status_code == 204
 
         # Verify it's gone from DB
@@ -435,7 +435,7 @@ class TestDeleteRoute:
 
     def test_delete_route_not_found(self, client):
         """Should return 404 for non-existent route."""
-        response = client.delete("/api/routes/99999")
+        response = client.delete("/api/v1/routes/99999")
         assert response.status_code == 404
 
     def test_delete_route_other_user_not_found(self, client, db_session, other_user):
@@ -450,5 +450,5 @@ class TestDeleteRoute:
         db_session.add(other_route)
         db_session.commit()
 
-        response = client.delete(f"/api/routes/{other_route.id}")
+        response = client.delete(f"/api/v1/v1/routes/{other_route.id}")
         assert response.status_code == 404

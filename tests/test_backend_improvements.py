@@ -107,7 +107,7 @@ class TestAuthRateLimiting:
         """Normal login attempts should not be rate-limited."""
         for _ in range(3):
             response = client.post(
-                "/api/auth/jwt/login",
+                "/api/v1/auth/jwt/login",
                 data={"username": "nonexist@test.com", "password": "wrong"},
             )
             assert response.status_code != 429
@@ -116,7 +116,7 @@ class TestAuthRateLimiting:
         """Should return 429 after exceeding rate limit."""
         for _ in range(6):
             response = client.post(
-                "/api/auth/jwt/login",
+                "/api/v1/auth/jwt/login",
                 data={"username": "attack@test.com", "password": "brute"},
             )
         # The 6th request should be rate limited
@@ -127,7 +127,7 @@ class TestAuthRateLimiting:
         """Should rate limit registration spam."""
         for i in range(6):
             response = client.post(
-                "/api/auth/register",
+                "/api/v1/auth/register",
                 json={
                     "email": f"spam{i}@test.com",
                     "password": "password123",
@@ -174,7 +174,7 @@ class TestErrorMessageStorage:
         db_session.refresh(video)
 
         response = client.get(
-            f"/api/videos/{video.id}/status",
+            f"/api/v1/videos/{video.id}/status",
             headers={"Authorization": f"Bearer {auth_token}"},
         )
         assert response.status_code == 200
@@ -197,7 +197,7 @@ class TestErrorMessageStorage:
         db_session.refresh(video)
 
         response = client.get(
-            f"/api/videos/{video.id}/status",
+            f"/api/v1/videos/{video.id}/status",
             headers={"Authorization": f"Bearer {auth_token}"},
         )
         assert response.status_code == 200

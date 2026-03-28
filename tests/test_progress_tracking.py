@@ -145,7 +145,7 @@ class TestProgressMetrics:
     def test_get_metric_progress_empty(self, client, test_user_token):
         """Should return empty data for metric with no history."""
         response = client.get(
-            "/api/progress/avg_velocity",
+            "/api/v1/progress/avg_velocity",
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
         assert response.status_code == 200
@@ -170,7 +170,7 @@ class TestProgressMetrics:
         db_session.commit()
 
         response = client.get(
-            "/api/progress/avg_velocity",
+            "/api/v1/progress/avg_velocity",
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
         assert response.status_code == 200
@@ -208,7 +208,7 @@ class TestProgressMetrics:
 
         # Request last 30 days
         response = client.get(
-            "/api/progress/lock_off_count?days=30",
+            "/api/v1/progress/lock_off_count?days=30",
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
         assert response.status_code == 200
@@ -238,7 +238,7 @@ class TestProgressMetrics:
         db_session.commit()
 
         response = client.get(
-            "/api/progress", headers={"Authorization": f"Bearer {test_user_token}"}
+            "/api/v1/progress", headers={"Authorization": f"Bearer {test_user_token}"}
         )
         assert response.status_code == 200
         data = response.json()
@@ -277,7 +277,7 @@ class TestProgressMetrics:
         db_session.commit()
 
         response = client.get(
-            "/api/progress/avg_velocity",
+            "/api/v1/progress/avg_velocity",
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
         data = response.json()
@@ -310,7 +310,7 @@ class TestAnalysisComparison:
         db_session.commit()
 
         response = client.post(
-            "/api/compare",
+            "/api/v1/compare",
             json={"analysis_ids": [analysis1.id, analysis2.id]},
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
@@ -343,7 +343,7 @@ class TestAnalysisComparison:
         db_session.commit()
 
         response = client.post(
-            "/api/compare",
+            "/api/v1/compare",
             json={"analysis_ids": [analysis1.id, analysis2.id]},
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
@@ -356,7 +356,7 @@ class TestAnalysisComparison:
     ):
         """Should require at least 2 analyses to compare."""
         response = client.post(
-            "/api/compare",
+            "/api/v1/compare",
             json={"analysis_ids": [sample_analysis.id]},
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
@@ -367,7 +367,7 @@ class TestAnalysisComparison:
     ):
         """Should return 404 if analysis not found."""
         response = client.post(
-            "/api/compare",
+            "/api/v1/compare",
             json={"analysis_ids": [sample_analysis.id, 99999]},
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
@@ -398,7 +398,7 @@ class TestAnalysisComparison:
 
         # Try to access with test_user's token
         response = client.post(
-            "/api/compare",
+            "/api/v1/compare",
             json={"analysis_ids": [other_analysis.id, other_analysis.id]},
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
@@ -415,7 +415,7 @@ class TestGoalManagement:
         """Should create a new goal."""
         deadline = (datetime.utcnow() + timedelta(days=30)).isoformat()
         response = client.post(
-            "/api/goals",
+            "/api/v1/goals",
             json={
                 "metric_name": "avg_velocity",
                 "target_value": 0.20,
@@ -445,7 +445,7 @@ class TestGoalManagement:
         db_session.commit()
 
         response = client.post(
-            "/api/goals",
+            "/api/v1/goals",
             json={"metric_name": "lock_off_count", "target_value": 10.0},
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
@@ -468,7 +468,7 @@ class TestGoalManagement:
         db_session.commit()
 
         response = client.get(
-            "/api/goals", headers={"Authorization": f"Bearer {test_user_token}"}
+            "/api/v1/goals", headers={"Authorization": f"Bearer {test_user_token}"}
         )
         assert response.status_code == 200
         data = response.json()
@@ -494,7 +494,7 @@ class TestGoalManagement:
         db_session.commit()
 
         response = client.get(
-            "/api/goals?active_only=true",
+            "/api/v1/goals?active_only=true",
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
         data = response.json()
@@ -513,7 +513,7 @@ class TestGoalManagement:
         db_session.commit()
 
         response = client.get(
-            f"/api/goals/{goal.id}",
+            f"/api/v1/v1/goals/{goal.id}",
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
         assert response.status_code == 200
@@ -528,7 +528,7 @@ class TestGoalManagement:
         db_session.commit()
 
         response = client.patch(
-            f"/api/goals/{goal.id}",
+            f"/api/v1/v1/goals/{goal.id}",
             json={"target_value": 0.25, "notes": "Increased target"},
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
@@ -544,7 +544,7 @@ class TestGoalManagement:
         db_session.commit()
 
         response = client.patch(
-            f"/api/goals/{goal.id}",
+            f"/api/v1/v1/goals/{goal.id}",
             json={"achieved": True},
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
@@ -560,14 +560,14 @@ class TestGoalManagement:
         goal_id = goal.id
 
         response = client.delete(
-            f"/api/goals/{goal_id}",
+            f"/api/v1/v1/goals/{goal_id}",
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
         assert response.status_code == 204
 
         # Verify deleted
         check_response = client.get(
-            f"/api/goals/{goal_id}",
+            f"/api/v1/v1/goals/{goal_id}",
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
         assert check_response.status_code == 404
@@ -588,7 +588,7 @@ class TestGoalManagement:
         db_session.commit()
 
         response = client.get(
-            f"/api/goals/{other_goal.id}",
+            f"/api/v1/v1/goals/{other_goal.id}",
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
         assert response.status_code == 404
@@ -604,7 +604,7 @@ class TestSessionManagement:
         """Should create a new climbing session."""
         session_date = datetime.utcnow().isoformat()
         response = client.post(
-            "/api/sessions",
+            "/api/v1/sessions",
             json={
                 "name": "Morning Bouldering",
                 "date": session_date,
@@ -633,7 +633,7 @@ class TestSessionManagement:
         db_session.commit()
 
         response = client.get(
-            "/api/sessions", headers={"Authorization": f"Bearer {test_user_token}"}
+            "/api/v1/sessions", headers={"Authorization": f"Bearer {test_user_token}"}
         )
         assert response.status_code == 200
         data = response.json()
@@ -653,7 +653,7 @@ class TestSessionManagement:
         db_session.commit()
 
         response = client.get(
-            "/api/sessions?skip=2&limit=2",
+            "/api/v1/sessions?skip=2&limit=2",
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
         data = response.json()
@@ -671,7 +671,7 @@ class TestSessionManagement:
         db_session.commit()
 
         response = client.get(
-            f"/api/sessions/{session.id}",
+            f"/api/v1/v1/sessions/{session.id}",
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
         assert response.status_code == 200
@@ -688,7 +688,7 @@ class TestSessionManagement:
         db_session.commit()
 
         response = client.patch(
-            f"/api/sessions/{session.id}",
+            f"/api/v1/v1/sessions/{session.id}",
             json={"name": "Updated Name", "notes": "Great session!"},
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
@@ -720,7 +720,7 @@ class TestSessionManagement:
 
         # Delete session
         response = client.delete(
-            f"/api/sessions/{session_id}",
+            f"/api/v1/v1/sessions/{session_id}",
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
         assert response.status_code == 204
@@ -751,7 +751,7 @@ class TestSessionManagement:
         db_session.commit()
 
         response = client.get(
-            f"/api/sessions/{session.id}/analyses",
+            f"/api/v1/v1/sessions/{session.id}/analyses",
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
         assert response.status_code == 200
@@ -778,7 +778,7 @@ class TestSessionManagement:
         db_session.commit()
 
         response = client.get(
-            f"/api/sessions/{other_session.id}",
+            f"/api/v1/v1/sessions/{other_session.id}",
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
         assert response.status_code == 404
@@ -792,20 +792,20 @@ class TestProgressAuthentication:
 
     def test_progress_endpoint_requires_auth(self, client):
         """Should return 401 without authentication."""
-        response = client.get("/api/progress/avg_velocity")
+        response = client.get("/api/v1/progress/avg_velocity")
         assert response.status_code == 401
 
     def test_compare_endpoint_requires_auth(self, client):
         """Should return 401 without authentication."""
-        response = client.post("/api/compare", json={"analysis_ids": [1, 2]})
+        response = client.post("/api/v1/compare", json={"analysis_ids": [1, 2]})
         assert response.status_code == 401
 
     def test_goals_endpoint_requires_auth(self, client):
         """Should return 401 without authentication."""
-        response = client.get("/api/goals")
+        response = client.get("/api/v1/goals")
         assert response.status_code == 401
 
     def test_sessions_endpoint_requires_auth(self, client):
         """Should return 401 without authentication."""
-        response = client.get("/api/sessions")
+        response = client.get("/api/v1/sessions")
         assert response.status_code == 401

@@ -184,13 +184,13 @@ def sample_attempt(db_session, sample_route, sample_video, sample_analysis):
 class TestListAttempts:
     def test_list_attempts_empty(self, client, sample_route):
         """Should return empty list when route has no attempts."""
-        response = client.get(f"/api/routes/{sample_route.id}/attempts")
+        response = client.get(f"/api/v1/v1/routes/{sample_route.id}/attempts")
         assert response.status_code == 200
         assert response.json() == []
 
     def test_list_attempts_returns_attempts(self, client, sample_attempt, sample_route):
         """Should return attempts for the route."""
-        response = client.get(f"/api/routes/{sample_route.id}/attempts")
+        response = client.get(f"/api/v1/v1/routes/{sample_route.id}/attempts")
         assert response.status_code == 200
         data = response.json()
         assert len(data) == 1
@@ -201,7 +201,7 @@ class TestListAttempts:
         self, client, sample_attempt, sample_route
     ):
         """Should include avg_velocity, avg_sway, avg_movement_economy from analysis."""
-        response = client.get(f"/api/routes/{sample_route.id}/attempts")
+        response = client.get(f"/api/v1/v1/routes/{sample_route.id}/attempts")
         data = response.json()[0]
         assert data["avg_velocity"] == pytest.approx(1.5)
         assert data["avg_sway"] == pytest.approx(0.05)
@@ -225,14 +225,14 @@ class TestListAttempts:
         db_session.add_all([old_attempt, new_attempt])
         db_session.commit()
 
-        response = client.get(f"/api/routes/{sample_route.id}/attempts")
+        response = client.get(f"/api/v1/v1/routes/{sample_route.id}/attempts")
         assert response.status_code == 200
         dates = [a["date"] for a in response.json()]
         assert dates == sorted(dates, reverse=True)
 
     def test_list_attempts_route_not_found(self, client):
         """Should return 404 for a non-existent route."""
-        response = client.get("/api/routes/99999/attempts")
+        response = client.get("/api/v1/routes/99999/attempts")
         assert response.status_code == 404
 
     def test_list_attempts_other_user_route(
@@ -249,7 +249,7 @@ class TestListAttempts:
         db_session.add(other_route)
         db_session.commit()
 
-        response = client.get(f"/api/routes/{other_route.id}/attempts")
+        response = client.get(f"/api/v1/v1/routes/{other_route.id}/attempts")
         assert response.status_code == 404
 
 
@@ -262,7 +262,7 @@ class TestGetAttemptDetail:
     ):
         """Should return full attempt detail."""
         response = client.get(
-            f"/api/routes/{sample_route.id}/attempts/{sample_attempt.id}"
+            f"/api/v1/v1/routes/{sample_route.id}/attempts/{sample_attempt.id}"
         )
         assert response.status_code == 200
         data = response.json()
@@ -275,7 +275,7 @@ class TestGetAttemptDetail:
     ):
         """Should include summary and quality data from analysis."""
         response = client.get(
-            f"/api/routes/{sample_route.id}/attempts/{sample_attempt.id}"
+            f"/api/v1/v1/routes/{sample_route.id}/attempts/{sample_attempt.id}"
         )
         data = response.json()
         assert data["summary"] == {"analysis_id": "abc"}
@@ -284,7 +284,7 @@ class TestGetAttemptDetail:
     def test_get_attempt_detail_no_previous(self, client, sample_route, sample_attempt):
         """Should return null deltas and prev_attempt_id when no prior attempt."""
         response = client.get(
-            f"/api/routes/{sample_route.id}/attempts/{sample_attempt.id}"
+            f"/api/v1/v1/routes/{sample_route.id}/attempts/{sample_attempt.id}"
         )
         data = response.json()
         assert data["prev_attempt_id"] is None
@@ -354,7 +354,9 @@ class TestGetAttemptDetail:
         db_session.add(attempt2)
         db_session.commit()
 
-        response = client.get(f"/api/routes/{sample_route.id}/attempts/{attempt2.id}")
+        response = client.get(
+            f"/api/v1/v1/routes/{sample_route.id}/attempts/{attempt2.id}"
+        )
         assert response.status_code == 200
         data = response.json()
         assert data["prev_attempt_id"] == attempt1.id
@@ -365,12 +367,12 @@ class TestGetAttemptDetail:
 
     def test_get_attempt_not_found(self, client, sample_route):
         """Should return 404 for non-existent attempt."""
-        response = client.get(f"/api/routes/{sample_route.id}/attempts/99999")
+        response = client.get(f"/api/v1/v1/routes/{sample_route.id}/attempts/99999")
         assert response.status_code == 404
 
     def test_get_attempt_route_not_found(self, client, sample_attempt):
         """Should return 404 when route doesn't exist."""
-        response = client.get(f"/api/routes/99999/attempts/{sample_attempt.id}")
+        response = client.get(f"/api/v1/v1/routes/99999/attempts/{sample_attempt.id}")
         assert response.status_code == 404
 
 
@@ -381,7 +383,7 @@ class TestUpdateAttempt:
     def test_update_attempt_notes(self, client, sample_route, sample_attempt):
         """Should update attempt notes."""
         response = client.patch(
-            f"/api/routes/{sample_route.id}/attempts/{sample_attempt.id}",
+            f"/api/v1/v1/routes/{sample_route.id}/attempts/{sample_attempt.id}",
             json={"notes": "Updated notes after reflection"},
         )
         assert response.status_code == 200
@@ -393,7 +395,7 @@ class TestUpdateAttempt:
         """Should apply only notes; other fields silently ignored."""
         original_video_id = sample_attempt.video_id
         response = client.patch(
-            f"/api/routes/{sample_route.id}/attempts/{sample_attempt.id}",
+            f"/api/v1/v1/routes/{sample_route.id}/attempts/{sample_attempt.id}",
             json={"notes": "New note", "video_id": 9999},
         )
         assert response.status_code == 200
@@ -403,7 +405,7 @@ class TestUpdateAttempt:
     def test_update_attempt_not_found(self, client, sample_route):
         """Should return 404 for non-existent attempt."""
         response = client.patch(
-            f"/api/routes/{sample_route.id}/attempts/99999",
+            f"/api/v1/v1/routes/{sample_route.id}/attempts/99999",
             json={"notes": "ghost"},
         )
         assert response.status_code == 404
@@ -411,7 +413,7 @@ class TestUpdateAttempt:
     def test_update_attempt_route_not_found(self, client, sample_attempt):
         """Should return 404 when route doesn't exist."""
         response = client.patch(
-            f"/api/routes/99999/attempts/{sample_attempt.id}",
+            f"/api/v1/v1/routes/99999/attempts/{sample_attempt.id}",
             json={"notes": "ghost"},
         )
         assert response.status_code == 404
@@ -434,7 +436,7 @@ class TestDeleteAttempt:
         from climb_sensei.database.models import Attempt as AttemptModel
 
         response = client.delete(
-            f"/api/routes/{sample_route.id}/attempts/{sample_attempt.id}"
+            f"/api/v1/v1/routes/{sample_route.id}/attempts/{sample_attempt.id}"
         )
         assert response.status_code == 204
 
@@ -453,12 +455,14 @@ class TestDeleteAttempt:
 
     def test_delete_attempt_not_found(self, client, sample_route):
         """Should return 404 for non-existent attempt."""
-        response = client.delete(f"/api/routes/{sample_route.id}/attempts/99999")
+        response = client.delete(f"/api/v1/v1/routes/{sample_route.id}/attempts/99999")
         assert response.status_code == 404
 
     def test_delete_attempt_route_not_found(self, client, sample_attempt):
         """Should return 404 when route doesn't exist."""
-        response = client.delete(f"/api/routes/99999/attempts/{sample_attempt.id}")
+        response = client.delete(
+            f"/api/v1/v1/routes/99999/attempts/{sample_attempt.id}"
+        )
         assert response.status_code == 404
 
 
@@ -468,7 +472,9 @@ class TestDeleteAttempt:
 class TestMetricTrend:
     def test_get_metric_trend_empty(self, client, sample_route):
         """Should return empty data when no attempts have analyses."""
-        response = client.get(f"/api/routes/{sample_route.id}/progress/avg_velocity")
+        response = client.get(
+            f"/api/v1/v1/routes/{sample_route.id}/progress/avg_velocity"
+        )
         assert response.status_code == 200
         data = response.json()
         assert data["metric"] == "avg_velocity"
@@ -479,7 +485,9 @@ class TestMetricTrend:
         self, client, sample_route, sample_attempt, sample_analysis
     ):
         """Should return data points for each attempt with the metric."""
-        response = client.get(f"/api/routes/{sample_route.id}/progress/avg_velocity")
+        response = client.get(
+            f"/api/v1/v1/routes/{sample_route.id}/progress/avg_velocity"
+        )
         assert response.status_code == 200
         data = response.json()
         assert data["count"] == 1
@@ -512,14 +520,18 @@ class TestMetricTrend:
             db_session.add(attempt)
         db_session.commit()
 
-        response = client.get(f"/api/routes/{sample_route.id}/progress/avg_velocity")
+        response = client.get(
+            f"/api/v1/v1/routes/{sample_route.id}/progress/avg_velocity"
+        )
         assert response.status_code == 200
         values = [p["value"] for p in response.json()["data"]]
         assert values == sorted(values)  # ascending
 
     def test_get_metric_trend_invalid_metric(self, client, sample_route):
         """Should return 400 for a metric not in ALLOWED_METRICS."""
-        response = client.get(f"/api/routes/{sample_route.id}/progress/hacked_field")
+        response = client.get(
+            f"/api/v1/v1/routes/{sample_route.id}/progress/hacked_field"
+        )
         assert response.status_code == 400
         assert "Invalid metric" in response.json()["detail"]
 
@@ -528,10 +540,12 @@ class TestMetricTrend:
         from climb_sensei.progress.attempt_routes import ALLOWED_METRICS
 
         for metric in ALLOWED_METRICS:
-            response = client.get(f"/api/routes/{sample_route.id}/progress/{metric}")
+            response = client.get(
+                f"/api/v1/v1/routes/{sample_route.id}/progress/{metric}"
+            )
             assert response.status_code == 200, f"Failed for metric: {metric}"
 
     def test_get_metric_trend_route_not_found(self, client):
         """Should return 404 for non-existent route."""
-        response = client.get("/api/routes/99999/progress/avg_velocity")
+        response = client.get("/api/v1/routes/99999/progress/avg_velocity")
         assert response.status_code == 404

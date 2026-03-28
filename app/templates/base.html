@@ -1542,7 +1542,7 @@
         setTheme(getTheme() === "dark" ? "light" : "dark");
       }
       let currentUser = null;
-      const API_BASE = "/api";
+      const API_BASE = "/api/v1";
 
       function escapeHtml(str) {
         if (str == null) return "";
@@ -1736,7 +1736,7 @@
       }
 
       function globalPoll(videoId, routeId) {
-        fetch(`/api/videos/${videoId}/status`, {
+        fetch(`/api/v1/videos/${videoId}/status`, {
           headers: { Authorization: `Bearer ${authToken}` },
         })
           .then((r) =>
