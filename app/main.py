@@ -52,10 +52,13 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "font-src https://fonts.gstatic.com; "
             "img-src 'self' data:; "
             "media-src 'self'; "
-            "connect-src 'self'; "
+            "connect-src 'self' https://cdn.jsdelivr.net https://fonts.googleapis.com https://fonts.gstatic.com; "
             "frame-ancestors 'none'"
         )
         response.headers["Content-Security-Policy"] = csp
+        # Allow service worker to control the root scope
+        if request.url.path.endswith("/sw.js"):
+            response.headers["Service-Worker-Allowed"] = "/"
         return response
 
 
