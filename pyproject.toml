@@ -17,6 +17,7 @@ dependencies = [
     "httpx-oauth>=0.14.0",
     "aiosqlite>=0.22.1",
     "slowapi>=0.1.9",
+    "pydantic-settings>=2.0.0",
 ]
 
 [project.optional-dependencies]

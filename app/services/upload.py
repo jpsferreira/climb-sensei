@@ -5,9 +5,10 @@ Each step takes explicit parameters and returns explicit results.
 """
 
 import logging
-import os
 from pathlib import Path, PurePosixPath
 from typing import Any, Dict, List, Optional, Tuple
+
+from app.settings import settings
 
 from sqlalchemy.orm import Session
 
@@ -34,13 +35,9 @@ OUTPUT_DIR = _APP_DIR / "outputs"
 UPLOAD_DIR.mkdir(exist_ok=True)
 OUTPUT_DIR.mkdir(exist_ok=True)
 
-# Documentation base URL
-BASE_DOC_URL = "https://jpsferreira.github.io/climb-sensei/metrics/"
-
-# Maximum upload size (default 500MB)
-MAX_UPLOAD_SIZE = int(os.getenv("MAX_UPLOAD_MB", "500")) * 1024 * 1024
-
-ALLOWED_EXTENSIONS = {".mp4", ".avi", ".mov", ".mkv"}
+BASE_DOC_URL = settings.base_doc_url
+MAX_UPLOAD_SIZE = settings.max_upload_bytes
+ALLOWED_EXTENSIONS = set(settings.allowed_extensions)
 
 
 def validate_video_magic_bytes(file_path: Path) -> bool:

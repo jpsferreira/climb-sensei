@@ -150,7 +150,7 @@ def get_current_active_user(
         return _get_or_create_dev_user(db)
 
     if not credentials:
-        logger.debug("No credentials provided")
+        logger.warning("Auth attempt without credentials")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated",
@@ -188,20 +188,20 @@ def get_current_active_user(
         # Convert to int (fastapi-users uses string user IDs in JWT)
         user_id = int(user_id)
     except (JWTError, ValueError) as e:
-        logger.debug("Token decode error: %s", e)
+        logger.warning("Invalid JWT token: %s", type(e).__name__)
         raise credentials_exception
 
     # Query user from sync database
     user = db.query(User).filter(User.id == user_id).first()
     if user is None:
-        logger.debug("User %s not found in database", user_id)
+        logger.warning("Auth token references nonexistent user id=%s", user_id)
         raise credentials_exception
 
     logger.debug("Found user id=%s, is_active=%s", user_id, user.is_active)
 
     # Check if user is active
     if not user.is_active:
-        logger.debug("User id=%s is not active", user_id)
+        logger.warning("Auth attempt by inactive user id=%s", user_id)
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Inactive user account",

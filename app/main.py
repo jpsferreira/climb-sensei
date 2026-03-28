@@ -155,13 +155,12 @@ def create_app() -> FastAPI:
     application.add_middleware(SlowAPIMiddleware)
 
     # CORS — only if explicit origins are configured (must be outermost middleware)
-    cors_origins = [
-        o.strip() for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip()
-    ]
-    if cors_origins:
+    from app.settings import settings as app_settings
+
+    if app_settings.cors_origin_list:
         application.add_middleware(
             CORSMiddleware,
-            allow_origins=cors_origins,
+            allow_origins=app_settings.cors_origin_list,
             allow_credentials=True,
             allow_methods=["GET", "POST", "PATCH", "DELETE"],
             allow_headers=["Authorization", "Content-Type"],
@@ -194,6 +193,23 @@ def create_app() -> FastAPI:
                 logger.warning(
                     "Google OAuth is not configured (GOOGLE_CLIENT_ID missing)"
                 )
+
+    # Background analysis thread pool (bounded concurrency, graceful shutdown)
+    from concurrent.futures import ThreadPoolExecutor
+
+    application.state.analysis_executor = ThreadPoolExecutor(
+        max_workers=2, thread_name_prefix="analysis"
+    )
+
+    @application.on_event("shutdown")
+    def shutdown_executor():
+        executor = getattr(application.state, "analysis_executor", None)
+        if executor:
+            executor.shutdown(wait=False, cancel_futures=True)
+            # Replace with fresh executor in case app is reused (e.g. tests)
+            application.state.analysis_executor = ThreadPoolExecutor(
+                max_workers=2, thread_name_prefix="analysis"
+            )
 
     # Routers
     application.include_router(auth_router, prefix="/api")
