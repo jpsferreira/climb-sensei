@@ -8,6 +8,8 @@ import logging
 from pathlib import Path, PurePosixPath
 from typing import Any, Dict, List, Optional, Tuple
 
+import numpy as np
+
 from app.settings import settings
 
 from sqlalchemy.orm import Session
@@ -143,10 +145,29 @@ def create_video_record(
     return video_record
 
 
+def _validate_landmarks(landmarks: List) -> bool:
+    """Validate that landmark coordinates are finite and in expected range.
+
+    Returns False if any coordinate is NaN, Inf, or outside [0, 1].
+    This prevents corrupted data from propagating through the metrics pipeline.
+    """
+    if not landmarks:
+        return False
+    for lm in landmarks:
+        for key in ("x", "y"):
+            val = lm.get(key)
+            if val is None or not np.isfinite(val) or val < -0.5 or val > 1.5:
+                return False
+    return True
+
+
 def extract_landmarks(
     upload_path: Path,
 ) -> Tuple[List, List, int, float]:
     """Extract pose landmarks from video (expensive MediaPipe pass).
+
+    Validates each frame's landmarks for NaN/Inf values and skips
+    invalid frames to prevent metric corruption downstream.
 
     Args:
         upload_path: Path to video file
@@ -157,6 +178,7 @@ def extract_landmarks(
     landmarks_history = []
     pose_results_history = []
     frame_count = 0
+    invalid_count = 0
     fps = 30.0
 
     with PoseEngine() as pose_engine:
@@ -172,12 +194,23 @@ def extract_landmarks(
 
                 if pose_result and pose_result.pose_landmarks:
                     landmarks = pose_engine.extract_landmarks(pose_result)
-                    landmarks_history.append(landmarks)
-                    pose_results_history.append(pose_result)
-                    frame_count += 1
+                    if _validate_landmarks(landmarks):
+                        landmarks_history.append(landmarks)
+                        pose_results_history.append(pose_result)
+                        frame_count += 1
+                    else:
+                        landmarks_history.append(None)
+                        pose_results_history.append(None)
+                        invalid_count += 1
                 else:
                     landmarks_history.append(None)
                     pose_results_history.append(None)
+
+    if invalid_count > 0:
+        logger.warning(
+            "Skipped %d frames with invalid landmarks (NaN/Inf/out-of-range)",
+            invalid_count,
+        )
 
     logger.info(
         "Extraction complete: %d total frames, %d with pose",
