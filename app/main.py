@@ -56,6 +56,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "frame-ancestors 'none'"
         )
         response.headers["Content-Security-Policy"] = csp
+        # Allow service worker to control the root scope
+        if request.url.path.endswith("/sw.js"):
+            response.headers["Service-Worker-Allowed"] = "/"
         return response
 
 

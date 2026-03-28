@@ -96,3 +96,14 @@
 - [x] Add comparison modal with selectable attempt chips
 - [x] Build side-by-side metrics table with best/worst highlighting
 - [x] Support comparing 2-10 attempts with dynamic selection
+
+## #15 Offline/PWA Support
+
+- [x] Add PWA manifest (manifest.json) with app name, icons, theme color
+- [x] Add SVG app icons (192x192 and 512x512)
+- [x] Add service worker with offline caching strategies
+- [x] Cache-first for CDN assets (fonts, Chart.js)
+- [x] Stale-while-revalidate for pages and static files
+- [x] Network-only for API/auth requests
+- [x] Add PWA meta tags (theme-color, apple-mobile-web-app-capable)
+- [x] Add Service-Worker-Allowed header for root scope
