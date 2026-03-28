@@ -97,10 +97,10 @@ _auth_disabled_requested = os.getenv("AUTH_DISABLED", "").lower() in (
 _environment = os.getenv("ENVIRONMENT", "production").lower()
 AUTH_DISABLED = _auth_disabled_requested and _environment in ("development", "testing")
 if _auth_disabled_requested and not AUTH_DISABLED:
-    logger.critical(
-        "AUTH_DISABLED ignored because ENVIRONMENT=%s. "
-        "AUTH_DISABLED only works in development/testing environments.",
-        _environment,
+    raise RuntimeError(
+        f"AUTH_DISABLED=1 is forbidden in ENVIRONMENT={_environment}. "
+        "AUTH_DISABLED only works in development/testing environments. "
+        "Refusing to start with authentication disabled in production."
     )
 
 

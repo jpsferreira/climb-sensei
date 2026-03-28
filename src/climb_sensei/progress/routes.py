@@ -9,7 +9,7 @@ This module provides endpoints for:
 
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_
 
 from ..database.config import get_db
@@ -469,8 +469,13 @@ async def list_sessions(
     Returns:
         List of sessions with route summaries
     """
+    from climb_sensei.database.models import Attempt
+
     sessions = (
         db.query(ClimbSession)
+        .options(
+            joinedload(ClimbSession.attempts).joinedload(Attempt.route),
+        )
         .filter(ClimbSession.user_id == current_user.id)
         .order_by(ClimbSession.date.desc())
         .offset(skip)

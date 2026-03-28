@@ -517,15 +517,14 @@ def generate_annotated_video(
     """
     output_video_path = OUTPUT_DIR / f"{analysis_id}_output.webm"
 
-    output_frames = []
-    output_dims = None
-
+    # Two-pass: first frame for dimensions, then stream all frames to writer
+    # This avoids buffering all annotated frames in memory
+    first_dims = None
     with VideoReader(str(upload_path)) as reader:
         for pose_result in pose_results_history:
             success, frame = reader.read()
             if not success:
                 break
-
             if pose_result is not None:
                 annotated = draw_pose_landmarks(
                     frame,
@@ -533,20 +532,27 @@ def generate_annotated_video(
                     connections=CLIMBING_CONNECTIONS,
                     landmarks_to_draw=CLIMBING_LANDMARKS,
                 )
+                first_dims = (annotated.shape[1], annotated.shape[0])
+                break
 
-                if output_dims is None:
-                    h, w = annotated.shape[:2]
-                    output_dims = (w, h)
-
-                output_frames.append(annotated)
-
-    if output_dims is not None:
-        w, h = output_dims
+    if first_dims is not None:
+        w, h = first_dims
         with VideoWriter(
             str(output_video_path), fps=fps, width=w, height=h, fourcc="VP80"
         ) as writer:
-            for output_frame in output_frames:
-                writer.write(output_frame)
+            with VideoReader(str(upload_path)) as reader:
+                for pose_result in pose_results_history:
+                    success, frame = reader.read()
+                    if not success:
+                        break
+                    if pose_result is not None:
+                        annotated = draw_pose_landmarks(
+                            frame,
+                            pose_result,
+                            connections=CLIMBING_CONNECTIONS,
+                            landmarks_to_draw=CLIMBING_LANDMARKS,
+                        )
+                        writer.write(annotated)
 
     return f"/outputs/{analysis_id}_output.webm"
 

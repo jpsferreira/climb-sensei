@@ -169,12 +169,13 @@ def _run_analysis_pipeline(
 
         logger.info("Background analysis complete for video %d", video_id)
 
-    except Exception:
+    except Exception as exc:
         logger.exception("Background analysis failed for video %d", video_id)
         db.rollback()
         video_record = db.query(Video).filter(Video.id == video_id).first()
         if video_record:
             video_record.status = VideoStatus.FAILED
+            video_record.error_message = str(exc)[:500]  # Truncate for safety
             db.commit()
 
     finally:
@@ -273,6 +274,9 @@ async def get_video_status(
         "status": video.status,
         "filename": video.filename,
     }
+
+    if video.status == VideoStatus.FAILED and video.error_message:
+        result["error_message"] = video.error_message
 
     if video.status == VideoStatus.COMPLETED:
         # Include the analysis ID so the frontend can fetch results
