@@ -99,6 +99,64 @@ def calculate_reach_distance(
     return distance
 
 
+def calculate_joint_angles_batch(
+    landmarks: list,
+    joint_triplets: list[tuple[int, int, int]],
+) -> list[float]:
+    """Calculate multiple joint angles in a single vectorized operation.
+
+    Computes all specified joint angles simultaneously using numpy,
+    avoiding the overhead of 8 separate Python function calls.
+
+    Args:
+        landmarks: List of landmark dictionaries with 'x' and 'y' keys.
+        joint_triplets: List of (a_idx, b_idx, c_idx) tuples where the
+            angle is measured at landmark b_idx.
+
+    Returns:
+        List of angles in degrees, one per triplet.
+    """
+    import numpy as np
+
+    n = len(joint_triplets)
+    if n == 0:
+        return []
+
+    # Extract all needed points into arrays: (n, 2) for A, B, C
+    a_pts = np.array(
+        [(landmarks[t[0]]["x"], landmarks[t[0]]["y"]) for t in joint_triplets]
+    )
+    b_pts = np.array(
+        [(landmarks[t[1]]["x"], landmarks[t[1]]["y"]) for t in joint_triplets]
+    )
+    c_pts = np.array(
+        [(landmarks[t[2]]["x"], landmarks[t[2]]["y"]) for t in joint_triplets]
+    )
+
+    # Vectors BA and BC: (n, 2)
+    ba = a_pts - b_pts
+    bc = c_pts - b_pts
+
+    # Dot products: (n,)
+    dots = np.sum(ba * bc, axis=1)
+
+    # Magnitudes: (n,)
+    mag_ba = np.linalg.norm(ba, axis=1)
+    mag_bc = np.linalg.norm(bc, axis=1)
+
+    # Avoid division by zero
+    denom = mag_ba * mag_bc
+    safe = denom > 0
+    cos_angles = np.zeros(n)
+    cos_angles[safe] = dots[safe] / denom[safe]
+
+    # Clamp and compute
+    cos_angles = np.clip(cos_angles, -1.0, 1.0)
+    angles = np.degrees(np.arccos(cos_angles))
+
+    return angles.tolist()
+
+
 def calculate_center_of_mass(
     points: list[Tuple[float, float]], weights: list[float] | None = None
 ) -> Tuple[float, float]:
