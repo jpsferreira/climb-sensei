@@ -16,7 +16,6 @@ from climb_sensei.database.models import Base, User, Video, VideoStatus
 from climb_sensei.database.config import get_db
 from climb_sensei.auth import get_password_hash, create_access_token
 
-
 # ========== Fixtures ==========
 
 
@@ -197,25 +196,19 @@ class TestDatabaseIndexes:
         """Attempt.date should be indexed for sorting/filtering."""
         inspector = inspect(test_engine)
         indexes = inspector.get_indexes("attempts")
-        indexed_columns = {
-            col for idx in indexes for col in idx["column_names"]
-        }
+        indexed_columns = {col for idx in indexes for col in idx["column_names"]}
         assert "date" in indexed_columns
 
     def test_analysis_created_at_has_index(self, test_engine):
         """Analysis.created_at should be indexed for time-range queries."""
         inspector = inspect(test_engine)
         indexes = inspector.get_indexes("analyses")
-        indexed_columns = {
-            col for idx in indexes for col in idx["column_names"]
-        }
+        indexed_columns = {col for idx in indexes for col in idx["column_names"]}
         assert "created_at" in indexed_columns
 
     def test_goal_metric_name_has_index(self, test_engine):
         """Goal.metric_name should be indexed for filtering."""
         inspector = inspect(test_engine)
         indexes = inspector.get_indexes("goals")
-        indexed_columns = {
-            col for idx in indexes for col in idx["column_names"]
-        }
+        indexed_columns = {col for idx in indexes for col in idx["column_names"]}
         assert "metric_name" in indexed_columns
