@@ -334,6 +334,9 @@ class TrackingQualityAnalyzer:
         # Flatten to single array of all displacements
         all_distances = distances.ravel()
 
+        # Filter out non-finite values (NaN/Inf from bad landmarks)
+        all_distances = all_distances[np.isfinite(all_distances)]
+
         if len(all_distances) == 0:
             return 0.0
 
@@ -344,9 +347,9 @@ class TrackingQualityAnalyzer:
         # Coefficient of variation: std / mean
         cv = np.std(all_distances) / mean_dist
 
-        # Smoothness = 1 - CV, clamped to [0, 1]
+        # Smoothness = 1 - CV, clamped to [0, 1], guaranteed finite
         smoothness = 1.0 - float(np.clip(cv, 0.0, 1.0))
-        return smoothness
+        return smoothness if np.isfinite(smoothness) else 0.0
 
     def _generate_report(
         self, video_path: str, results: Dict[str, any]
@@ -364,13 +367,23 @@ class TrackingQualityAnalyzer:
             (frames_with_pose / total_frames * 100) if total_frames > 0 else 0.0
         )
 
-        # Only consider frames with valid (non-NaN, > 0) confidence values
+        # Only consider frames with valid (non-NaN, > 0) confidence values.
+        # When all values are NaN (pre-extracted landmarks), use None to signal
+        # "unavailable" so quality checks don't penalize missing data.
         valid_confidences = [c for c in frame_confidences if np.isfinite(c) and c > 0]
-        avg_confidence = float(np.mean(valid_confidences)) if valid_confidences else 0.0
-        min_confidence = float(np.min(valid_confidences)) if valid_confidences else 0.0
+        confidence_available = len(valid_confidences) > 0
+        avg_confidence = (
+            float(np.mean(valid_confidences)) if confidence_available else None
+        )
+        min_confidence = (
+            float(np.min(valid_confidences)) if confidence_available else None
+        )
 
         valid_visibility = [v for v in frame_visibility if np.isfinite(v) and v > 0]
-        avg_visibility = float(np.mean(valid_visibility)) if valid_visibility else 0.0
+        visibility_available = len(valid_visibility) > 0
+        avg_visibility = (
+            float(np.mean(valid_visibility)) if visibility_available else None
+        )
 
         smoothness = self._calculate_smoothness(landmark_positions)
 
@@ -384,13 +397,13 @@ class TrackingQualityAnalyzer:
                 f"(minimum: {self.min_detection_rate:.1f}%)"
             )
 
-        if avg_confidence < self.min_avg_confidence:
+        if avg_confidence is not None and avg_confidence < self.min_avg_confidence:
             issues.append(
                 f"Low landmark confidence: {avg_confidence:.2f} "
                 f"(minimum: {self.min_avg_confidence:.2f})"
             )
 
-        if avg_visibility < self.min_visibility:
+        if avg_visibility is not None and avg_visibility < self.min_visibility:
             issues.append(
                 f"Low landmark visibility: {avg_visibility:.1f}% "
                 f"(minimum: {self.min_visibility:.1f}%)"
@@ -419,17 +432,27 @@ class TrackingQualityAnalyzer:
             total_frames=total_frames,
             frames_with_pose=frames_with_pose,
             detection_rate=round(detection_rate, 2),
-            avg_landmark_confidence=round(avg_confidence, 3),
-            min_landmark_confidence=round(min_confidence, 3),
-            avg_visibility_score=round(avg_visibility, 2),
+            avg_landmark_confidence=round(avg_confidence, 3)
+            if avg_confidence is not None
+            else 0.0,
+            min_landmark_confidence=round(min_confidence, 3)
+            if min_confidence is not None
+            else 0.0,
+            avg_visibility_score=round(avg_visibility, 2)
+            if avg_visibility is not None
+            else 0.0,
             tracking_smoothness=round(smoothness, 3),
             tracking_loss_events=tracking_losses,
             is_trackable=is_trackable,
             issues=issues,
             warnings=warnings,
             quality_level=quality_level,
-            frame_confidences=[round(c, 3) for c in frame_confidences],
-            frame_visibility=[round(v, 2) for v in frame_visibility],
+            frame_confidences=[
+                round(c, 3) if np.isfinite(c) else 0.0 for c in frame_confidences
+            ],
+            frame_visibility=[
+                round(v, 2) if np.isfinite(v) else 0.0 for v in frame_visibility
+            ],
         )
 
     def _determine_quality_level(
@@ -439,21 +462,24 @@ class TrackingQualityAnalyzer:
         avg_visibility: float,
         smoothness: float,
     ) -> str:
-        """Determine overall tracking quality level."""
+        """Determine overall tracking quality level.
+
+        When confidence/visibility are None (pre-extracted landmarks),
+        skip those checks rather than penalizing as poor quality.
+        """
+        # Treat None as "unavailable, don't penalize"
+        conf = avg_confidence if avg_confidence is not None else 1.0
+        vis = avg_visibility if avg_visibility is not None else 100.0
+
         # Excellent: All metrics exceed thresholds significantly
-        if (
-            detection_rate >= 95
-            and avg_confidence >= 0.8
-            and avg_visibility >= 85
-            and smoothness >= 0.8
-        ):
+        if detection_rate >= 95 and conf >= 0.8 and vis >= 85 and smoothness >= 0.8:
             return QualityLevel.EXCELLENT
 
         # Good: All metrics meet or exceed thresholds
         if (
             detection_rate >= self.min_detection_rate
-            and avg_confidence >= self.min_avg_confidence
-            and avg_visibility >= self.min_visibility
+            and conf >= self.min_avg_confidence
+            and vis >= self.min_visibility
             and smoothness >= self.min_smoothness
         ):
             return QualityLevel.GOOD
@@ -461,8 +487,8 @@ class TrackingQualityAnalyzer:
         # Acceptable: Meets minimum thresholds even if some warnings
         if (
             detection_rate >= self.min_detection_rate
-            and avg_confidence >= self.min_avg_confidence
-            and avg_visibility >= self.min_visibility
+            and conf >= self.min_avg_confidence
+            and vis >= self.min_visibility
         ):
             return QualityLevel.ACCEPTABLE
 

@@ -235,7 +235,7 @@ class TestPreExtractedConfidence:
     """Pre-extracted landmarks should not report fake confidence values."""
 
     def test_confidence_not_hardcoded(self):
-        """Confidence should be 0 (unavailable), not 0.8 (fake)."""
+        """Pre-extracted landmarks should report 0.0 confidence (unavailable)."""
         service = TrackingQualityAnalyzer()
 
         # Simulate pre-extracted landmark sequence
@@ -243,10 +243,20 @@ class TestPreExtractedConfidence:
 
         report = service.analyze_from_landmarks(landmarks)
 
-        # Confidence should be 0.0 (NaN filtered out) not the old 0.8
-        assert report.avg_confidence != pytest.approx(
-            0.8, abs=0.01
-        ), "Confidence should not be hardcoded 0.8"
+        # Confidence should be 0.0 (unavailable), not the old fake 0.8
+        assert report.avg_landmark_confidence == pytest.approx(0.0, abs=0.01)
+
+    def test_preextracted_not_penalized_as_poor(self):
+        """Pre-extracted landmarks with good tracking shouldn't be rated 'poor'."""
+        service = TrackingQualityAnalyzer()
+
+        # Good steady tracking — all frames detected, smooth movement
+        landmarks = [[(0.5 + i * 0.001, 0.5)] * 33 for i in range(30)]
+
+        report = service.analyze_from_landmarks(landmarks)
+
+        # Should not be penalized as poor just because confidence is unavailable
+        assert report.quality_level != "poor"
 
 
 # ========== BUG6: Smoothness formula ==========

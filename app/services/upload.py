@@ -148,8 +148,9 @@ def create_video_record(
 def _validate_landmarks(landmarks: List) -> bool:
     """Validate that landmark coordinates are finite and in expected range.
 
-    Returns False if any coordinate is NaN, Inf, or outside [0, 1].
-    This prevents corrupted data from propagating through the metrics pipeline.
+    Returns False if any coordinate is NaN, Inf, or outside [-0.5, 1.5].
+    The tolerance beyond [0, 1] accounts for MediaPipe occasionally returning
+    slightly out-of-frame coordinates for partially visible landmarks.
     """
     if not landmarks:
         return False
@@ -173,7 +174,8 @@ def extract_landmarks(
         upload_path: Path to video file
 
     Returns:
-        Tuple of (landmarks_history, pose_results_history, frame_count, fps)
+        Tuple of (landmarks_history, pose_results_history, valid_pose_frames, fps)
+        valid_pose_frames counts only frames with valid, non-corrupted landmarks
     """
     landmarks_history = []
     pose_results_history = []

@@ -146,8 +146,13 @@ class TechniqueCalculator(BaseCalculator):
         dx = shoulder_x - hip_x
         dy = hip_y - shoulder_y  # Positive = shoulders above hips (normal)
 
-        # atan2(dx, dy) gives angle from vertical, preserving sign
-        angle = np.degrees(np.arctan2(dx, dy))
+        # Use |dy| so angle is always measured from the upward vertical direction.
+        # This keeps the signed angle in the documented -90..+90 range even when
+        # shoulders are detected below hips (dy <= 0).
+        dy_abs = abs(dy)
+
+        # atan2(dx, dy_abs) gives angle from vertical, preserving left/right sign
+        angle = np.degrees(np.arctan2(dx, dy_abs))
         return float(angle)
 
     def _calculate_hand_span(self, landmarks: List[Dict[str, float]]) -> float:

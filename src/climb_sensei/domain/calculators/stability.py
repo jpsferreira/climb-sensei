@@ -142,8 +142,8 @@ class StabilityCalculator(BaseCalculator):
         if n < 4:
             return 0.0
 
-        # Use up to window_size frames for stable signal (minimum 4)
-        window = min(self.window_size, n)
+        # Use up to window_size frames for stable signal (enforce minimum 4)
+        window = max(4, min(self.window_size, n))
         positions = list(self._com_positions)[-window:]
 
         # Vectorized: positions → velocities → accelerations → jerks
