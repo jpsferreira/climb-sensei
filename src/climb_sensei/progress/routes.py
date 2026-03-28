@@ -37,7 +37,7 @@ from .schemas import (
     AnalysisComparison,
 )
 
-router = APIRouter(prefix="/api", tags=["progress"])
+router = APIRouter(prefix="/api/v1", tags=["progress"])
 
 
 # ========== Progress Metrics Endpoints ==========

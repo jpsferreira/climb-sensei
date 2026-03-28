@@ -74,7 +74,12 @@ class AuthRateLimitMiddleware(BaseHTTPMiddleware):
     Redis backend instead.
     """
 
-    AUTH_PATHS = {"/api/auth/jwt/login", "/api/auth/register"}
+    AUTH_PATHS = {
+        "/api/v1/auth/jwt/login",
+        "/api/v1/auth/register",
+        "/api/auth/jwt/login",  # Legacy paths (before redirect)
+        "/api/auth/register",
+    }
     MAX_REQUESTS = 5
     WINDOW_SECONDS = 60
 
@@ -114,6 +119,22 @@ class AuthRateLimitMiddleware(BaseHTTPMiddleware):
             timestamps.append(now)
             self._counts[key] = timestamps
 
+        return await call_next(request)
+
+
+class ApiV1RedirectMiddleware(BaseHTTPMiddleware):
+    """Redirect legacy /api/ paths to /api/v1/ for backward compatibility."""
+
+    async def dispatch(self, request, call_next):
+        path = request.url.path
+        # Redirect /api/... to /api/v1/... (but not /api/v1/ itself)
+        if path.startswith("/api/") and not path.startswith("/api/v1/"):
+            from starlette.responses import RedirectResponse
+
+            new_path = "/api/v1/" + path[5:]  # len("/api/") == 5
+            query = request.url.query
+            new_url = new_path + (f"?{query}" if query else "")
+            return RedirectResponse(url=new_url, status_code=307)
         return await call_next(request)
 
 
@@ -173,7 +194,11 @@ def create_app() -> FastAPI:
     application.add_middleware(RequestLoggingMiddleware)
 
     # Stricter rate limiting on auth endpoints (5/min per IP)
+    # Must be before redirect middleware so legacy /api/auth/ paths are also limited
     application.add_middleware(AuthRateLimitMiddleware)
+
+    # Backward-compat: redirect /api/... → /api/v1/...
+    application.add_middleware(ApiV1RedirectMiddleware)
 
     # Initialize database
     init_db()
@@ -212,7 +237,7 @@ def create_app() -> FastAPI:
             )
 
     # Routers
-    application.include_router(auth_router, prefix="/api")
+    application.include_router(auth_router, prefix="/api/v1")
     application.include_router(progress_router)
     application.include_router(route_router)
     application.include_router(attempt_router)

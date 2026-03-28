@@ -73,7 +73,7 @@ async def get_user_manager(user_db: SQLAlchemyUserDatabase = Depends(get_user_db
 
 
 # JWT authentication
-bearer_transport = BearerTransport(tokenUrl="api/auth/jwt/login")
+bearer_transport = BearerTransport(tokenUrl="api/v1/auth/jwt/login")
 
 
 def get_jwt_strategy() -> JWTStrategy:

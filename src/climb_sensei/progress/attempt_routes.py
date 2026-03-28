@@ -27,7 +27,7 @@ class AttemptUpdate(BaseModel):
     notes: str | None = None
 
 
-router = APIRouter(prefix="/api/routes", tags=["attempts"])
+router = APIRouter(prefix="/api/v1/routes", tags=["attempts"])
 
 ALLOWED_METRICS = [
     "avg_velocity",

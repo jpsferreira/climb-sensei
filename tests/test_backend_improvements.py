@@ -107,7 +107,7 @@ class TestAuthRateLimiting:
         """Normal login attempts should not be rate-limited."""
         for _ in range(3):
             response = client.post(
-                "/api/auth/jwt/login",
+                "/api/v1/auth/jwt/login",
                 data={"username": "nonexist@test.com", "password": "wrong"},
             )
             assert response.status_code != 429
@@ -116,7 +116,7 @@ class TestAuthRateLimiting:
         """Should return 429 after exceeding rate limit."""
         for _ in range(6):
             response = client.post(
-                "/api/auth/jwt/login",
+                "/api/v1/auth/jwt/login",
                 data={"username": "attack@test.com", "password": "brute"},
             )
         # The 6th request should be rate limited
@@ -127,7 +127,7 @@ class TestAuthRateLimiting:
         """Should rate limit registration spam."""
         for i in range(6):
             response = client.post(
-                "/api/auth/register",
+                "/api/v1/auth/register",
                 json={
                     "email": f"spam{i}@test.com",
                     "password": "password123",
@@ -174,7 +174,7 @@ class TestErrorMessageStorage:
         db_session.refresh(video)
 
         response = client.get(
-            f"/api/videos/{video.id}/status",
+            f"/api/v1/videos/{video.id}/status",
             headers={"Authorization": f"Bearer {auth_token}"},
         )
         assert response.status_code == 200
@@ -197,7 +197,7 @@ class TestErrorMessageStorage:
         db_session.refresh(video)
 
         response = client.get(
-            f"/api/videos/{video.id}/status",
+            f"/api/v1/videos/{video.id}/status",
             headers={"Authorization": f"Bearer {auth_token}"},
         )
         assert response.status_code == 200
@@ -231,3 +231,30 @@ class TestDatabaseIndexes:
         indexes = inspector.get_indexes("goals")
         indexed_columns = {col for idx in indexes for col in idx["column_names"]}
         assert "metric_name" in indexed_columns
+
+
+# ========== API v1 Redirect ==========
+
+
+class TestApiV1Redirect:
+    """Tests for backward-compat /api/ → /api/v1/ redirect middleware."""
+
+    def test_legacy_get_redirects_to_v1(self, client):
+        """GET /api/routes should 307 redirect to /api/v1/routes."""
+        response = client.get("/api/routes", follow_redirects=False)
+        assert response.status_code == 307
+        assert response.headers["location"] == "/api/v1/routes"
+
+    def test_legacy_preserves_query_string(self, client):
+        """Redirect should preserve query parameters."""
+        response = client.get(
+            "/api/routes?type=boulder&sort=grade", follow_redirects=False
+        )
+        assert response.status_code == 307
+        assert response.headers["location"] == "/api/v1/routes?type=boulder&sort=grade"
+
+    def test_v1_path_not_redirected(self, client):
+        """Requests to /api/v1/ should not be redirected."""
+        response = client.get("/api/v1/routes", follow_redirects=False)
+        # Should not be a redirect (will be 401 or 200 depending on auth)
+        assert response.status_code != 307

@@ -497,11 +497,11 @@ def generate_annotated_video(
     analysis_id: str,
     pose_results_history: List,
     fps: float,
-) -> str:
+) -> Optional[str]:
     """Generate annotated video with pose overlay only.
 
-    Metrics/plots are displayed in the web app UI, not composited onto
-    the video.  Output uses VP8/WebM for smaller file sizes.
+    Streams frames directly from disk to the writer to avoid buffering
+    all frames in memory. Output uses VP8/WebM for smaller file sizes.
 
     Args:
         upload_path: Path to original video
@@ -510,12 +510,12 @@ def generate_annotated_video(
         fps: Video FPS
 
     Returns:
-        Output video URL path
+        Output video URL path, or None if no annotated frames produced
     """
     output_video_path = OUTPUT_DIR / f"{analysis_id}_output.webm"
     output_url = f"/outputs/{analysis_id}_output.webm"
 
-    # Single-pass: lazily create writer on first annotated frame
+    # Single-pass: stream frames from disk, lazily create writer
     writer = None
     try:
         with VideoReader(str(upload_path)) as reader:

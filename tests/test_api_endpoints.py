@@ -368,13 +368,13 @@ class TestDBAPIEndpoints:
 
     def test_list_videos_requires_auth(self, client):
         """Should require authentication."""
-        response = client.get("/api/videos")
+        response = client.get("/api/v1/videos")
         assert response.status_code == 401
 
     def test_list_videos_empty(self, client, test_user_token):
         """Should return empty list for new user."""
         response = client.get(
-            "/api/videos",
+            "/api/v1/videos",
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
         assert response.status_code == 200
@@ -382,13 +382,13 @@ class TestDBAPIEndpoints:
 
     def test_list_analyses_requires_auth(self, client):
         """Should require authentication."""
-        response = client.get("/api/analyses")
+        response = client.get("/api/v1/analyses")
         assert response.status_code == 401
 
     def test_get_analysis_detail(self, client, test_user_token, sample_analysis):
         """Should return analysis detail."""
         response = client.get(
-            f"/api/analyses/{sample_analysis.id}",
+            f"/api/v1/analyses/{sample_analysis.id}",
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
         assert response.status_code == 200
@@ -402,13 +402,13 @@ class TestVideoStatusEndpoint:
 
     def test_status_requires_auth(self, client):
         """Should require authentication."""
-        response = client.get("/api/videos/1/status")
+        response = client.get("/api/v1/videos/1/status")
         assert response.status_code == 401
 
     def test_status_not_found(self, client, test_user_token):
         """Should return 404 for non-existent video."""
         response = client.get(
-            "/api/videos/99999/status",
+            "/api/v1/videos/99999/status",
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
         assert response.status_code == 404
@@ -427,7 +427,7 @@ class TestVideoStatusEndpoint:
         db_session.commit()
 
         response = client.get(
-            f"/api/videos/{video.id}/status",
+            f"/api/v1/videos/{video.id}/status",
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
         assert response.status_code == 200
@@ -440,7 +440,7 @@ class TestVideoStatusEndpoint:
     ):
         """Should return completed status with analysis_id."""
         response = client.get(
-            f"/api/videos/{sample_analysis.video_id}/status",
+            f"/api/v1/videos/{sample_analysis.video_id}/status",
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
         assert response.status_code == 200
@@ -467,7 +467,7 @@ class TestVideoStatusEndpoint:
         db_session.commit()
 
         response = client.get(
-            f"/api/videos/{video.id}/status",
+            f"/api/v1/videos/{video.id}/status",
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
         assert response.status_code == 404

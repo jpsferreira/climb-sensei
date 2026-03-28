@@ -98,7 +98,7 @@ def authenticated_page(page: Page, app_server) -> Page:
     unique_email = f"e2e-{time.time_ns()}@test.com"
     page.evaluate(
         """async (email) => {
-            await fetch('/api/auth/register', {
+            await fetch('/api/v1/auth/register', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({email, password: 'testpassword123'})
@@ -106,7 +106,7 @@ def authenticated_page(page: Page, app_server) -> Page:
             const formData = new FormData();
             formData.append('username', email);
             formData.append('password', 'testpassword123');
-            const resp = await fetch('/api/auth/jwt/login', {
+            const resp = await fetch('/api/v1/auth/jwt/login', {
                 method: 'POST',
                 body: formData
             });

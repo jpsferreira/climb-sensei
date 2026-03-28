@@ -252,7 +252,7 @@ class TestVideoRetrievalAPI:
 
     def test_list_videos_requires_auth(self, client):
         """Should require authentication to list videos."""
-        response = client.get("/api/videos")
+        response = client.get("/api/v1/videos")
         assert response.status_code == 401
 
     def test_list_videos_returns_user_videos(
@@ -290,7 +290,7 @@ class TestVideoRetrievalAPI:
 
         # List videos
         response = client.get(
-            "/api/videos", headers={"Authorization": f"Bearer {test_user_token}"}
+            "/api/v1/videos", headers={"Authorization": f"Bearer {test_user_token}"}
         )
 
         assert response.status_code == 200
@@ -319,7 +319,7 @@ class TestVideoRetrievalAPI:
 
         # Get video details
         response = client.get(
-            f"/api/videos/{video.id}",
+            f"/api/v1/videos/{video.id}",
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
 
@@ -332,7 +332,7 @@ class TestVideoRetrievalAPI:
     def test_get_video_not_found(self, client, test_user_token):
         """Should return 404 for non-existent video."""
         response = client.get(
-            "/api/videos/999", headers={"Authorization": f"Bearer {test_user_token}"}
+            "/api/v1/videos/999", headers={"Authorization": f"Bearer {test_user_token}"}
         )
         assert response.status_code == 404
 
@@ -358,7 +358,7 @@ class TestVideoRetrievalAPI:
 
         # Try to access other user's video
         response = client.get(
-            f"/api/videos/{video.id}",
+            f"/api/v1/videos/{video.id}",
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
         assert response.status_code == 404
@@ -369,7 +369,7 @@ class TestAnalysisRetrievalAPI:
 
     def test_list_analyses_requires_auth(self, client):
         """Should require authentication to list analyses."""
-        response = client.get("/api/analyses")
+        response = client.get("/api/v1/analyses")
         assert response.status_code == 401
 
     def test_list_analyses_returns_user_analyses(
@@ -398,7 +398,7 @@ class TestAnalysisRetrievalAPI:
 
         # List analyses
         response = client.get(
-            "/api/analyses", headers={"Authorization": f"Bearer {test_user_token}"}
+            "/api/v1/analyses", headers={"Authorization": f"Bearer {test_user_token}"}
         )
 
         assert response.status_code == 200
@@ -433,7 +433,7 @@ class TestAnalysisRetrievalAPI:
 
         # Get analysis details
         response = client.get(
-            f"/api/analyses/{analysis.id}",
+            f"/api/v1/analyses/{analysis.id}",
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
 
@@ -473,7 +473,7 @@ class TestAnalysisRetrievalAPI:
 
         # Try to access other user's analysis
         response = client.get(
-            f"/api/analyses/{analysis.id}",
+            f"/api/v1/analyses/{analysis.id}",
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
         assert response.status_code == 404

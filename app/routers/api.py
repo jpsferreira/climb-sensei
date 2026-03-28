@@ -68,6 +68,7 @@ def _run_analysis_pipeline(
             results["video_quality"] = vq_data["result"]
 
         # Phase 2: Extract landmarks (expensive MediaPipe pass)
+        # Phase 2: Extract landmarks (expensive MediaPipe pass)
         landmarks_history, pose_results_history, frame_count, fps = extract_landmarks(
             upload_path
         )
@@ -220,8 +221,15 @@ async def upload_video(
     )
     db.commit()
 
-    # Launch analysis in background thread pool (bounded concurrency)
+    # Launch analysis in background thread pool (bounded concurrency).
+    # If executor was shut down (between test runs), recreate it.
     executor = request.app.state.analysis_executor
+    if getattr(executor, "_shutdown", False):
+        from concurrent.futures import ThreadPoolExecutor
+
+        executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="analysis")
+        request.app.state.analysis_executor = executor
+
     future = executor.submit(
         _run_analysis_pipeline,
         video_id=video_record.id,
@@ -252,7 +260,7 @@ async def upload_video(
     )
 
 
-@router.get("/api/videos/{video_id}/status")
+@router.get("/api/v1/videos/{video_id}/status")
 async def get_video_status(
     video_id: int,
     current_user: User = Depends(get_current_active_user),
@@ -392,7 +400,7 @@ async def serve_output(
 # ============================================================================
 
 
-@router.get("/api/videos")
+@router.get("/api/v1/videos")
 async def list_videos(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
@@ -414,7 +422,7 @@ async def list_videos(
     )
 
 
-@router.get("/api/videos/{video_id}")
+@router.get("/api/v1/videos/{video_id}")
 async def get_video(
     video_id: int,
     current_user: User = Depends(get_current_active_user),
@@ -450,7 +458,7 @@ async def get_video(
     )
 
 
-@router.get("/api/analyses")
+@router.get("/api/v1/analyses")
 async def list_analyses(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
@@ -476,7 +484,7 @@ async def list_analyses(
     )
 
 
-@router.get("/api/analyses/{analysis_id}")
+@router.get("/api/v1/analyses/{analysis_id}")
 async def get_analysis_detail(
     analysis_id: int,
     current_user: User = Depends(get_current_active_user),
