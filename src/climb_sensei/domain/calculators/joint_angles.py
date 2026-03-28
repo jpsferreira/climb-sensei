@@ -12,7 +12,33 @@ import numpy as np
 
 from .base import BaseCalculator, FrameContext
 from ...config import LandmarkIndex
-from ...biomechanics import calculate_joint_angle
+from ...biomechanics import calculate_joint_angle, calculate_joint_angles_batch
+
+# Joint triplets: (point_a_idx, vertex_idx, point_c_idx) for each angle
+_JOINT_TRIPLETS = [
+    (LandmarkIndex.LEFT_SHOULDER, LandmarkIndex.LEFT_ELBOW, LandmarkIndex.LEFT_WRIST),
+    (
+        LandmarkIndex.RIGHT_SHOULDER,
+        LandmarkIndex.RIGHT_ELBOW,
+        LandmarkIndex.RIGHT_WRIST,
+    ),
+    (LandmarkIndex.LEFT_HIP, LandmarkIndex.LEFT_SHOULDER, LandmarkIndex.LEFT_ELBOW),
+    (LandmarkIndex.RIGHT_HIP, LandmarkIndex.RIGHT_SHOULDER, LandmarkIndex.RIGHT_ELBOW),
+    (LandmarkIndex.LEFT_HIP, LandmarkIndex.LEFT_KNEE, LandmarkIndex.LEFT_ANKLE),
+    (LandmarkIndex.RIGHT_HIP, LandmarkIndex.RIGHT_KNEE, LandmarkIndex.RIGHT_ANKLE),
+    (LandmarkIndex.LEFT_SHOULDER, LandmarkIndex.LEFT_HIP, LandmarkIndex.LEFT_KNEE),
+    (LandmarkIndex.RIGHT_SHOULDER, LandmarkIndex.RIGHT_HIP, LandmarkIndex.RIGHT_KNEE),
+]
+_JOINT_NAMES = [
+    "left_elbow",
+    "right_elbow",
+    "left_shoulder",
+    "right_shoulder",
+    "left_knee",
+    "right_knee",
+    "left_hip",
+    "right_hip",
+]
 
 
 class JointAngleCalculator(BaseCalculator):
@@ -62,19 +88,9 @@ class JointAngleCalculator(BaseCalculator):
         if context is not None:
             metrics = dict(context.joint_angles)
         else:
-            metrics = {}
-            metrics["left_elbow"] = self._calculate_elbow_angle(landmarks, left=True)
-            metrics["right_elbow"] = self._calculate_elbow_angle(landmarks, left=False)
-            metrics["left_shoulder"] = self._calculate_shoulder_angle(
-                landmarks, left=True
-            )
-            metrics["right_shoulder"] = self._calculate_shoulder_angle(
-                landmarks, left=False
-            )
-            metrics["left_knee"] = self._calculate_knee_angle(landmarks, left=True)
-            metrics["right_knee"] = self._calculate_knee_angle(landmarks, left=False)
-            metrics["left_hip"] = self._calculate_hip_angle(landmarks, left=True)
-            metrics["right_hip"] = self._calculate_hip_angle(landmarks, left=False)
+            # Batch compute all 8 joint angles in one vectorized call
+            angles = calculate_joint_angles_batch(landmarks, _JOINT_TRIPLETS)
+            metrics = dict(zip(_JOINT_NAMES, angles))
 
         # Track history
         for key, value in metrics.items():
@@ -210,13 +226,11 @@ class JointAngleCalculator(BaseCalculator):
         ]
 
         for joint in joint_names:
-            if joint in self._history and self._history[joint]:
-                values = [
-                    v for v in self._history[joint] if isinstance(v, (int, float))
-                ]
-                if values:
-                    summary[f"min_{joint}"] = float(np.min(values))
-                    summary[f"max_{joint}"] = float(np.max(values))
-                    summary[f"avg_{joint}"] = float(np.mean(values))
+            values = self._history.get(joint)
+            if values:
+                arr = np.array(values)
+                summary[f"min_{joint}"] = float(arr.min())
+                summary[f"max_{joint}"] = float(arr.max())
+                summary[f"avg_{joint}"] = float(arr.mean())
 
         return summary

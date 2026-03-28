@@ -4,6 +4,8 @@ This module defines the interface that all metrics calculators must implement,
 and the FrameContext dataclass for sharing pre-computed values across calculators.
 """
 
+import math
+import numbers
 from dataclasses import dataclass
 from typing import Protocol, List, Dict, Any, Optional, Tuple
 
@@ -107,14 +109,22 @@ class BaseCalculator:
             self._history[metric_name] = []
 
     def _append_to_history(self, metric_name: str, value: Any) -> None:
-        """Append a value to metric history.
+        """Append a numeric value to metric history.
+
+        Only appends finite numeric values. Non-numeric or NaN/Inf values
+        are silently dropped to prevent downstream aggregation issues.
 
         Args:
             metric_name: Name of the metric
-            value: Value to append
+            value: Value to append (must be numeric and finite)
         """
         self._init_history(metric_name)
-        self._history[metric_name].append(value)
+        if (
+            isinstance(value, numbers.Real)
+            and not isinstance(value, bool)
+            and math.isfinite(value)
+        ):
+            self._history[metric_name].append(float(value))
 
     def get_history(self) -> Dict[str, List]:
         """Get time-series history of all metrics.

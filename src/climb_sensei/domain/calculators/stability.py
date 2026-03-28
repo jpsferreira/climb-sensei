@@ -176,14 +176,12 @@ class StabilityCalculator(BaseCalculator):
         summary = {}
 
         for metric_name in ["com_velocity", "com_sway", "jerk"]:
-            if metric_name in self._history and self._history[metric_name]:
-                values = [
-                    v for v in self._history[metric_name] if isinstance(v, (int, float))
-                ]
-                if values:
-                    summary[f"max_{metric_name}"] = float(np.max(values))
-                    summary[f"min_{metric_name}"] = float(np.min(values))
-                    summary[f"avg_{metric_name}"] = float(np.mean(values))
+            values = self._history.get(metric_name)
+            if values:
+                arr = np.array(values)
+                summary[f"max_{metric_name}"] = float(arr.max())
+                summary[f"min_{metric_name}"] = float(arr.min())
+                summary[f"avg_{metric_name}"] = float(arr.mean())
 
         return summary
 
