@@ -432,15 +432,15 @@ class TrackingQualityAnalyzer:
             total_frames=total_frames,
             frames_with_pose=frames_with_pose,
             detection_rate=round(detection_rate, 2),
-            avg_landmark_confidence=round(avg_confidence, 3)
-            if avg_confidence is not None
-            else 0.0,
-            min_landmark_confidence=round(min_confidence, 3)
-            if min_confidence is not None
-            else 0.0,
-            avg_visibility_score=round(avg_visibility, 2)
-            if avg_visibility is not None
-            else 0.0,
+            avg_landmark_confidence=(
+                round(avg_confidence, 3) if avg_confidence is not None else 0.0
+            ),
+            min_landmark_confidence=(
+                round(min_confidence, 3) if min_confidence is not None else 0.0
+            ),
+            avg_visibility_score=(
+                round(avg_visibility, 2) if avg_visibility is not None else 0.0
+            ),
             tracking_smoothness=round(smoothness, 3),
             tracking_loss_events=tracking_losses,
             is_trackable=is_trackable,
