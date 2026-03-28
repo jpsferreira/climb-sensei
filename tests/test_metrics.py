@@ -167,7 +167,7 @@ class TestTechniqueCalculator:
         calc = TechniqueCalculator()
         metrics = calc.calculate(sample_landmarks)
         assert "body_angle" in metrics
-        assert 0 <= metrics["body_angle"] <= 90
+        assert -90 <= metrics["body_angle"] <= 90
 
     def test_hand_foot_spans(self, sample_landmarks):
         calc = TechniqueCalculator()

@@ -111,11 +111,17 @@ class TechniqueCalculator(BaseCalculator):
     def _calculate_body_angle(self, landmarks: List[Dict[str, float]]) -> float:
         """Calculate body lean angle from vertical.
 
+        Uses atan2 to preserve lean direction:
+        - Positive = leaning right
+        - Negative = leaning left
+        - 0 = perfectly vertical
+        - ±90 = horizontal
+
         Args:
             landmarks: List of landmark dictionaries
 
         Returns:
-            Angle in degrees from vertical (0 = straight up, 90 = horizontal)
+            Signed angle in degrees from vertical (-90 to +90)
         """
         # Use shoulder midpoint to hip midpoint vector
         shoulder_x = (
@@ -136,14 +142,17 @@ class TechniqueCalculator(BaseCalculator):
             + landmarks[LandmarkIndex.RIGHT_HIP]["y"]
         ) / 2
 
-        # Calculate angle from vertical
+        # dx = lateral displacement, dy = vertical displacement (Y inverted in image)
         dx = shoulder_x - hip_x
-        dy = shoulder_y - hip_y
+        dy = hip_y - shoulder_y  # Positive = shoulders above hips (normal)
 
-        if abs(dy) < 1e-6:
-            return 90.0  # Horizontal
+        # Use |dy| so angle is always measured from the upward vertical direction.
+        # This keeps the signed angle in the documented -90..+90 range even when
+        # shoulders are detected below hips (dy <= 0).
+        dy_abs = abs(dy)
 
-        angle = np.degrees(np.arctan(abs(dx) / abs(dy)))
+        # atan2(dx, dy_abs) gives angle from vertical, preserving left/right sign
+        angle = np.degrees(np.arctan2(dx, dy_abs))
         return float(angle)
 
     def _calculate_hand_span(self, landmarks: List[Dict[str, float]]) -> float:

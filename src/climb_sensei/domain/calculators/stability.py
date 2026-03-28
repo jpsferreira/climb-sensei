@@ -131,37 +131,41 @@ class StabilityCalculator(BaseCalculator):
     def _calculate_jerk(self) -> float:
         """Calculate movement jerk (smoothness indicator).
 
-        Jerk is the rate of change of acceleration.
-        Lower jerk = smoother movement.
+        Jerk is the rate of change of acceleration (3rd derivative of position).
+        Lower jerk = smoother movement. Uses a sliding window for noise
+        reduction instead of the minimum 4-frame window.
 
         Returns:
-            Jerk value (lower is better)
+            Jerk value (lower is better), averaged over the window
         """
-        if len(self._com_positions) < 4:
+        n = len(self._com_positions)
+        if n < 4:
             return 0.0
 
-        positions = list(self._com_positions)[-4:]
+        # Use up to window_size frames for stable signal (enforce minimum 4)
+        window = max(4, min(self.window_size, n))
+        positions = list(self._com_positions)[-window:]
 
-        # Calculate velocities
-        velocities = []
-        for i in range(len(positions) - 1):
-            dx = positions[i + 1][0] - positions[i][0]
-            dy = positions[i + 1][1] - positions[i][1]
-            v = np.sqrt(dx**2 + dy**2) / self.dt
-            velocities.append(v)
+        # Vectorized: positions → velocities → accelerations → jerks
+        pos_array = np.array(positions)  # (window, 2)
+        displacements = np.diff(pos_array, axis=0)  # (window-1, 2)
+        speeds = np.linalg.norm(displacements, axis=1) / self.dt  # (window-1,)
 
-        # Calculate accelerations
-        accelerations = []
-        for i in range(len(velocities) - 1):
-            a = (velocities[i + 1] - velocities[i]) / self.dt
-            accelerations.append(a)
+        if len(speeds) < 2:
+            return 0.0
 
-        # Calculate jerk
-        if len(accelerations) >= 2:
-            jerk = (accelerations[1] - accelerations[0]) / self.dt
-            return abs(jerk)
+        accelerations = np.diff(speeds) / self.dt  # (window-2,)
 
-        return 0.0
+        if len(accelerations) < 2:
+            return 0.0
+
+        jerks = np.abs(np.diff(accelerations) / self.dt)  # (window-3,)
+
+        if len(jerks) == 0:
+            return 0.0
+
+        # Return mean jerk over window (more stable than single-frame value)
+        return float(np.mean(jerks))
 
     def get_summary(self) -> Dict[str, Any]:
         """Get summary statistics for stability metrics.

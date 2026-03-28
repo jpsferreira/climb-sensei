@@ -98,10 +98,10 @@ class FatigueCalculator(BaseCalculator):
         """Calculate fatigue score based on quality degradation.
 
         Compares movement quality (jerk and sway) in first third vs last third.
-        Higher score = more fatigued (0.0 = no change, 1.0 = significant degradation).
+        Higher score = more fatigued (0.0 = no change, 1.0 = maximum degradation).
 
         Returns:
-            Fatigue score (0.0-1.0+)
+            Fatigue score clamped to [0.0, 1.0]
         """
         if len(self._jerk_history) < self.min_frames:
             return 0.0
@@ -128,8 +128,10 @@ class FatigueCalculator(BaseCalculator):
         if early_sway_avg > 0:
             sway_degradation = (late_sway_avg - early_sway_avg) / early_sway_avg
 
-        fatigue_score = max(0.0, (jerk_degradation + sway_degradation) / 2.0)
-        return float(fatigue_score)
+        fatigue_score = float(
+            np.clip((jerk_degradation + sway_degradation) / 2.0, 0.0, 1.0)
+        )
+        return fatigue_score
 
     def reset(self) -> None:
         """Reset calculator state."""
