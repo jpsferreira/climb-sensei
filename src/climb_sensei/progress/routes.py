@@ -13,7 +13,15 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_
 
 from ..database.config import get_db
-from ..database.models import User, Analysis, ProgressMetric, Goal, ClimbSession, Video
+from ..database.models import (
+    User,
+    Analysis,
+    Attempt,
+    ProgressMetric,
+    Goal,
+    ClimbSession,
+    Video,
+)
 from ..auth import get_current_active_user
 from .schemas import (
     ProgressHistory,
@@ -469,8 +477,6 @@ async def list_sessions(
     Returns:
         List of sessions with route summaries
     """
-    from climb_sensei.database.models import Attempt
-
     sessions = (
         db.query(ClimbSession)
         .options(

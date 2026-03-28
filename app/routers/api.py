@@ -169,13 +169,16 @@ def _run_analysis_pipeline(
 
         logger.info("Background analysis complete for video %d", video_id)
 
-    except Exception as exc:
+    except Exception:
         logger.exception("Background analysis failed for video %d", video_id)
         db.rollback()
         video_record = db.query(Video).filter(Video.id == video_id).first()
         if video_record:
             video_record.status = VideoStatus.FAILED
-            video_record.error_message = str(exc)[:500]  # Truncate for safety
+            # Store user-safe message; detailed exception is in the logs above
+            video_record.error_message = (
+                "Video processing failed. Please check the video format and try again."
+            )
             db.commit()
 
     finally:

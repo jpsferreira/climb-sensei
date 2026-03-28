@@ -68,6 +68,10 @@ class AuthRateLimitMiddleware(BaseHTTPMiddleware):
 
     Limits login and register to 5 requests/minute per IP
     to prevent brute-force and registration spam.
+
+    Note: Uses in-process storage — effective for single-worker
+    deployments. For multi-worker setups, use SlowAPI with a
+    Redis backend instead.
     """
 
     AUTH_PATHS = {"/api/auth/jwt/login", "/api/auth/register"}
@@ -78,6 +82,10 @@ class AuthRateLimitMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self._counts: dict[str, list[float]] = {}
 
+    def reset(self):
+        """Reset all counters (used by tests)."""
+        self._counts.clear()
+
     async def dispatch(self, request, call_next):
         if request.method == "POST" and request.url.path in self.AUTH_PATHS:
             import time as _time
@@ -86,9 +94,11 @@ class AuthRateLimitMiddleware(BaseHTTPMiddleware):
             key = f"{ip}:{request.url.path}"
             now = _time.time()
 
-            # Clean old entries
+            # Clean old entries and evict empty keys
             timestamps = self._counts.get(key, [])
             timestamps = [t for t in timestamps if now - t < self.WINDOW_SECONDS]
+            if not timestamps:
+                self._counts.pop(key, None)
 
             if len(timestamps) >= self.MAX_REQUESTS:
                 from starlette.responses import JSONResponse

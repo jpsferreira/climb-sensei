@@ -516,45 +516,43 @@ def generate_annotated_video(
         Output video URL path
     """
     output_video_path = OUTPUT_DIR / f"{analysis_id}_output.webm"
+    output_url = f"/outputs/{analysis_id}_output.webm"
 
-    # Two-pass: first frame for dimensions, then stream all frames to writer
-    # This avoids buffering all annotated frames in memory
-    first_dims = None
-    with VideoReader(str(upload_path)) as reader:
-        for pose_result in pose_results_history:
-            success, frame = reader.read()
-            if not success:
-                break
-            if pose_result is not None:
-                annotated = draw_pose_landmarks(
-                    frame,
-                    pose_result,
-                    connections=CLIMBING_CONNECTIONS,
-                    landmarks_to_draw=CLIMBING_LANDMARKS,
-                )
-                first_dims = (annotated.shape[1], annotated.shape[0])
-                break
-
-    if first_dims is not None:
-        w, h = first_dims
-        with VideoWriter(
-            str(output_video_path), fps=fps, width=w, height=h, fourcc="VP80"
-        ) as writer:
-            with VideoReader(str(upload_path)) as reader:
-                for pose_result in pose_results_history:
-                    success, frame = reader.read()
-                    if not success:
-                        break
-                    if pose_result is not None:
-                        annotated = draw_pose_landmarks(
-                            frame,
-                            pose_result,
-                            connections=CLIMBING_CONNECTIONS,
-                            landmarks_to_draw=CLIMBING_LANDMARKS,
+    # Single-pass: lazily create writer on first annotated frame
+    writer = None
+    try:
+        with VideoReader(str(upload_path)) as reader:
+            for pose_result in pose_results_history:
+                success, frame = reader.read()
+                if not success:
+                    break
+                if pose_result is not None:
+                    annotated = draw_pose_landmarks(
+                        frame,
+                        pose_result,
+                        connections=CLIMBING_CONNECTIONS,
+                        landmarks_to_draw=CLIMBING_LANDMARKS,
+                    )
+                    if writer is None:
+                        h, w = annotated.shape[:2]
+                        writer = VideoWriter(
+                            str(output_video_path),
+                            fps=fps,
+                            width=w,
+                            height=h,
+                            fourcc="VP80",
                         )
-                        writer.write(annotated)
+                        writer.__enter__()
+                    writer.write(annotated)
+    finally:
+        if writer is not None:
+            writer.__exit__(None, None, None)
 
-    return f"/outputs/{analysis_id}_output.webm"
+    if writer is None:
+        logger.warning("No annotated frames produced for analysis %s", analysis_id)
+        return None
+
+    return output_url
 
 
 def persist_results(
