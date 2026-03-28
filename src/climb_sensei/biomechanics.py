@@ -122,16 +122,12 @@ def calculate_joint_angles_batch(
     if n == 0:
         return []
 
-    # Extract all needed points into arrays: (n, 2) for A, B, C
-    a_pts = np.array(
-        [(landmarks[t[0]]["x"], landmarks[t[0]]["y"]) for t in joint_triplets]
-    )
-    b_pts = np.array(
-        [(landmarks[t[1]]["x"], landmarks[t[1]]["y"]) for t in joint_triplets]
-    )
-    c_pts = np.array(
-        [(landmarks[t[2]]["x"], landmarks[t[2]]["y"]) for t in joint_triplets]
-    )
+    # Build a single (num_landmarks, 2) coordinate array, then gather A/B/C
+    all_coords = np.array([(lm["x"], lm["y"]) for lm in landmarks])
+    triplet_arr = np.array(joint_triplets)  # (n, 3)
+    a_pts = all_coords[triplet_arr[:, 0]]  # (n, 2)
+    b_pts = all_coords[triplet_arr[:, 1]]  # (n, 2)
+    c_pts = all_coords[triplet_arr[:, 2]]  # (n, 2)
 
     # Vectors BA and BC: (n, 2)
     ba = a_pts - b_pts
@@ -144,10 +140,10 @@ def calculate_joint_angles_batch(
     mag_ba = np.linalg.norm(ba, axis=1)
     mag_bc = np.linalg.norm(bc, axis=1)
 
-    # Avoid division by zero
+    # Avoid division by zero — match scalar behavior (return 0.0)
     denom = mag_ba * mag_bc
     safe = denom > 0
-    cos_angles = np.zeros(n)
+    cos_angles = np.ones(n)  # cos(0°) = 1.0, so arccos gives 0.0 for unsafe
     cos_angles[safe] = dots[safe] / denom[safe]
 
     # Clamp and compute

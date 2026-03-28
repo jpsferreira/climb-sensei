@@ -9,7 +9,7 @@ import asyncio
 import logging
 from typing import List, Dict, Optional, Any
 
-from ..biomechanics import calculate_center_of_mass, calculate_joint_angle
+from ..biomechanics import calculate_center_of_mass, calculate_joint_angles_batch
 from ..config import LandmarkIndex
 from ..domain.calculators import (
     FrameContext,
@@ -123,10 +123,48 @@ class ClimbingAnalysisService:
 
         return FrameContext(com=com, hip_height=hip_height, joint_angles=joint_angles)
 
+    # Joint triplets reused from JointAngleCalculator for consistency
+    _JOINT_TRIPLETS = [
+        (
+            LandmarkIndex.LEFT_SHOULDER,
+            LandmarkIndex.LEFT_ELBOW,
+            LandmarkIndex.LEFT_WRIST,
+        ),
+        (
+            LandmarkIndex.RIGHT_SHOULDER,
+            LandmarkIndex.RIGHT_ELBOW,
+            LandmarkIndex.RIGHT_WRIST,
+        ),
+        (LandmarkIndex.LEFT_HIP, LandmarkIndex.LEFT_SHOULDER, LandmarkIndex.LEFT_ELBOW),
+        (
+            LandmarkIndex.RIGHT_HIP,
+            LandmarkIndex.RIGHT_SHOULDER,
+            LandmarkIndex.RIGHT_ELBOW,
+        ),
+        (LandmarkIndex.LEFT_HIP, LandmarkIndex.LEFT_KNEE, LandmarkIndex.LEFT_ANKLE),
+        (LandmarkIndex.RIGHT_HIP, LandmarkIndex.RIGHT_KNEE, LandmarkIndex.RIGHT_ANKLE),
+        (LandmarkIndex.LEFT_SHOULDER, LandmarkIndex.LEFT_HIP, LandmarkIndex.LEFT_KNEE),
+        (
+            LandmarkIndex.RIGHT_SHOULDER,
+            LandmarkIndex.RIGHT_HIP,
+            LandmarkIndex.RIGHT_KNEE,
+        ),
+    ]
+    _JOINT_NAMES = [
+        "left_elbow",
+        "right_elbow",
+        "left_shoulder",
+        "right_shoulder",
+        "left_knee",
+        "right_knee",
+        "left_hip",
+        "right_hip",
+    ]
+
     def _compute_joint_angles(
         self, landmarks: List[Dict[str, float]]
     ) -> Dict[str, float]:
-        """Compute all 8 joint angles from landmarks.
+        """Compute all 8 joint angles from landmarks using vectorized batch.
 
         Args:
             landmarks: List of 33 landmark dictionaries
@@ -134,52 +172,8 @@ class ClimbingAnalysisService:
         Returns:
             Dictionary mapping joint name to angle in degrees
         """
-
-        def _pt(idx: int) -> tuple:
-            return (landmarks[idx]["x"], landmarks[idx]["y"])
-
-        return {
-            "left_elbow": calculate_joint_angle(
-                _pt(LandmarkIndex.LEFT_SHOULDER),
-                _pt(LandmarkIndex.LEFT_ELBOW),
-                _pt(LandmarkIndex.LEFT_WRIST),
-            ),
-            "right_elbow": calculate_joint_angle(
-                _pt(LandmarkIndex.RIGHT_SHOULDER),
-                _pt(LandmarkIndex.RIGHT_ELBOW),
-                _pt(LandmarkIndex.RIGHT_WRIST),
-            ),
-            "left_shoulder": calculate_joint_angle(
-                _pt(LandmarkIndex.LEFT_HIP),
-                _pt(LandmarkIndex.LEFT_SHOULDER),
-                _pt(LandmarkIndex.LEFT_ELBOW),
-            ),
-            "right_shoulder": calculate_joint_angle(
-                _pt(LandmarkIndex.RIGHT_HIP),
-                _pt(LandmarkIndex.RIGHT_SHOULDER),
-                _pt(LandmarkIndex.RIGHT_ELBOW),
-            ),
-            "left_knee": calculate_joint_angle(
-                _pt(LandmarkIndex.LEFT_HIP),
-                _pt(LandmarkIndex.LEFT_KNEE),
-                _pt(LandmarkIndex.LEFT_ANKLE),
-            ),
-            "right_knee": calculate_joint_angle(
-                _pt(LandmarkIndex.RIGHT_HIP),
-                _pt(LandmarkIndex.RIGHT_KNEE),
-                _pt(LandmarkIndex.RIGHT_ANKLE),
-            ),
-            "left_hip": calculate_joint_angle(
-                _pt(LandmarkIndex.LEFT_SHOULDER),
-                _pt(LandmarkIndex.LEFT_HIP),
-                _pt(LandmarkIndex.LEFT_KNEE),
-            ),
-            "right_hip": calculate_joint_angle(
-                _pt(LandmarkIndex.RIGHT_SHOULDER),
-                _pt(LandmarkIndex.RIGHT_HIP),
-                _pt(LandmarkIndex.RIGHT_KNEE),
-            ),
-        }
+        angles = calculate_joint_angles_batch(landmarks, self._JOINT_TRIPLETS)
+        return dict(zip(self._JOINT_NAMES, angles))
 
     def analyze(
         self,

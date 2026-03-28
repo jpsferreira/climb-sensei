@@ -4,6 +4,7 @@ import math
 import pytest
 from climb_sensei.biomechanics import (
     calculate_joint_angle,
+    calculate_joint_angles_batch,
     calculate_reach_distance,
     calculate_center_of_mass,
 )
@@ -148,3 +149,51 @@ class TestCalculateCenterOfMass:
 
         with pytest.raises(ValueError, match="cannot be zero"):
             calculate_center_of_mass(points, weights)
+
+
+class TestBatchJointAngles:
+    """Tests for vectorized batch joint angle calculation."""
+
+    def _lm(self, coords):
+        """Build landmark list from (x, y) tuples."""
+        return [{"x": x, "y": y} for x, y in coords]
+
+    def test_batch_matches_scalar(self):
+        """Batch results should match individual calculate_joint_angle calls."""
+        # 5 landmarks: 0=(0,0), 1=(1,0), 2=(1,1), 3=(0,1), 4=(0.5,0.5)
+        landmarks = self._lm([(0, 0), (1, 0), (1, 1), (0, 1), (0.5, 0.5)])
+        triplets = [(0, 1, 2), (1, 2, 3), (0, 4, 2)]
+
+        batch = calculate_joint_angles_batch(landmarks, triplets)
+
+        for i, (a, b, c) in enumerate(triplets):
+            scalar = calculate_joint_angle(
+                (landmarks[a]["x"], landmarks[a]["y"]),
+                (landmarks[b]["x"], landmarks[b]["y"]),
+                (landmarks[c]["x"], landmarks[c]["y"]),
+            )
+            assert batch[i] == pytest.approx(scalar, abs=1e-6)
+
+    def test_batch_empty_triplets(self):
+        """Empty triplet list should return empty list."""
+        landmarks = self._lm([(0, 0), (1, 1)])
+        assert calculate_joint_angles_batch(landmarks, []) == []
+
+    def test_batch_zero_length_vector(self):
+        """Zero-length vector should return 0.0 (matching scalar behavior)."""
+        # Points A and B are the same → BA has zero length
+        landmarks = self._lm([(0.5, 0.5), (0.5, 0.5), (1.0, 1.0)])
+        batch = calculate_joint_angles_batch(landmarks, [(0, 1, 2)])
+        assert batch[0] == pytest.approx(0.0)
+
+    def test_batch_right_angle(self):
+        """90-degree angle should return ~90."""
+        landmarks = self._lm([(0, 0), (0, 1), (1, 1)])
+        batch = calculate_joint_angles_batch(landmarks, [(0, 1, 2)])
+        assert batch[0] == pytest.approx(90.0, abs=0.1)
+
+    def test_batch_straight_angle(self):
+        """180-degree (collinear) should return ~180."""
+        landmarks = self._lm([(0, 0), (0.5, 0), (1, 0)])
+        batch = calculate_joint_angles_batch(landmarks, [(0, 1, 2)])
+        assert batch[0] == pytest.approx(180.0, abs=0.1)
