@@ -94,26 +94,32 @@ class EfficiencyCalculator(BaseCalculator):
         if self._initial_hip_height is None:
             self._initial_hip_height = hip_height
 
-        # Calculate distance traveled
+        # Calculate distance traveled (with tracking-loss detection)
         if len(self._com_positions) > 0:
             prev_com = self._com_positions[-1]
             dx = com[0] - prev_com[0]
             dy = com[1] - prev_com[1]
             distance = np.sqrt(dx**2 + dy**2)
-            self._total_distance += distance
+
+            # Skip large jumps that indicate tracking loss / re-detection
+            # (COM shouldn't move more than ~10% of frame in one step)
+            if distance <= 0.1:
+                self._total_distance += distance
 
         self._com_positions.append(com)
 
-        # Calculate movement economy
+        # Calculate movement economy, clamped to [0, 1]
         vertical_progress = self._initial_hip_height - hip_height
 
-        if self._total_distance > 1e-6:  # Avoid division by zero
-            movement_economy = vertical_progress / self._total_distance
+        if self._total_distance > 1e-6:
+            movement_economy = float(
+                np.clip(vertical_progress / self._total_distance, 0.0, 1.0)
+            )
         else:
             movement_economy = 0.0
 
         metrics = {
-            "movement_economy": float(movement_economy),
+            "movement_economy": movement_economy,
             "total_distance": float(self._total_distance),
         }
 
