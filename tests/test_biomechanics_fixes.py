@@ -9,15 +9,13 @@ Covers:
 - BUG6: Smoothness uses coefficient of variation
 """
 
-import math
-
 import numpy as np
 import pytest
 
 from climb_sensei.domain.calculators.technique import TechniqueCalculator
 from climb_sensei.domain.calculators.stability import StabilityCalculator
 from climb_sensei.domain.calculators.fatigue import FatigueCalculator
-from climb_sensei.tracking_quality import TrackingQualityAnalyzer, TrackingQualityReport
+from climb_sensei.tracking_quality import TrackingQualityAnalyzer
 
 # Need at least 33 landmarks (MediaPipe indices 0-32)
 # Relevant: 11=L_SHOULDER, 12=R_SHOULDER, 23=L_HIP, 24=R_HIP
@@ -183,7 +181,10 @@ class TestJerkWindow:
 
         for i in range(3):
             lm = _make_landmarks(
-                {23: {"x": 0.5, "y": 0.5 + i * 0.01}, 24: {"x": 0.5, "y": 0.5 + i * 0.01}}
+                {
+                    23: {"x": 0.5, "y": 0.5 + i * 0.01},
+                    24: {"x": 0.5, "y": 0.5 + i * 0.01},
+                }
             )
             metrics = calc.calculate(lm)
 
@@ -278,7 +279,9 @@ class TestSmoothnessFormula:
             positions.append(frame)
 
         smoothness = service._calculate_smoothness(positions)
-        assert smoothness < 0.7, f"Erratic movement should not be smooth, got {smoothness}"
+        assert (
+            smoothness < 0.7
+        ), f"Erratic movement should not be smooth, got {smoothness}"
 
     def test_no_movement_is_perfectly_smooth(self):
         """Stationary landmarks → smoothness = 1.0."""
@@ -296,7 +299,9 @@ class TestSmoothnessFormula:
         np.random.seed(123)
         positions = []
         for _ in range(30):
-            frame = [(np.random.random() * 2, np.random.random() * 2, 0.0) for _ in range(33)]
+            frame = [
+                (np.random.random() * 2, np.random.random() * 2, 0.0) for _ in range(33)
+            ]
             positions.append(frame)
 
         smoothness = service._calculate_smoothness(positions)
