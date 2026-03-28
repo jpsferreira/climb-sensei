@@ -155,13 +155,12 @@ def create_app() -> FastAPI:
     application.add_middleware(SlowAPIMiddleware)
 
     # CORS — only if explicit origins are configured (must be outermost middleware)
-    cors_origins = [
-        o.strip() for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip()
-    ]
-    if cors_origins:
+    from app.settings import settings as app_settings
+
+    if app_settings.cors_origin_list:
         application.add_middleware(
             CORSMiddleware,
-            allow_origins=cors_origins,
+            allow_origins=app_settings.cors_origin_list,
             allow_credentials=True,
             allow_methods=["GET", "POST", "PATCH", "DELETE"],
             allow_headers=["Authorization", "Content-Type"],

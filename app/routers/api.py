@@ -2,7 +2,7 @@
 
 import json
 import logging
-import threading
+from concurrent.futures import ThreadPoolExecutor
 import uuid
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -30,6 +30,9 @@ from app.services.upload import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Thread pool for background analysis tasks (max 2 concurrent analyses)
+_analysis_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="analysis")
 
 router = APIRouter()
 
@@ -220,25 +223,21 @@ async def upload_video(
     )
     db.commit()
 
-    # Launch analysis in background thread
-    thread = threading.Thread(
-        target=_run_analysis_pipeline,
-        kwargs={
-            "video_id": video_record.id,
-            "upload_path": upload_path,
-            "analysis_id": analysis_id,
-            "filename": file.filename,
-            "user_id": current_user.id,
-            "run_metrics": run_metrics,
-            "run_video": run_video,
-            "run_quality": run_quality,
-            "dashboard_position": dashboard_position,
-            "session_id": session_id,
-            "route_id": route_id,
-        },
-        daemon=False,
+    # Launch analysis in background thread pool (bounded concurrency)
+    _analysis_executor.submit(
+        _run_analysis_pipeline,
+        video_id=video_record.id,
+        upload_path=upload_path,
+        analysis_id=analysis_id,
+        filename=file.filename,
+        user_id=current_user.id,
+        run_metrics=run_metrics,
+        run_video=run_video,
+        run_quality=run_quality,
+        dashboard_position=dashboard_position,
+        session_id=session_id,
+        route_id=route_id,
     )
-    thread.start()
 
     return JSONResponse(
         status_code=202,
