@@ -80,7 +80,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     the /api/auth/jwt/login endpoint instead.
 
     Args:
-        data: The data to encode in the token (must include "sub" with user ID)
+        data: The data to encode in the token (must include "sub" with a unique user identifier, e.g. user ID or email)
         expires_delta: Optional custom expiration time
 
     Returns:

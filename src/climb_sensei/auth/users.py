@@ -81,8 +81,15 @@ def get_jwt_strategy() -> JWTStrategy:
 
     Uses the same SECRET_KEY as auth/__init__.py's create_access_token
     so tokens from both sources are interchangeable.
+
+    Derives lifetime from ACCESS_TOKEN_EXPIRE_MINUTES for consistency
+    with create_access_token's default expiry.
     """
-    return JWTStrategy(secret=SECRET_KEY, lifetime_seconds=3600)
+    from climb_sensei.auth import ACCESS_TOKEN_EXPIRE_MINUTES
+
+    return JWTStrategy(
+        secret=SECRET_KEY, lifetime_seconds=ACCESS_TOKEN_EXPIRE_MINUTES * 60
+    )
 
 
 auth_backend = AuthenticationBackend(
