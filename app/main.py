@@ -52,7 +52,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "font-src https://fonts.gstatic.com; "
             "img-src 'self' data:; "
             "media-src 'self'; "
-            "connect-src 'self'; "
+            "connect-src 'self' https://cdn.jsdelivr.net https://fonts.googleapis.com https://fonts.gstatic.com; "
             "frame-ancestors 'none'"
         )
         response.headers["Content-Security-Policy"] = csp

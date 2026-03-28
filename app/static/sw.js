@@ -10,15 +10,17 @@ const SHELL_ASSETS = [
   "/static/icon-512.svg",
 ];
 
-// Install: pre-cache shell
+// Install: pre-cache shell, then activate immediately
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL_ASSETS)),
+    caches
+      .open(CACHE_NAME)
+      .then((cache) => cache.addAll(SHELL_ASSETS))
+      .then(() => self.skipWaiting()),
   );
-  self.skipWaiting();
 });
 
-// Activate: clean old caches
+// Activate: clean old caches, then claim clients
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
@@ -29,31 +31,37 @@ self.addEventListener("activate", (event) => {
             .filter((key) => key !== CACHE_NAME)
             .map((key) => caches.delete(key)),
         ),
-      ),
+      )
+      .then(() => self.clients.claim()),
   );
-  self.clients.claim();
 });
 
-// Fetch: network-first for API/auth, stale-while-revalidate for pages/assets
+// Fetch: network-only for API/auth, cache strategies for everything else
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
 
   // Skip non-GET requests
   if (event.request.method !== "GET") return;
 
-  // Skip API requests and auth — always go to network
-  if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/upload")) {
+  // Skip API, auth-protected, and upload routes — always network-only
+  if (
+    url.pathname.startsWith("/api/") ||
+    url.pathname.startsWith("/upload") ||
+    url.pathname.startsWith("/outputs/") ||
+    url.pathname.startsWith("/download")
+  ) {
     return;
   }
 
   // For CDN assets (fonts, chart.js) — cache-first
+  // Cache opaque responses too since cross-origin resources may not have CORS
   if (url.origin !== self.location.origin) {
     event.respondWith(
       caches.match(event.request).then(
         (cached) =>
           cached ||
           fetch(event.request).then((response) => {
-            if (response.ok) {
+            if (response.ok || response.type === "opaque") {
               const clone = response.clone();
               caches.open(CACHE_NAME).then((cache) => {
                 cache.put(event.request, clone);
@@ -87,7 +95,12 @@ self.addEventListener("fetch", (event) => {
             event.request.headers.get("accept") &&
             event.request.headers.get("accept").includes("text/html")
           ) {
-            return caches.match("/");
+            return caches
+              .match("/")
+              .then(
+                (homeResponse) =>
+                  homeResponse || new Response("Offline", { status: 503 }),
+              );
           }
           return new Response("Offline", { status: 503 });
         });
