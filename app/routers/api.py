@@ -228,8 +228,15 @@ async def upload_video(
     )
     db.commit()
 
-    # Launch analysis in background thread pool (bounded concurrency)
+    # Launch analysis in background thread pool (bounded concurrency).
+    # If executor was shut down (between test runs), recreate it.
     executor = request.app.state.analysis_executor
+    if getattr(executor, "_shutdown", False):
+        from concurrent.futures import ThreadPoolExecutor
+
+        executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="analysis")
+        request.app.state.analysis_executor = executor
+
     future = executor.submit(
         _run_analysis_pipeline,
         video_id=video_record.id,
