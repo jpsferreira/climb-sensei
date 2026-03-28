@@ -108,9 +108,21 @@ class StabilityCalculator(BaseCalculator):
             metrics["com_velocity"] = 0.0
 
         # Sway - lateral stability (std dev of x position over window)
+        # Normalized by shoulder width to be body-size-independent
         if len(self._com_positions) >= 3:
             com_x_values = [pos[0] for pos in self._com_positions]
-            sway = float(np.std(com_x_values))
+            raw_sway = float(np.std(com_x_values))
+
+            # Normalize by shoulder width (makes sway comparable across climbers)
+            shoulder_width = abs(
+                landmarks[LandmarkIndex.LEFT_SHOULDER]["x"]
+                - landmarks[LandmarkIndex.RIGHT_SHOULDER]["x"]
+            )
+            if shoulder_width > 1e-6:
+                sway = raw_sway / shoulder_width
+            else:
+                sway = raw_sway
+
             metrics["com_sway"] = sway
         else:
             metrics["com_sway"] = 0.0

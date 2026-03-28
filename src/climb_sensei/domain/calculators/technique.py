@@ -39,7 +39,9 @@ class TechniqueCalculator(BaseCalculator):
         window_size: int = 30,
         fps: float = 30.0,
         lock_off_elbow_threshold: float = 90.0,
+        lock_off_velocity_threshold: float = 0.02,
         rest_position_angle_threshold: float = 150.0,
+        rest_velocity_threshold: float = 0.03,
     ):
         """Initialize technique calculator.
 
@@ -47,13 +49,21 @@ class TechniqueCalculator(BaseCalculator):
             window_size: Number of frames for moving window
             fps: Frames per second
             lock_off_elbow_threshold: Max elbow angle for lock-off (degrees)
+            lock_off_velocity_threshold: Max wrist velocity for lock-off
+                (normalized coords/frame). Arm must be stationary.
             rest_position_angle_threshold: Min elbow angle for rest (degrees)
+            rest_velocity_threshold: Max COM velocity for rest detection
+                (normalized coords/frame). Body must be nearly still.
         """
         super().__init__(window_size, fps)
         self.lock_off_threshold = lock_off_elbow_threshold
+        self.lock_off_velocity_threshold = lock_off_velocity_threshold
         self.rest_threshold = rest_position_angle_threshold
+        self.rest_velocity_threshold = rest_velocity_threshold
         self._total_lock_offs = 0
         self._total_rest_positions = 0
+        self._prev_wrists: Optional[tuple] = None
+        self._prev_com: Optional[tuple] = None
 
     def calculate(
         self,
@@ -200,7 +210,11 @@ class TechniqueCalculator(BaseCalculator):
         landmarks: List[Dict[str, float]],
         context: Optional[FrameContext] = None,
     ) -> tuple:
-        """Detect lock-off position (one arm bent, supporting weight).
+        """Detect lock-off position (one arm bent AND stationary).
+
+        A true lock-off requires both:
+        1. Elbow angle below threshold (arm bent under load)
+        2. Wrist nearly stationary (not mid-movement)
 
         Args:
             landmarks: List of landmark dictionaries
@@ -211,13 +225,33 @@ class TechniqueCalculator(BaseCalculator):
         """
         left_elbow_angle, right_elbow_angle = self._get_elbow_angles(landmarks, context)
 
-        # Lock-off = elbow bent at < 90 degrees
-        left_lock = left_elbow_angle < self.lock_off_threshold
-        right_lock = right_elbow_angle < self.lock_off_threshold
+        # Current wrist positions
+        lw = (
+            landmarks[LandmarkIndex.LEFT_WRIST]["x"],
+            landmarks[LandmarkIndex.LEFT_WRIST]["y"],
+        )
+        rw = (
+            landmarks[LandmarkIndex.RIGHT_WRIST]["x"],
+            landmarks[LandmarkIndex.RIGHT_WRIST]["y"],
+        )
 
-        # At least one arm locked off
+        # Check wrist velocity (stationary = true lock-off, not mid-pull)
+        left_still = True
+        right_still = True
+        if self._prev_wrists is not None:
+            prev_lw, prev_rw = self._prev_wrists
+            left_vel = np.sqrt((lw[0] - prev_lw[0]) ** 2 + (lw[1] - prev_lw[1]) ** 2)
+            right_vel = np.sqrt((rw[0] - prev_rw[0]) ** 2 + (rw[1] - prev_rw[1]) ** 2)
+            left_still = left_vel < self.lock_off_velocity_threshold
+            right_still = right_vel < self.lock_off_velocity_threshold
+
+        self._prev_wrists = (lw, rw)
+
+        # Lock-off = elbow bent AND wrist stationary
+        left_lock = left_elbow_angle < self.lock_off_threshold and left_still
+        right_lock = right_elbow_angle < self.lock_off_threshold and right_still
+
         is_lock_off = left_lock or right_lock
-
         return left_lock, right_lock, is_lock_off
 
     def _detect_rest_position(
@@ -225,7 +259,11 @@ class TechniqueCalculator(BaseCalculator):
         landmarks: List[Dict[str, float]],
         context: Optional[FrameContext] = None,
     ) -> bool:
-        """Detect rest position (straight arms, minimal effort).
+        """Detect rest position (straight arms AND body nearly still).
+
+        A true rest requires both:
+        1. Both elbows extended (straight arms, hanging on skeleton)
+        2. Body center of mass nearly stationary (not moving between holds)
 
         Args:
             landmarks: List of landmark dictionaries
@@ -236,11 +274,40 @@ class TechniqueCalculator(BaseCalculator):
         """
         left_elbow_angle, right_elbow_angle = self._get_elbow_angles(landmarks, context)
 
-        # Rest position = both arms relatively straight
-        return (
+        arms_straight = (
             left_elbow_angle > self.rest_threshold
             and right_elbow_angle > self.rest_threshold
         )
+
+        if not arms_straight:
+            return False
+
+        # Check body is nearly stationary via COM velocity
+        if context is not None:
+            com = context.com
+        else:
+            com = (
+                (
+                    landmarks[LandmarkIndex.LEFT_HIP]["x"]
+                    + landmarks[LandmarkIndex.RIGHT_HIP]["x"]
+                )
+                / 2,
+                (
+                    landmarks[LandmarkIndex.LEFT_HIP]["y"]
+                    + landmarks[LandmarkIndex.RIGHT_HIP]["y"]
+                )
+                / 2,
+            )
+
+        body_still = True
+        if self._prev_com is not None:
+            com_vel = np.sqrt(
+                (com[0] - self._prev_com[0]) ** 2 + (com[1] - self._prev_com[1]) ** 2
+            )
+            body_still = com_vel < self.rest_velocity_threshold
+
+        self._prev_com = com
+        return arms_straight and body_still
 
     def _get_elbow_angles(
         self,
@@ -308,21 +375,15 @@ class TechniqueCalculator(BaseCalculator):
         }
 
         # Average body angle
-        if "body_angle" in self._history and self._history["body_angle"]:
-            values = [
-                v for v in self._history["body_angle"] if isinstance(v, (int, float))
-            ]
-            if values:
-                summary["avg_body_angle"] = float(np.mean(values))
+        values = self._history.get("body_angle")
+        if values:
+            summary["avg_body_angle"] = float(np.mean(values))
 
         # Average hand/foot spans
         for metric in ["hand_span", "foot_span"]:
-            if metric in self._history and self._history[metric]:
-                values = [
-                    v for v in self._history[metric] if isinstance(v, (int, float))
-                ]
-                if values:
-                    summary[f"avg_{metric}"] = float(np.mean(values))
+            values = self._history.get(metric)
+            if values:
+                summary[f"avg_{metric}"] = float(np.mean(values))
 
         return summary
 
@@ -331,3 +392,5 @@ class TechniqueCalculator(BaseCalculator):
         super().reset()
         self._total_lock_offs = 0
         self._total_rest_positions = 0
+        self._prev_wrists = None
+        self._prev_com = None

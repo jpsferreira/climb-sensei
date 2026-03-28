@@ -134,6 +134,14 @@ class PoseEngine:
             List of dictionaries containing x, y, z coordinates and
             visibility for each landmark. Coordinates are normalized
             to [0.0, 1.0] range.
+
+        Note:
+            The z-coordinate is extracted for completeness but is NOT used
+            in any biomechanics calculations. All distance, angle, and
+            stability metrics operate in 2D (x, y) because MediaPipe's
+            monocular depth estimation (z) is unreliable for absolute
+            measurements. The z value is retained only for potential
+            future use with stereo/depth cameras.
         """
         if results is None:
             results = self._last_results
