@@ -101,6 +101,7 @@ class Video(Base):
     status = Column(
         String(50), default=VideoStatus.UPLOADED, nullable=False
     )  # uploaded, processing, completed, failed
+    error_message = Column(Text)  # Stores failure reason when status=failed
 
     # Relationships
     user = relationship("User", back_populates="videos")
@@ -154,7 +155,7 @@ class Attempt(Base):
     session_id = Column(Integer, ForeignKey("climb_sessions.id"), index=True)
     analysis_id = Column(Integer, ForeignKey("analyses.id"), index=True)
     notes = Column(Text)
-    date = Column(DateTime, nullable=False)
+    date = Column(DateTime, nullable=False, index=True)
     created_at = Column(DateTime, default=utcnow, nullable=False)
 
     # Relationships
@@ -179,7 +180,7 @@ class Analysis(Base):
     id = Column(Integer, primary_key=True, index=True)
     video_id = Column(Integer, ForeignKey("videos.id"), nullable=False, index=True)
     session_id = Column(Integer, ForeignKey("climb_sessions.id"), index=True)
-    created_at = Column(DateTime, default=utcnow, nullable=False)
+    created_at = Column(DateTime, default=utcnow, nullable=False, index=True)
 
     # Analysis configuration
     run_metrics = Column(Boolean, default=True, nullable=False)
@@ -288,7 +289,7 @@ class Goal(Base):
     route_id = Column(
         Integer, ForeignKey("routes.id"), index=True
     )  # nullable for migration
-    metric_name = Column(String(100), nullable=False)
+    metric_name = Column(String(100), nullable=False, index=True)
     target_value = Column(Float, nullable=False)
     current_value = Column(Float)
     deadline = Column(DateTime)

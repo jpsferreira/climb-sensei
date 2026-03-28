@@ -175,6 +175,10 @@ def _run_analysis_pipeline(
         video_record = db.query(Video).filter(Video.id == video_id).first()
         if video_record:
             video_record.status = VideoStatus.FAILED
+            # Store user-safe message; detailed exception is in the logs above
+            video_record.error_message = (
+                "Video processing failed. Please check the video format and try again."
+            )
             db.commit()
 
     finally:
@@ -273,6 +277,9 @@ async def get_video_status(
         "status": video.status,
         "filename": video.filename,
     }
+
+    if video.status == VideoStatus.FAILED and video.error_message:
+        result["error_message"] = video.error_message
 
     if video.status == VideoStatus.COMPLETED:
         # Include the analysis ID so the frontend can fetch results

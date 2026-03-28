@@ -15,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 from starlette.middleware.base import BaseHTTPMiddleware
 import uvicorn
 
@@ -60,6 +61,60 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         if request.url.path.endswith("/sw.js"):
             response.headers["Service-Worker-Allowed"] = "/"
         return response
+
+
+class AuthRateLimitMiddleware(BaseHTTPMiddleware):
+    """Stricter rate limiting for authentication endpoints.
+
+    Limits login and register to 5 requests/minute per IP
+    to prevent brute-force and registration spam.
+
+    Note: Uses in-process storage — effective for single-worker
+    deployments. For multi-worker setups, use SlowAPI with a
+    Redis backend instead.
+    """
+
+    AUTH_PATHS = {"/api/auth/jwt/login", "/api/auth/register"}
+    MAX_REQUESTS = 5
+    WINDOW_SECONDS = 60
+
+    def __init__(self, app):
+        super().__init__(app)
+        self._counts: dict[str, list[float]] = {}
+
+    def reset(self):
+        """Reset all counters (used by tests)."""
+        self._counts.clear()
+
+    async def dispatch(self, request, call_next):
+        if request.method == "POST" and request.url.path in self.AUTH_PATHS:
+            import time as _time
+
+            ip = get_remote_address(request)
+            key = f"{ip}:{request.url.path}"
+            now = _time.time()
+
+            # Clean old entries and evict empty keys
+            timestamps = self._counts.get(key, [])
+            timestamps = [t for t in timestamps if now - t < self.WINDOW_SECONDS]
+            if not timestamps:
+                self._counts.pop(key, None)
+
+            if len(timestamps) >= self.MAX_REQUESTS:
+                from starlette.responses import JSONResponse
+
+                logger.warning(
+                    "Auth rate limit exceeded: %s from %s", request.url.path, ip
+                )
+                return JSONResponse(
+                    status_code=429,
+                    content={"detail": "Too many attempts. Please try again later."},
+                )
+
+            timestamps.append(now)
+            self._counts[key] = timestamps
+
+        return await call_next(request)
 
 
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
@@ -117,6 +172,9 @@ def create_app() -> FastAPI:
 
     # Request logging
     application.add_middleware(RequestLoggingMiddleware)
+
+    # Stricter rate limiting on auth endpoints (5/min per IP)
+    application.add_middleware(AuthRateLimitMiddleware)
 
     # Initialize database
     init_db()

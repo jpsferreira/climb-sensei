@@ -94,13 +94,15 @@ _auth_disabled_requested = os.getenv("AUTH_DISABLED", "").lower() in (
     "true",
     "yes",
 )
-_environment = os.getenv("ENVIRONMENT", "production").lower()
-AUTH_DISABLED = _auth_disabled_requested and _environment in ("development", "testing")
+_environment = os.getenv("ENVIRONMENT", "").lower()
+# AUTH_DISABLED is allowed when ENVIRONMENT is explicitly dev/testing,
+# or when ENVIRONMENT is not set (local development). Only blocked when
+# ENVIRONMENT is explicitly set to "production" or similar.
+AUTH_DISABLED = _auth_disabled_requested and _environment != "production"
 if _auth_disabled_requested and not AUTH_DISABLED:
-    logger.critical(
-        "AUTH_DISABLED ignored because ENVIRONMENT=%s. "
-        "AUTH_DISABLED only works in development/testing environments.",
-        _environment,
+    raise RuntimeError(
+        "AUTH_DISABLED=1 is forbidden when ENVIRONMENT=production. "
+        "Refusing to start with authentication disabled in production."
     )
 
 
