@@ -32,7 +32,7 @@ class Settings(BaseSettings):
 
     # ── Upload ──────────────────────────────────────────────
     max_upload_mb: int = 500
-    allowed_extensions: tuple = (".mp4", ".avi", ".mov", ".mkv", ".webm")
+    allowed_extensions: tuple[str, ...] = (".mp4", ".avi", ".mov", ".mkv", ".webm")
 
     # ── Rate Limiting ───────────────────────────────────────
     rate_limit_default: str = "60/minute"

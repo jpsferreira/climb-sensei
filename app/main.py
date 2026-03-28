@@ -194,6 +194,17 @@ def create_app() -> FastAPI:
                     "Google OAuth is not configured (GOOGLE_CLIENT_ID missing)"
                 )
 
+    # Background analysis thread pool (bounded concurrency, graceful shutdown)
+    from concurrent.futures import ThreadPoolExecutor
+
+    application.state.analysis_executor = ThreadPoolExecutor(
+        max_workers=2, thread_name_prefix="analysis"
+    )
+
+    @application.on_event("shutdown")
+    def shutdown_executor():
+        application.state.analysis_executor.shutdown(wait=False, cancel_futures=True)
+
     # Routers
     application.include_router(auth_router, prefix="/api")
     application.include_router(progress_router)
