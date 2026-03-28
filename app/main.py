@@ -74,7 +74,12 @@ class AuthRateLimitMiddleware(BaseHTTPMiddleware):
     Redis backend instead.
     """
 
-    AUTH_PATHS = {"/api/v1/auth/jwt/login", "/api/v1/auth/register"}
+    AUTH_PATHS = {
+        "/api/v1/auth/jwt/login",
+        "/api/v1/auth/register",
+        "/api/auth/jwt/login",  # Legacy paths (before redirect)
+        "/api/auth/register",
+    }
     MAX_REQUESTS = 5
     WINDOW_SECONDS = 60
 
@@ -188,11 +193,12 @@ def create_app() -> FastAPI:
     # Request logging
     application.add_middleware(RequestLoggingMiddleware)
 
+    # Stricter rate limiting on auth endpoints (5/min per IP)
+    # Must be before redirect middleware so legacy /api/auth/ paths are also limited
+    application.add_middleware(AuthRateLimitMiddleware)
+
     # Backward-compat: redirect /api/... → /api/v1/...
     application.add_middleware(ApiV1RedirectMiddleware)
-
-    # Stricter rate limiting on auth endpoints (5/min per IP)
-    application.add_middleware(AuthRateLimitMiddleware)
 
     # Initialize database
     init_db()

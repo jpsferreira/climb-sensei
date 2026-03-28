@@ -145,22 +145,17 @@ def create_video_record(
 
 def extract_landmarks(
     upload_path: Path,
-    retain_frames: bool = False,
-) -> Tuple[List, List, int, float, Optional[List]]:
+) -> Tuple[List, List, int, float]:
     """Extract pose landmarks from video (expensive MediaPipe pass).
 
     Args:
         upload_path: Path to video file
-        retain_frames: If True, also return raw frames for annotation
-            (avoids re-reading the video later, at the cost of memory)
 
     Returns:
-        Tuple of (landmarks_history, pose_results_history, frame_count, fps, frames)
-        frames is None if retain_frames is False
+        Tuple of (landmarks_history, pose_results_history, frame_count, fps)
     """
     landmarks_history = []
     pose_results_history = []
-    raw_frames = [] if retain_frames else None
     frame_count = 0
     fps = 30.0
 
@@ -184,15 +179,12 @@ def extract_landmarks(
                     landmarks_history.append(None)
                     pose_results_history.append(None)
 
-                if retain_frames:
-                    raw_frames.append(frame)
-
     logger.info(
         "Extraction complete: %d total frames, %d with pose",
         len(landmarks_history),
         frame_count,
     )
-    return landmarks_history, pose_results_history, frame_count, fps, raw_frames
+    return landmarks_history, pose_results_history, frame_count, fps
 
 
 def check_video_quality(upload_path: Path) -> Dict[str, Any]:
@@ -505,20 +497,17 @@ def generate_annotated_video(
     analysis_id: str,
     pose_results_history: List,
     fps: float,
-    raw_frames: Optional[List] = None,
 ) -> Optional[str]:
     """Generate annotated video with pose overlay only.
 
-    Metrics/plots are displayed in the web app UI, not composited onto
-    the video.  Output uses VP8/WebM for smaller file sizes.
+    Streams frames directly from disk to the writer to avoid buffering
+    all frames in memory. Output uses VP8/WebM for smaller file sizes.
 
     Args:
         upload_path: Path to original video
         analysis_id: Unique analysis ID
         pose_results_history: Cached pose results
         fps: Video FPS
-        raw_frames: Pre-read frames from extract_landmarks (avoids
-            re-reading video). Falls back to reading from upload_path.
 
     Returns:
         Output video URL path, or None if no annotated frames produced
@@ -526,40 +515,32 @@ def generate_annotated_video(
     output_video_path = OUTPUT_DIR / f"{analysis_id}_output.webm"
     output_url = f"/outputs/{analysis_id}_output.webm"
 
-    def _frame_source():
-        """Yield frames from pre-read list or by re-reading the video."""
-        if raw_frames is not None:
-            yield from raw_frames
-        else:
-            with VideoReader(str(upload_path)) as reader:
-                while True:
-                    success, frame = reader.read()
-                    if not success:
-                        break
-                    yield frame
-
-    # Single-pass: lazily create writer on first annotated frame
+    # Single-pass: stream frames from disk, lazily create writer
     writer = None
     try:
-        for frame, pose_result in zip(_frame_source(), pose_results_history):
-            if pose_result is not None:
-                annotated = draw_pose_landmarks(
-                    frame,
-                    pose_result,
-                    connections=CLIMBING_CONNECTIONS,
-                    landmarks_to_draw=CLIMBING_LANDMARKS,
-                )
-                if writer is None:
-                    h, w = annotated.shape[:2]
-                    writer = VideoWriter(
-                        str(output_video_path),
-                        fps=fps,
-                        width=w,
-                        height=h,
-                        fourcc="VP80",
+        with VideoReader(str(upload_path)) as reader:
+            for pose_result in pose_results_history:
+                success, frame = reader.read()
+                if not success:
+                    break
+                if pose_result is not None:
+                    annotated = draw_pose_landmarks(
+                        frame,
+                        pose_result,
+                        connections=CLIMBING_CONNECTIONS,
+                        landmarks_to_draw=CLIMBING_LANDMARKS,
                     )
-                    writer.__enter__()
-                writer.write(annotated)
+                    if writer is None:
+                        h, w = annotated.shape[:2]
+                        writer = VideoWriter(
+                            str(output_video_path),
+                            fps=fps,
+                            width=w,
+                            height=h,
+                            fourcc="VP80",
+                        )
+                        writer.__enter__()
+                    writer.write(annotated)
     finally:
         if writer is not None:
             writer.__exit__(None, None, None)

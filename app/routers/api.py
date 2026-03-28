@@ -68,14 +68,10 @@ def _run_analysis_pipeline(
             results["video_quality"] = vq_data["result"]
 
         # Phase 2: Extract landmarks (expensive MediaPipe pass)
-        # Retain raw frames when video annotation is requested to avoid re-reading
-        (
-            landmarks_history,
-            pose_results_history,
-            frame_count,
-            fps,
-            raw_frames,
-        ) = extract_landmarks(upload_path, retain_frames=run_video)
+        # Phase 2: Extract landmarks (expensive MediaPipe pass)
+        landmarks_history, pose_results_history, frame_count, fps = extract_landmarks(
+            upload_path
+        )
         results["frames_processed"] = frame_count
         results["fps"] = float(fps)
 
@@ -105,10 +101,7 @@ def _run_analysis_pipeline(
                 analysis_id,
                 pose_results_history,
                 fps,
-                raw_frames=raw_frames,
             )
-            # Free frame memory after annotation
-            raw_frames = None
 
         # Persist to database
         db_analysis_id = persist_results(
