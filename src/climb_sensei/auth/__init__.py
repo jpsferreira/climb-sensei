@@ -70,10 +70,17 @@ def get_password_hash(password: str) -> str:
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    """Create a JWT access token.
+    """Create a JWT access token compatible with fastapi-users tokens.
+
+    Uses the same SECRET_KEY and ALGORITHM as fastapi-users' JWTStrategy
+    so tokens are interchangeable. Default expiry matches
+    ACCESS_TOKEN_EXPIRE_MINUTES (used by tests and sync auth flows).
+
+    For production login flows, tokens are created by fastapi-users via
+    the /api/auth/jwt/login endpoint instead.
 
     Args:
-        data: The data to encode in the token (should include "sub" with user email)
+        data: The data to encode in the token (must include "sub" with a unique user identifier, e.g. user ID or email)
         expires_delta: Optional custom expiration time
 
     Returns:
@@ -83,7 +90,9 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
+        expire = datetime.now(timezone.utc) + timedelta(
+            minutes=ACCESS_TOKEN_EXPIRE_MINUTES
+        )
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt

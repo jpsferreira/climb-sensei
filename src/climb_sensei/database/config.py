@@ -13,14 +13,34 @@ from typing import Generator, AsyncGenerator
 # Database URL from environment or default to SQLite
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./climbsensei.db")
 
-# For async support, convert sqlite:/// to sqlite+aiosqlite:///
-ASYNC_DATABASE_URL = DATABASE_URL.replace("sqlite://", "sqlite+aiosqlite://")
+# Map sync DB URL to async equivalent for fastapi-users
+_ASYNC_DRIVER_MAP = {
+    "sqlite://": "sqlite+aiosqlite://",
+    "postgresql://": "postgresql+asyncpg://",
+    "postgresql+psycopg2://": "postgresql+asyncpg://",
+}
+
+
+def _to_async_url(url: str) -> str:
+    """Convert a sync database URL to its async equivalent."""
+    for sync_prefix, async_prefix in _ASYNC_DRIVER_MAP.items():
+        if url.startswith(sync_prefix):
+            return url.replace(sync_prefix, async_prefix, 1)
+    raise ValueError(
+        f"Unsupported DATABASE_URL scheme for async: {url.split('://')[0]}. "
+        f"Supported: {', '.join(_ASYNC_DRIVER_MAP.keys())}"
+    )
+
+
+ASYNC_DATABASE_URL = _to_async_url(DATABASE_URL)
 
 # Create sync engine (for existing code)
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
 engine = create_engine(DATABASE_URL, connect_args=connect_args, echo=False)
 
-# Create async engine (for fastapi-users)
+# Create async engine (required by fastapi-users)
+# Note: Most application code uses sync sessions via SessionLocal.
+# The async engine is used exclusively by fastapi-users for auth operations.
 async_engine = create_async_engine(ASYNC_DATABASE_URL, echo=False)
 
 # Create session factories
