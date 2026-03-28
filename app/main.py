@@ -203,7 +203,13 @@ def create_app() -> FastAPI:
 
     @application.on_event("shutdown")
     def shutdown_executor():
-        application.state.analysis_executor.shutdown(wait=False, cancel_futures=True)
+        executor = getattr(application.state, "analysis_executor", None)
+        if executor:
+            executor.shutdown(wait=False, cancel_futures=True)
+            # Replace with fresh executor in case app is reused (e.g. tests)
+            application.state.analysis_executor = ThreadPoolExecutor(
+                max_workers=2, thread_name_prefix="analysis"
+            )
 
     # Routers
     application.include_router(auth_router, prefix="/api")
