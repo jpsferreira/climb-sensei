@@ -103,7 +103,7 @@ class EfficiencyCalculator(BaseCalculator):
 
             # Skip large jumps that indicate tracking loss / re-detection
             # (COM shouldn't move more than ~10% of frame in one step)
-            if distance < 0.1:
+            if distance <= 0.1:
                 self._total_distance += distance
 
         self._com_positions.append(com)

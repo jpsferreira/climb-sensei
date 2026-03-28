@@ -39,9 +39,9 @@ class TechniqueCalculator(BaseCalculator):
         window_size: int = 30,
         fps: float = 30.0,
         lock_off_elbow_threshold: float = 90.0,
-        lock_off_velocity_threshold: float = 0.02,
+        lock_off_velocity_threshold: float = 0.002,
         rest_position_angle_threshold: float = 150.0,
-        rest_velocity_threshold: float = 0.03,
+        rest_velocity_threshold: float = 0.01,
     ):
         """Initialize technique calculator.
 
@@ -274,15 +274,7 @@ class TechniqueCalculator(BaseCalculator):
         """
         left_elbow_angle, right_elbow_angle = self._get_elbow_angles(landmarks, context)
 
-        arms_straight = (
-            left_elbow_angle > self.rest_threshold
-            and right_elbow_angle > self.rest_threshold
-        )
-
-        if not arms_straight:
-            return False
-
-        # Check body is nearly stationary via COM velocity
+        # Compute COM every frame so velocity is always frame-to-frame
         if context is not None:
             com = context.com
         else:
@@ -307,6 +299,12 @@ class TechniqueCalculator(BaseCalculator):
             body_still = com_vel < self.rest_velocity_threshold
 
         self._prev_com = com
+
+        arms_straight = (
+            left_elbow_angle > self.rest_threshold
+            and right_elbow_angle > self.rest_threshold
+        )
+
         return arms_straight and body_still
 
     def _get_elbow_angles(
