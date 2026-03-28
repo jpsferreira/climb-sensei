@@ -77,7 +77,11 @@ bearer_transport = BearerTransport(tokenUrl="api/auth/jwt/login")
 
 
 def get_jwt_strategy() -> JWTStrategy:
-    """Get JWT strategy for token generation."""
+    """Get JWT strategy for token generation.
+
+    Uses the same SECRET_KEY as auth/__init__.py's create_access_token
+    so tokens from both sources are interchangeable.
+    """
     return JWTStrategy(secret=SECRET_KEY, lifetime_seconds=3600)
 
 

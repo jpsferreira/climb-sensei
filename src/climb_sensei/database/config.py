@@ -20,7 +20,9 @@ ASYNC_DATABASE_URL = DATABASE_URL.replace("sqlite://", "sqlite+aiosqlite://")
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
 engine = create_engine(DATABASE_URL, connect_args=connect_args, echo=False)
 
-# Create async engine (for fastapi-users)
+# Create async engine (required by fastapi-users)
+# Note: Most application code uses sync sessions via SessionLocal.
+# The async engine is used exclusively by fastapi-users for auth operations.
 async_engine = create_async_engine(ASYNC_DATABASE_URL, echo=False)
 
 # Create session factories
