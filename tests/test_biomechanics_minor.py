@@ -8,7 +8,6 @@ Covers:
 """
 
 import numpy as np
-import pytest
 
 from climb_sensei.domain.calculators.technique import TechniqueCalculator
 from climb_sensei.domain.calculators.stability import StabilityCalculator
@@ -72,7 +71,7 @@ class TestLockOffVelocity:
         calc.calculate(lm)  # Frame 1: no previous → assumed still
         metrics = calc.calculate(lm)  # Frame 2: same position → still
 
-        assert metrics["is_lock_off"] == True
+        assert metrics["is_lock_off"]
 
     def test_bent_moving_not_detected(self):
         """Bent elbow + moving wrist → NOT lock-off."""
@@ -84,7 +83,7 @@ class TestLockOffVelocity:
         calc.calculate(lm1)
         metrics = calc.calculate(lm2)
 
-        assert metrics["left_lock_off"] == False
+        assert not metrics["left_lock_off"]
 
     def test_threshold_edge(self):
         """Wrist velocity exactly at threshold → not stationary."""
@@ -98,7 +97,7 @@ class TestLockOffVelocity:
         metrics = calc.calculate(lm2)
 
         # At threshold → not stationary (strict <)
-        assert metrics["left_lock_off"] == False
+        assert not metrics["left_lock_off"]
 
 
 # ========== MINOR2: Rest with COM velocity ==========
@@ -115,7 +114,7 @@ class TestRestVelocity:
         calc.calculate(lm)
         metrics = calc.calculate(lm)  # Same position → still
 
-        assert metrics["is_rest_position"] == True
+        assert metrics["is_rest_position"]
 
     def test_straight_moving_not_detected(self):
         """Straight arms + moving body → NOT rest."""
@@ -127,7 +126,7 @@ class TestRestVelocity:
         calc.calculate(lm1)
         metrics = calc.calculate(lm2)
 
-        assert metrics["is_rest_position"] == False
+        assert not metrics["is_rest_position"]
 
     def test_com_updated_every_frame(self):
         """COM velocity should be per-frame, not since last rest frame."""
