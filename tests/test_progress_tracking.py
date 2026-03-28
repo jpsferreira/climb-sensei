@@ -513,7 +513,7 @@ class TestGoalManagement:
         db_session.commit()
 
         response = client.get(
-            f"/api/v1/v1/goals/{goal.id}",
+            f"/api/v1/goals/{goal.id}",
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
         assert response.status_code == 200
@@ -528,7 +528,7 @@ class TestGoalManagement:
         db_session.commit()
 
         response = client.patch(
-            f"/api/v1/v1/goals/{goal.id}",
+            f"/api/v1/goals/{goal.id}",
             json={"target_value": 0.25, "notes": "Increased target"},
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
@@ -544,7 +544,7 @@ class TestGoalManagement:
         db_session.commit()
 
         response = client.patch(
-            f"/api/v1/v1/goals/{goal.id}",
+            f"/api/v1/goals/{goal.id}",
             json={"achieved": True},
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
@@ -560,14 +560,14 @@ class TestGoalManagement:
         goal_id = goal.id
 
         response = client.delete(
-            f"/api/v1/v1/goals/{goal_id}",
+            f"/api/v1/goals/{goal_id}",
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
         assert response.status_code == 204
 
         # Verify deleted
         check_response = client.get(
-            f"/api/v1/v1/goals/{goal_id}",
+            f"/api/v1/goals/{goal_id}",
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
         assert check_response.status_code == 404
@@ -588,7 +588,7 @@ class TestGoalManagement:
         db_session.commit()
 
         response = client.get(
-            f"/api/v1/v1/goals/{other_goal.id}",
+            f"/api/v1/goals/{other_goal.id}",
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
         assert response.status_code == 404
@@ -671,7 +671,7 @@ class TestSessionManagement:
         db_session.commit()
 
         response = client.get(
-            f"/api/v1/v1/sessions/{session.id}",
+            f"/api/v1/sessions/{session.id}",
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
         assert response.status_code == 200
@@ -688,7 +688,7 @@ class TestSessionManagement:
         db_session.commit()
 
         response = client.patch(
-            f"/api/v1/v1/sessions/{session.id}",
+            f"/api/v1/sessions/{session.id}",
             json={"name": "Updated Name", "notes": "Great session!"},
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
@@ -720,7 +720,7 @@ class TestSessionManagement:
 
         # Delete session
         response = client.delete(
-            f"/api/v1/v1/sessions/{session_id}",
+            f"/api/v1/sessions/{session_id}",
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
         assert response.status_code == 204
@@ -751,7 +751,7 @@ class TestSessionManagement:
         db_session.commit()
 
         response = client.get(
-            f"/api/v1/v1/sessions/{session.id}/analyses",
+            f"/api/v1/sessions/{session.id}/analyses",
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
         assert response.status_code == 200
@@ -778,7 +778,7 @@ class TestSessionManagement:
         db_session.commit()
 
         response = client.get(
-            f"/api/v1/v1/sessions/{other_session.id}",
+            f"/api/v1/sessions/{other_session.id}",
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
         assert response.status_code == 404

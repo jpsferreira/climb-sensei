@@ -319,7 +319,7 @@ class TestVideoRetrievalAPI:
 
         # Get video details
         response = client.get(
-            f"/api/v1/v1/videos/{video.id}",
+            f"/api/v1/videos/{video.id}",
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
 
@@ -358,7 +358,7 @@ class TestVideoRetrievalAPI:
 
         # Try to access other user's video
         response = client.get(
-            f"/api/v1/v1/videos/{video.id}",
+            f"/api/v1/videos/{video.id}",
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
         assert response.status_code == 404
@@ -433,7 +433,7 @@ class TestAnalysisRetrievalAPI:
 
         # Get analysis details
         response = client.get(
-            f"/api/v1/v1/analyses/{analysis.id}",
+            f"/api/v1/analyses/{analysis.id}",
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
 
@@ -473,7 +473,7 @@ class TestAnalysisRetrievalAPI:
 
         # Try to access other user's analysis
         response = client.get(
-            f"/api/v1/v1/analyses/{analysis.id}",
+            f"/api/v1/analyses/{analysis.id}",
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
         assert response.status_code == 404

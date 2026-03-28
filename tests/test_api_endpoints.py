@@ -388,7 +388,7 @@ class TestDBAPIEndpoints:
     def test_get_analysis_detail(self, client, test_user_token, sample_analysis):
         """Should return analysis detail."""
         response = client.get(
-            f"/api/v1/v1/analyses/{sample_analysis.id}",
+            f"/api/v1/analyses/{sample_analysis.id}",
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
         assert response.status_code == 200
@@ -427,7 +427,7 @@ class TestVideoStatusEndpoint:
         db_session.commit()
 
         response = client.get(
-            f"/api/v1/v1/videos/{video.id}/status",
+            f"/api/v1/videos/{video.id}/status",
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
         assert response.status_code == 200
@@ -440,7 +440,7 @@ class TestVideoStatusEndpoint:
     ):
         """Should return completed status with analysis_id."""
         response = client.get(
-            f"/api/v1/v1/videos/{sample_analysis.video_id}/status",
+            f"/api/v1/videos/{sample_analysis.video_id}/status",
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
         assert response.status_code == 200
@@ -467,7 +467,7 @@ class TestVideoStatusEndpoint:
         db_session.commit()
 
         response = client.get(
-            f"/api/v1/v1/videos/{video.id}/status",
+            f"/api/v1/videos/{video.id}/status",
             headers={"Authorization": f"Bearer {test_user_token}"},
         )
         assert response.status_code == 404

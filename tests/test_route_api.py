@@ -346,7 +346,7 @@ class TestCreateRoute:
 class TestGetRoute:
     def test_get_route_success(self, client, sample_route):
         """Should return route detail for owned route."""
-        response = client.get(f"/api/v1/v1/routes/{sample_route.id}")
+        response = client.get(f"/api/v1/routes/{sample_route.id}")
         assert response.status_code == 200
         data = response.json()
         assert data["id"] == sample_route.id
@@ -371,7 +371,7 @@ class TestGetRoute:
         db_session.add(other_route)
         db_session.commit()
 
-        response = client.get(f"/api/v1/v1/routes/{other_route.id}")
+        response = client.get(f"/api/v1/routes/{other_route.id}")
         assert response.status_code == 404
 
 
@@ -382,7 +382,7 @@ class TestUpdateRoute:
     def test_update_route_name(self, client, sample_route):
         """Should update route name."""
         response = client.patch(
-            f"/api/v1/v1/routes/{sample_route.id}", json={"name": "Renamed Route"}
+            f"/api/v1/routes/{sample_route.id}", json={"name": "Renamed Route"}
         )
         assert response.status_code == 200
         assert response.json()["name"] == "Renamed Route"
@@ -390,7 +390,7 @@ class TestUpdateRoute:
     def test_update_route_status_to_sent(self, client, sample_route):
         """Should update status to sent."""
         response = client.patch(
-            f"/api/v1/v1/routes/{sample_route.id}", json={"status": "sent"}
+            f"/api/v1/routes/{sample_route.id}", json={"status": "sent"}
         )
         assert response.status_code == 200
         assert response.json()["status"] == "sent"
@@ -398,7 +398,7 @@ class TestUpdateRoute:
     def test_update_route_partial(self, client, sample_route):
         """Should update only the provided fields."""
         response = client.patch(
-            f"/api/v1/v1/routes/{sample_route.id}", json={"location": "Updated Crag"}
+            f"/api/v1/routes/{sample_route.id}", json={"location": "Updated Crag"}
         )
         assert response.status_code == 200
         data = response.json()
@@ -408,7 +408,7 @@ class TestUpdateRoute:
     def test_update_route_invalid_status(self, client, sample_route):
         """Should reject invalid status value."""
         response = client.patch(
-            f"/api/v1/v1/routes/{sample_route.id}", json={"status": "climbed"}
+            f"/api/v1/routes/{sample_route.id}", json={"status": "climbed"}
         )
         assert response.status_code == 422
 
@@ -424,7 +424,7 @@ class TestUpdateRoute:
 class TestDeleteRoute:
     def test_delete_route_success(self, client, db_session, sample_route):
         """Should delete route and return 204."""
-        response = client.delete(f"/api/v1/v1/routes/{sample_route.id}")
+        response = client.delete(f"/api/v1/routes/{sample_route.id}")
         assert response.status_code == 204
 
         # Verify it's gone from DB
@@ -450,5 +450,5 @@ class TestDeleteRoute:
         db_session.add(other_route)
         db_session.commit()
 
-        response = client.delete(f"/api/v1/v1/routes/{other_route.id}")
+        response = client.delete(f"/api/v1/routes/{other_route.id}")
         assert response.status_code == 404
