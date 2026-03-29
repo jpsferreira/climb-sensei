@@ -105,7 +105,6 @@ endblock %} {% block extra_css %}
   /* ── History plot (video-synced, single metric) ─── */
   .plot-section {
     margin-bottom: 20px;
-    display: none;
   }
   .plot-toggle-row {
     display: flex;
@@ -198,10 +197,34 @@ endblock %} {% block extra_css %}
     color: var(--accent);
   }
   .plot-inner {
+    display: block;
+  }
+  .plot-inner.collapsed {
     display: none;
   }
-  .plot-inner.visible {
-    display: block;
+
+  /* ── Insight items ──────────────────────────────── */
+  .insight-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    color: var(--text-secondary);
+  }
+  .insight-icon {
+    flex-shrink: 0;
+    font-size: 0.9rem;
+    margin-top: 2px;
+  }
+  .insight-icon.positive {
+    color: var(--success);
+  }
+  .insight-icon.negative {
+    color: var(--error);
+  }
+  .insight-icon.neutral {
+    color: var(--text-muted);
   }
 
   /* ── Metrics grid ────────────────────────────────── */
@@ -427,22 +450,60 @@ endblock %} {% block extra_css %}
   </div>
 </div>
 
+<!-- Quality banner (shown if issues detected) -->
+<div
+  id="quality-banner"
+  class="fade-up fade-up-delay-1"
+  style="
+    display: none;
+    background: var(--warning-bg);
+    border: 1px solid rgba(245, 158, 11, 0.25);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    margin-bottom: 16px;
+    font-size: 0.82rem;
+    color: var(--accent-bright);
+    font-family: var(--font-display);
+  "
+>
+  <span id="quality-banner-text"></span>
+</div>
+
+<!-- Insights card (key takeaways) -->
+<div
+  id="insights-card"
+  class="fade-up fade-up-delay-2"
+  style="
+    display: none;
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 16px 20px;
+    margin-bottom: 20px;
+  "
+>
+  <div
+    style="
+      font-family: var(--font-display);
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    "
+  >
+    Key Insights
+  </div>
+  <div
+    id="insights-list"
+    style="display: flex; flex-direction: column; gap: 8px"
+  ></div>
+</div>
+
 <div class="plot-section fade-up fade-up-delay-2" id="plot-section">
   <div class="plot-toggle-row">
     <div class="section-label" style="margin: 0">Live Metrics</div>
-    <button class="plot-toggle-btn" id="plot-toggle-btn" onclick="togglePlot()">
-      <svg
-        width="14"
-        height="14"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-      >
-        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-      </svg>
-      Show
-    </button>
   </div>
   <div class="plot-inner" id="plot-inner">
     <div class="plot-metric-chips" id="plot-chips">
@@ -532,7 +593,7 @@ endblock %} {% block extra_css %}
   let plotCtx = null;
   let plotCanvas = null;
   let historyFps = 30;
-  let plotVisible = false;
+  let plotVisible = true;
 
   function initPlots(history, fps) {
     const section = document.getElementById('plot-section');
@@ -554,7 +615,6 @@ endblock %} {% block extra_css %}
     }
 
     if (availablePlots.length === 0) return;
-    section.style.display = 'block';
 
     // Build chips
     const chipsEl = document.getElementById('plot-chips');
@@ -592,23 +652,15 @@ endblock %} {% block extra_css %}
     updatePlot(video ? video.currentTime : 0);
   }
 
-  function togglePlot() {
-    plotVisible = !plotVisible;
-    const inner = document.getElementById('plot-inner');
-    const btn = document.getElementById('plot-toggle-btn');
-    inner.classList.toggle('visible', plotVisible);
-    btn.classList.toggle('active', plotVisible);
-    btn.querySelector('svg').nextSibling.textContent = plotVisible ? ' Hide' : ' Show';
-    if (plotVisible && activeMetricKey) {
-      // Resize canvas on first show
-      const dpr = window.devicePixelRatio || 1;
-      plotCanvas.width = plotCanvas.offsetWidth * dpr;
-      plotCanvas.height = 100 * dpr;
-      plotCtx = plotCanvas.getContext('2d');
-      plotCtx.scale(dpr, dpr);
-      const video = document.getElementById('attempt-video');
-      updatePlot(video ? video.currentTime : 0);
-    }
+  function resizePlotCanvas() {
+    if (!plotCanvas) return;
+    const dpr = window.devicePixelRatio || 1;
+    plotCanvas.width = plotCanvas.offsetWidth * dpr;
+    plotCanvas.height = 100 * dpr;
+    plotCtx = plotCanvas.getContext('2d');
+    plotCtx.scale(dpr, dpr);
+    const video = document.getElementById('attempt-video');
+    updatePlot(video ? video.currentTime : 0);
   }
 
   function drawPlot(ctx, canvas, data, color, frameIndex) {
@@ -806,6 +858,75 @@ endblock %} {% block extra_css %}
     container.innerHTML = html;
   }
 
+  function renderInsights(attempt) {
+    const insights = [];
+    const deltas = attempt.deltas || {};
+
+    // Movement economy insight
+    if (attempt.avg_movement_economy != null) {
+      const econ = attempt.avg_movement_economy;
+      if (econ > 0.7) insights.push({ icon: 'positive', text: `Strong movement economy (${econ.toFixed(2)}) — efficient path to the top` });
+      else if (econ < 0.3) insights.push({ icon: 'negative', text: `Low movement economy (${econ.toFixed(2)}) — try reducing lateral movement` });
+    }
+
+    // Fatigue insight
+    if (attempt.fatigue_score != null) {
+      const f = attempt.fatigue_score;
+      if (f < 0.15) insights.push({ icon: 'positive', text: 'Minimal fatigue — consistent movement quality throughout' });
+      else if (f > 0.5) insights.push({ icon: 'negative', text: `High fatigue (${f.toFixed(2)}) — movement quality degraded significantly in the last third` });
+    }
+
+    // Sway insight
+    if (attempt.avg_sway != null) {
+      if (attempt.avg_sway < 0.02) insights.push({ icon: 'positive', text: 'Very stable — minimal lateral sway' });
+      else if (attempt.avg_sway > 0.08) insights.push({ icon: 'negative', text: 'High lateral sway — focus on body positioning and hip engagement' });
+    }
+
+    // Delta-based insights (improvement/regression vs previous)
+    if (deltas.avg_velocity != null && deltas.avg_velocity > 0.01) {
+      insights.push({ icon: 'positive', text: `Velocity improved by ${deltas.avg_velocity.toFixed(3)} vs previous attempt` });
+    }
+    if (deltas.avg_sway != null && deltas.avg_sway < -0.005) {
+      insights.push({ icon: 'positive', text: `Sway reduced by ${Math.abs(deltas.avg_sway).toFixed(3)} — more stable` });
+    }
+    if (deltas.fatigue_score != null && deltas.fatigue_score < -0.05) {
+      insights.push({ icon: 'positive', text: `Fatigue improved — less degradation than previous attempt` });
+    }
+
+    if (insights.length === 0) return;
+
+    const card = document.getElementById('insights-card');
+    const list = document.getElementById('insights-list');
+    card.style.display = 'block';
+
+    list.innerHTML = insights.map(i => `
+      <div class="insight-item">
+        <span class="insight-icon ${i.icon}">${i.icon === 'positive' ? '&#9650;' : i.icon === 'negative' ? '&#9660;' : '&#8212;'}</span>
+        <span>${i.text}</span>
+      </div>
+    `).join('');
+  }
+
+  function renderQualityBanner(attempt) {
+    const issues = [];
+    const tq = attempt.tracking_quality;
+    if (tq) {
+      if (tq.detection_rate < 70) issues.push(`Low pose detection (${tq.detection_rate}%)`);
+      if (tq.quality_level === 'poor') issues.push('Poor tracking quality');
+      if (tq.tracking_loss_events > 5) issues.push(`${tq.tracking_loss_events} tracking loss events`);
+    }
+    const vq = attempt.video_quality;
+    if (vq && !vq.is_valid) {
+      issues.push('Video quality issues detected');
+    }
+    if (issues.length > 0) {
+      const banner = document.getElementById('quality-banner');
+      document.getElementById('quality-banner-text').textContent =
+        '\u26A0 ' + issues.join(' \u00B7 ');
+      banner.style.display = 'block';
+    }
+  }
+
   function renderTrackingQuality(attempt) {
     const tq = attempt.tracking_quality;
     const section = document.getElementById('tracking-section');
@@ -922,6 +1043,8 @@ endblock %} {% block extra_css %}
     const attempt = await res.json();
     renderHeader(attempt);
     renderVideo(attempt);
+    renderQualityBanner(attempt);
+    renderInsights(attempt);
     renderMetrics(attempt);
     renderTrackingQuality(attempt);
 
