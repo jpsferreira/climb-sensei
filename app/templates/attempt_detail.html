@@ -199,9 +199,6 @@ endblock %} {% block extra_css %}
   .plot-inner {
     display: block;
   }
-  .plot-inner.collapsed {
-    display: none;
-  }
 
   /* ── Insight items ──────────────────────────────── */
   .insight-item {
@@ -597,7 +594,10 @@ endblock %} {% block extra_css %}
 
   function initPlots(history, fps) {
     const section = document.getElementById('plot-section');
-    if (!history || Object.keys(history).length === 0) return;
+    if (!history || Object.keys(history).length === 0) {
+      section.style.display = 'none';
+      return;
+    }
 
     historyFps = fps || 30;
     activePlotData = {};
@@ -614,7 +614,10 @@ endblock %} {% block extra_css %}
       availablePlots.push(def);
     }
 
-    if (availablePlots.length === 0) return;
+    if (availablePlots.length === 0) {
+      section.style.display = 'none';
+      return;
+    }
 
     // Build chips
     const chipsEl = document.getElementById('plot-chips');
@@ -636,6 +639,9 @@ endblock %} {% block extra_css %}
 
     // Default to first available (Movement Economy if present)
     selectMetric(availablePlots[0].key);
+
+    // Redraw on window resize so canvas stays sharp
+    window.addEventListener('resize', resizePlotCanvas);
   }
 
   function selectMetric(key) {
@@ -911,9 +917,13 @@ endblock %} {% block extra_css %}
     const issues = [];
     const tq = attempt.tracking_quality;
     if (tq) {
-      if (tq.detection_rate < 70) issues.push(`Low pose detection (${tq.detection_rate}%)`);
+      if (Number.isFinite(tq.detection_rate) && tq.detection_rate < 70) {
+        issues.push(`Low pose detection (${tq.detection_rate}%)`);
+      }
       if (tq.quality_level === 'poor') issues.push('Poor tracking quality');
-      if (tq.tracking_loss_events > 5) issues.push(`${tq.tracking_loss_events} tracking loss events`);
+      if (Number.isFinite(tq.tracking_loss_events) && tq.tracking_loss_events > 5) {
+        issues.push(`${tq.tracking_loss_events} tracking loss events`);
+      }
     }
     const vq = attempt.video_quality;
     if (vq && !vq.is_valid) {
